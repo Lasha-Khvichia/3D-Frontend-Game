@@ -1,0 +1,53 @@
+.overlay {
+  position: absolute;
+  inset: 0;
+  color: #e6e9f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.overlay__panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  background: rgb(13 15 22 / 72%);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+}
+
+.overlay__stats {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 16px;
+  margin: 0;
+}
+
+.overlay__stats dt {
+  opacity: 0.55;
+}
+
+.overlay__stats dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.overlay__button {
+  padding: 5px 10px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.overlay__button:hover {
+  background: rgb(255 255 255 / 12%);
+}

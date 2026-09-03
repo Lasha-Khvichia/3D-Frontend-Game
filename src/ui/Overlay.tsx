@@ -1,0 +1,26 @@
+import { StatsPanel } from "./StatsPanel";
+import { sendCommand } from "./bridge";
+import "./overlay.css";
+
+/**
+ * DOM layer above the canvas. It is pointer-transparent by default so clicks
+ * reach the game; each interactive panel opts back in with pointer-events.
+ */
+export function Overlay() {
+  return (
+    <div className="overlay">
+      <div className="overlay__panel">
+        <StatsPanel />
+        {import.meta.env.DEV && (
+          <button
+            type="button"
+            className="overlay__button"
+            onClick={() => sendCommand("toggle-inspector")}
+          >
+            Inspector
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
