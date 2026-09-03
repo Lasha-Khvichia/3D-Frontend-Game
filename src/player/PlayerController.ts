@@ -21,6 +21,19 @@ const GROUND_EPSILON = 1e-4;
  */
 const COYOTE_SECONDS = 0.12;
 
+const JUMP_KEY = "Space";
+/**
+ * Upward speed at take-off. With gravity at -22 this peaks at 1.11 m, a little
+ * over knee height on a 1.8 m body, and lands again after about 0.64 s.
+ */
+const JUMP_SPEED = 7;
+/**
+ * How long a jump press is remembered. Pressing Space just before landing then
+ * jumps on touchdown instead of being thrown away, which is the difference
+ * between a jump that feels responsive and one that feels like it missed.
+ */
+const JUMP_BUFFER_SECONDS = 0.12;
+
 /**
  * Walks the bean and keeps the first-person camera in its head.
  *
@@ -37,6 +50,7 @@ export class PlayerController {
   private verticalSpeed = 0;
   private grounded = false;
   private groundedTimer = 0;
+  private jumpBufferTimer = 0;
   private readonly displacement = new Vector3();
 
   constructor(
@@ -56,8 +70,30 @@ export class PlayerController {
 
   update(fixedDeltaSeconds: number): void {
     this.applyLook();
+    this.applyJump(fixedDeltaSeconds);
     this.applyMovement(fixedDeltaSeconds);
     this.syncCamera();
+  }
+
+  /**
+   * Runs before movement so the take-off speed is spent on this step, and reads
+   * the grounded flag left by the previous step, which is what coyote time is
+   * there to keep honest.
+   */
+  private applyJump(seconds: number): void {
+    if (this.input.consumePress(JUMP_KEY)) {
+      this.jumpBufferTimer = JUMP_BUFFER_SECONDS;
+    } else {
+      this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - seconds);
+    }
+
+    if (this.jumpBufferTimer <= 0 || !this.grounded) return;
+
+    this.verticalSpeed = JUMP_SPEED;
+    this.jumpBufferTimer = 0;
+    // Spend the coyote grace too, or the buffered press could fire twice.
+    this.groundedTimer = 0;
+    this.grounded = false;
   }
 
   private applyLook(): void {

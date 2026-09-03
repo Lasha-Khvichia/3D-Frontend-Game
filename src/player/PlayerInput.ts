@@ -3,6 +3,9 @@ const BACK_KEYS = ["KeyS", "ArrowDown"] as const;
 const LEFT_KEYS = ["KeyA", "ArrowLeft"] as const;
 const RIGHT_KEYS = ["KeyD", "ArrowRight"] as const;
 
+/** Keys whose browser behaviour would fight the game. */
+const BROWSER_DEFAULT_KEYS = new Set(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
 /**
  * Keyboard and mouse for the player.
  *
@@ -18,6 +21,10 @@ export class PlayerInput {
   private pointerLockWanted = true;
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
+    if (isTyping(event.target)) return;
+    // Space scrolls the page and re-clicks whatever button has focus; arrows
+    // scroll too. The game owns these keys.
+    if (BROWSER_DEFAULT_KEYS.has(event.code)) event.preventDefault();
     if (!this.heldKeys.has(event.code)) this.pressedKeys.add(event.code);
     this.heldKeys.add(event.code);
   };
@@ -67,6 +74,11 @@ export class PlayerInput {
     return this.look;
   }
 
+  /** True for as long as the key is down. */
+  isHeld(code: string): boolean {
+    return this.heldKeys.has(code);
+  }
+
   /** True once per physical key press, not once per step while it is held. */
   consumePress(code: string): boolean {
     return this.pressedKeys.delete(code);
@@ -97,4 +109,15 @@ export class PlayerInput {
     const back = negative.some((code) => this.heldKeys.has(code)) ? 1 : 0;
     return forward - back;
   }
+}
+
+/** Keeps the game's keys out of a text field, for when the UI grows one. */
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement
+  );
 }
