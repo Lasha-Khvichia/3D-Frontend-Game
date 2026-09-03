@@ -79,6 +79,16 @@ export class SunAndMoon {
     return this.towardMoon.y;
   }
 
+  /** Compass bearing of the sun in radians, 0 north, clockwise. */
+  get sunBearing(): number {
+    return Math.atan2(this.towardSun.x, this.towardSun.z);
+  }
+
+  /** Compass bearing of the moon in radians, 0 north, clockwise. */
+  get moonBearing(): number {
+    return Math.atan2(this.towardMoon.x, this.towardMoon.z);
+  }
+
   /** How much of the sun is up, 0 to 1, eased across the horizon. */
   get sunAboveHorizon(): number {
     return this.sunUp;

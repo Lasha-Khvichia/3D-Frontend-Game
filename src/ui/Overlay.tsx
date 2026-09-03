@@ -1,4 +1,5 @@
 import { StatsPanel } from "./StatsPanel";
+import { MiniMap } from "./MiniMap";
 import { sendCommand } from "./bridge";
 import "./overlay.css";
 
@@ -15,12 +16,17 @@ export function Overlay() {
           <button
             type="button"
             className="overlay__button"
-            onClick={() => sendCommand("toggle-inspector")}
+            onClick={(event) => {
+              sendCommand("toggle-inspector");
+              // Leaving focus here would let Space press it again.
+              event.currentTarget.blur();
+            }}
           >
             Inspector
           </button>
         )}
       </div>
+      <MiniMap />
     </div>
   );
 }

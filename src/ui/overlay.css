@@ -51,3 +51,12 @@
 .overlay__button:hover {
   background: rgb(255 255 255 / 12%);
 }
+
+/* Sits exactly over the Babylon viewport in MiniMap.ts. Change both together. */
+.overlay__minimap {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: block;
+  pointer-events: none;
+}

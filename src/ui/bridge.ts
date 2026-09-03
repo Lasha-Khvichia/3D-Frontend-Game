@@ -16,6 +16,8 @@ export type GameStats = {
   frameTimeMs: number;
   /** In-game hour, 0 to 24. */
   timeOfDayHours: number;
+  /** The mini-map only exists in first person. */
+  firstPerson: boolean;
 };
 
 export type OverlayCommand = "toggle-inspector";
@@ -26,6 +28,7 @@ let stats: GameStats = {
   drawCalls: 0,
   frameTimeMs: 0,
   timeOfDayHours: 0,
+  firstPerson: true,
 };
 
 const statsListeners = new Set<() => void>();
@@ -58,4 +61,19 @@ export function subscribeToCommands(listener: (command: OverlayCommand) => void)
   return () => {
     commandListeners.delete(listener);
   };
+}
+
+/**
+ * React owns the mini-map's decoration canvas; the render loop paints it.
+ * Kept out of React state on purpose: it is written every frame, and putting it
+ * in state would re-render the overlay 170 times a second.
+ */
+let miniMapCanvas: HTMLCanvasElement | null = null;
+
+export function setMiniMapCanvas(canvas: HTMLCanvasElement | null): void {
+  miniMapCanvas = canvas;
+}
+
+export function readMiniMapCanvas(): HTMLCanvasElement | null {
+  return miniMapCanvas;
 }

@@ -61,6 +61,16 @@ export class DayNightCycle {
     return this.sunAndMoon.moonHeight;
   }
 
+  /** Compass bearing of the sun in radians, 0 north, clockwise. */
+  get sunBearing(): number {
+    return this.sunAndMoon.sunBearing;
+  }
+
+  /** Compass bearing of the moon in radians, 0 north, clockwise. */
+  get moonBearing(): number {
+    return this.sunAndMoon.moonBearing;
+  }
+
   /** Skip whole days forward to watch the moon drift away from the sun. */
   skipDays(days: number): void {
     this.clock.skipDays(days);

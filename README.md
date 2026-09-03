@@ -130,6 +130,10 @@ body, pitch only tilts the view.
 Movement runs on the fixed 60 Hz step, so walking speed does not change with
 frame rate. Walking two directions at once is not faster than one.
 
+Jumping peaks at 1.11 m and lands after about 0.64 s. Two forgiveness windows
+make it feel right: 0.12 s of coyote time after leaving the ground, and 0.12 s
+of input buffering so a press just before landing still jumps.
+
 Collisions use Babylon's built-in solver, not a physics engine. The ground and
 four invisible walls at the platform edge are solid; the compass is not. Without
 those walls you would walk off and fall forever.
@@ -142,6 +146,52 @@ player upward and walls stop working.
 Speeds and sizes live in `src/player/PlayerController.ts` and
 `src/player/createPlayerBean.ts`.
 
+## Mini-map
+
+Bottom-left, 180 px square, **first person only**. Pressing `C` for the orbit
+camera removes it entirely.
+
+It is a real second camera, not a drawing, so it shows real geometry and real
+lighting. It has **two poses**:
+
+| Pose     | Where                                   | Shows                          |
+| -------- | --------------------------------------- | ------------------------------ |
+| Default  | 14 m behind you, 9 m up, pitched 33 deg | Your back and the ground ahead |
+| Hold `T` | 90 m straight overhead                  | 90 m of ground, flat           |
+
+Releasing `T` slides it back. The slide takes 0.35 s, eased at both ends, and
+runs on the fixed step so it takes the same time at any frame rate.
+
+Pitch is **derived**, not configured: it is whatever angle points the camera at
+you from wherever the pose puts it. Move the pose and the aim follows.
+
+Orthographic in both poses. A map wants a constant scale, and it means the two
+poses blend by sliding numbers with no change of projection part way through.
+Zooming out overhead is done by widening the orthographic box, not by climbing.
+
+The map is **player-up** — it rotates so the way you face is always screen up.
+That is one line: the camera's yaw is your yaw, which both keeps it behind you
+in the chase pose and, overhead, points your heading up the screen.
+
+On top sits a small 2D canvas carrying the frame, the compass letters and the
+sun and moon markers. React owns that element and nothing else; the render loop
+paints it directly. Putting it in React state would re-render the overlay at
+frame rate.
+
+**A camera looking straight down needs `updateUpVectorFromRotation = true`.**
+Babylon defaults it to `false`, which builds the view matrix against the fixed
+world up of `(0, 1, 0)`. Straight down makes that parallel to the view
+direction, so which way is up on the map falls out of floating point noise: the
+map drifts by tens of degrees and flips as you turn.
+
+The compass ring squashes by `sin(pitch)`. A tilted camera foreshortens the
+ground into an ellipse, and a flat circle of letters would not line up with it.
+Overhead the squash is 1 and the ring is round.
+
+**Cost: one extra scene render per frame.** Fine now, worth revisiting once the
+world is full. The map's pixel size lives in `MINI_MAP_SIZE_CSS` and must match
+`.overlay__minimap` in `overlay.css`.
+
 ## Layout
 
 ```
@@ -149,6 +199,7 @@ src/core/      engine, fixed-step loop, stats, inspector
 src/scenes/    scene factories
 src/world/     ground, compass, clock, day/night cycle, sun and moon
 src/player/    the bean, its camera, controls and collisions
+src/minimap/   the top-down camera and its overlay decorations
 src/systems/   gameplay systems (empty)
 src/ui/        React overlay + the bridge
 src/assets/    glTF / KTX2 assets (empty)
