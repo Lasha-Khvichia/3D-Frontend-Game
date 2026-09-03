@@ -1,6 +1,6 @@
 import "./styles/base.css";
 import { GameRuntime } from "./core/GameRuntime";
-import { createEmptyScene } from "./scenes/createEmptyScene";
+import { createMainScene } from "./scenes/createMainScene";
 import { mountOverlay } from "./ui/mountOverlay";
 
 const canvas = document.getElementById("render-canvas");
@@ -16,7 +16,7 @@ if (!overlayRoot) {
 mountOverlay(overlayRoot);
 
 const runtime = await GameRuntime.create(canvas);
-runtime.loadScene(createEmptyScene);
+runtime.loadScene(createMainScene);
 runtime.start();
 
 if (import.meta.hot) {
