@@ -2,6 +2,7 @@ import "./styles/base.css";
 import { GameRuntime } from "./core/GameRuntime";
 import { createMainScene } from "./scenes/createMainScene";
 import { mountOverlay } from "./ui/mountOverlay";
+import { DayNightCycle } from "./world/DayNightCycle";
 
 const canvas = document.getElementById("render-canvas");
 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -16,7 +17,11 @@ if (!overlayRoot) {
 mountOverlay(overlayRoot);
 
 const runtime = await GameRuntime.create(canvas);
-runtime.loadScene(createMainScene);
+const scene = runtime.loadScene(createMainScene);
+
+const dayNight = new DayNightCycle(scene);
+runtime.setSimulationStep((fixedDeltaSeconds) => dayNight.advance(fixedDeltaSeconds));
+
 runtime.start();
 
 if (import.meta.hot) {

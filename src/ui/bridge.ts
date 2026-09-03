@@ -14,11 +14,19 @@ export type GameStats = {
   fps: number;
   drawCalls: number;
   frameTimeMs: number;
+  /** In-game hour, 0 to 24. */
+  timeOfDayHours: number;
 };
 
 export type OverlayCommand = "toggle-inspector";
 
-let stats: GameStats = { backend: "unknown", fps: 0, drawCalls: 0, frameTimeMs: 0 };
+let stats: GameStats = {
+  backend: "unknown",
+  fps: 0,
+  drawCalls: 0,
+  frameTimeMs: 0,
+  timeOfDayHours: 0,
+};
 
 const statsListeners = new Set<() => void>();
 const commandListeners = new Set<(command: OverlayCommand) => void>();
