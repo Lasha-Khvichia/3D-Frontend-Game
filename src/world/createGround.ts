@@ -5,7 +5,7 @@ import type { GroundMesh } from "@babylonjs/core/Meshes/groundMesh";
 import type { Scene } from "@babylonjs/core/scene";
 
 /** One world unit is one metre. */
-export const GROUND_SIZE_METRES = 100;
+export const GROUND_SIZE_METRES = 200;
 
 /**
  * A flat ground plane at y = 0. One draw call, two triangles.
@@ -21,8 +21,11 @@ export function createGround(scene: Scene): GroundMesh {
 
   const material = new StandardMaterial("ground-material", scene);
   // Light bounces off this colour. A near-black ground reads as unlit no
-  // matter how strong the sun or moon is, so it has to start mid grey.
-  material.diffuseColor = new Color3(0.4, 0.43, 0.48);
+  // matter how strong the sun or moon is, so it has to start mid-bright.
+  // Beyond the grass patch this colour is all you see, so it has to pass for
+  // grass on its own.
+  // Grass green, at the same brightness the grey had, so night stays readable.
+  material.diffuseColor = new Color3(0.3, 0.44, 0.24);
   // Specular on a large flat plane under a hemispheric light reads as a smear.
   material.specularColor = Color3.Black();
   ground.material = material;
