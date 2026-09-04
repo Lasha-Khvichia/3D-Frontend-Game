@@ -67,6 +67,13 @@ export class PlayerController {
     this.camera = new TargetCamera("player-camera", new Vector3(0, PLAYER_EYE_HEIGHT, 0), scene);
     this.camera.minZ = 0.1;
     this.camera.maxZ = 2000;
+
+    // Required because the head bob writes rotation.z. Babylon only refreshes a
+    // camera's up vector when rotation.z CHANGES, and it bakes the yaw and pitch
+    // of that moment into it. The bob's roll settles to exactly zero in the air,
+    // so the up vector froze and every mouse movement after that rolled the
+    // horizon over. Deriving it from the rotation every frame is exact.
+    this.camera.updateUpVectorFromRotation = true;
     this.syncCamera();
   }
 

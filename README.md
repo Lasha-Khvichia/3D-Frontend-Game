@@ -284,7 +284,14 @@ sun and moon markers. React owns that element and nothing else; the render loop
 paints it directly. Putting it in React state would re-render the overlay at
 frame rate.
 
-**A camera looking straight down needs `updateUpVectorFromRotation = true`.**
+**Any camera that writes `rotation.z` needs `updateUpVectorFromRotation = true`,
+and so does any camera looking straight down.** Babylon refreshes a camera's up
+vector only when `rotation.z` _changes_, baking in the yaw and pitch of that
+moment. The head bob's roll settles to exactly zero in mid-air, which froze the
+player camera's up vector and rolled the horizon 25 degrees as soon as you
+turned. Both the player camera and the mini-map camera set this flag.
+
+**A camera looking straight down needs it too.**
 Babylon defaults it to `false`, which builds the view matrix against the fixed
 world up of `(0, 1, 0)`. Straight down makes that parallel to the view
 direction, so which way is up on the map falls out of floating point noise: the
