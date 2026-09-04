@@ -176,6 +176,48 @@ like the ground, so it dims at night and takes shadows.
 material skips the check that rebuilds its shader, and silently stops receiving
 light.
 
+## Grass
+
+A 32 m patch of 123,904 blades, about 123 per square metre and 9 cm apart, on a
+200 x 200 m platform. Blades are 5.5 cm wide, so at that spacing they overlap
+into a mat. Beyond the patch the ground colour carries it.
+
+Every blade is a **thin instance** of one 3-triangle mesh, so the whole field is
+**one draw call**. Their transforms live in a single `Float32Array`; only the
+blades that actually moved are re-uploaded, with
+`thinInstancePartialBufferUpdate`.
+
+Blades lean away from anything registered with `grass.addPusher(node)`, and
+stand back up over 0.5 s. **Pushers are opt-in.** The ground, the compass and
+the walls are never added, so the platform itself never flattens the grass.
+
+A blade's offset, yaw and height come from a hash of the **world cell** it
+stands in, not from its slot in the buffer. Walk away and back and every blade
+is exactly where it was.
+
+**The patch is a torus.** A blade's slot is its world cell modulo the patch
+width, so sliding the patch rewrites only the rows and columns that genuinely
+entered it: 8,448 blades instead of 123,904. Rebuilding all of them cost 6.7 ms,
+which is a dropped frame every metre you walk.
+
+Cost measured while running: **0.16 ms per step on average, 0.59 ms at worst**,
+against a 16.7 ms step.
+
+Pushers carry a `bottomOffset` so the grass knows when one has been lifted clear
+of it. Without that, jumping drags a flattened circle around underneath you.
+
+Two traps here:
+
+- **`thinInstance*` needs `import "@babylonjs/core/Meshes/thinInstanceMesh"`.**
+  Nothing else pulls it in, and without it the entire API is absent from `Mesh`.
+- **`a.multiplyToRef(b)` is the Hamilton product `a * b`, which applies `b`
+  first.** Composing a world-space lean with each blade's own yaw the other way
+  round rotates the lean by that yaw, and every blade falls a different way.
+
+Blades receive shadows but never cast them: the shadow frustum auto-fits around
+its casters, and 9,000 blades over 40 m would blow it up and blur the player's
+own shadow.
+
 ## Player
 
 A 1.8 m capsule with the camera in its head at 1.62 m. Yaw turns the whole

@@ -6,6 +6,8 @@ import { DayNightCycle } from "./world/DayNightCycle";
 import { attachPlayer } from "./player/attachPlayer";
 import { MiniMap } from "./minimap/MiniMap";
 import { SunGodRays } from "./world/SunGodRays";
+import { GrassField } from "./world/GrassField";
+import { PLAYER_HEIGHT } from "./player/createPlayerBean";
 import { SettingsBinder } from "./settings/SettingsBinder";
 
 const canvas = document.getElementById("render-canvas");
@@ -25,9 +27,12 @@ const scene = runtime.loadScene(createMainScene);
 
 const dayNight = new DayNightCycle(scene);
 const miniMap = new MiniMap(scene);
+const grass = new GrassField(scene);
 const player = attachPlayer(scene, canvas, miniMap.camera);
 dayNight.addShadowCaster(player.controller.bean);
 dayNight.setShadowFocus(player.controller.bean.position);
+// Only what is registered flattens the grass. The ground never does.
+grass.addPusher(player.controller.bean, PLAYER_HEIGHT / 2);
 const godRays = new SunGodRays(scene, player.controller.camera, dayNight.sunMesh);
 
 const settings = new SettingsBinder({
@@ -44,6 +49,7 @@ runtime.setSimulationStep((fixedDeltaSeconds) => {
   player.update(fixedDeltaSeconds);
   miniMap.update(fixedDeltaSeconds, player.controller.bean, player.wantsOverheadMap(), dayNight);
   godRays.update(dayNight.sunHeight);
+  grass.update(fixedDeltaSeconds, player.controller.bean.position);
 });
 
 runtime.start();
