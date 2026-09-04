@@ -21,8 +21,8 @@ export default defineConfig({
   build: {
     target: "es2022",
     sourcemap: true,
-    // The Babylon chunk is ~1.8MB raw / ~416KB gzipped and is meant to be big.
-    chunkSizeWarningLimit: 2000,
+    // The Babylon chunk is ~2.0MB raw / ~466KB gzipped and is meant to be big.
+    chunkSizeWarningLimit: 2400,
     rollupOptions: {
       output: {
         manualChunks(id: string) {

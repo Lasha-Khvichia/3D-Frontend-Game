@@ -17,6 +17,8 @@ const FAINT_COLOUR = "rgba(226, 232, 245, 0.32)";
 /**
  * A compass painted flat on the ground so you always know which way you face.
  *
+ * It is lit like the ground, so it dims at night and takes shadows.
+ *
  * The ground's UVs put u=1 at +x and v=1 at +z, and DynamicTexture uploads the
  * canvas flipped, so the top of the canvas lands on +z. North is +z, east +x.
  */
@@ -40,9 +42,12 @@ export function createCompassRose(scene: Scene): Mesh {
   material.specularColor = Color3.Black();
   // Emissive stays black so the glow layer leaves the compass alone.
   material.emissiveColor = Color3.Black();
-  // Unlit, so it stays readable at midnight when everything else goes dark.
-  material.disableLighting = true;
   mesh.material = material;
+
+  // Lit, not unlit. An unlit material cannot receive shadows, and the compass
+  // sits at the centre of the world where the player stands, so the shadow
+  // would vanish exactly where you are looking at it.
+  mesh.receiveShadows = true;
 
   mesh.freezeWorldMatrix();
   return mesh;

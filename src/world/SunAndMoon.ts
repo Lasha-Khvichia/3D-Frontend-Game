@@ -1,15 +1,24 @@
 import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { moonDirectionAt, sunDirectionAt } from "./celestialPath";
 import { createGlowLayer } from "./createGlowLayer";
 import { createMoonTexture } from "./createMoonTexture";
+import { createSunGlare, type SunGlare } from "./createSunGlare";
+import { SunShadows } from "./SunShadows";
 import { CELESTIAL_DISTANCE, createCelestialDisc, type CelestialDisc } from "./createCelestialDisc";
 import type { TimeOfDayLighting } from "./timeOfDayPalette";
+import type { ShadowQuality } from "../settings/gameSettings";
 import { clamp01, lerp, smoothStep } from "./blend";
 
-const SUN_DIAMETER = 110;
+/**
+ * 0.53 degrees across at the celestial distance, which is the sun's real
+ * angular size from Earth. It is a pinpoint on purpose: the glare and the god
+ * rays carry the effect, not the disc.
+ */
+const SUN_DIAMETER = 7.4;
 const MOON_DIAMETER = 78;
 
 /** Multiplies the palette intensity to get the sun's directional strength. */
@@ -42,7 +51,9 @@ const MOON_LIGHT_COLOUR: readonly [number, number, number] = [0.55, 0.65, 0.95];
 export class SunAndMoon {
   private readonly sunLight: DirectionalLight;
   private readonly moonLight: DirectionalLight;
+  private readonly shadows: SunShadows;
   private readonly sunDisc: CelestialDisc;
+  private readonly sunGlare: SunGlare;
   private readonly moonDisc: CelestialDisc;
   private readonly towardSun = new Vector3(0, 1, 0);
   private readonly towardMoon = new Vector3(0, 1, 0);
@@ -59,7 +70,10 @@ export class SunAndMoon {
     this.moonLight.diffuse = new Color3(...MOON_LIGHT_COLOUR);
     this.moonLight.specular = Color3.Black();
 
+    this.shadows = new SunShadows(this.sunLight);
+
     this.sunDisc = createCelestialDisc(scene, { name: "sun-disc", diameter: SUN_DIAMETER });
+    this.sunGlare = createSunGlare(scene);
     this.moonDisc = createCelestialDisc(scene, { name: "moon-disc", diameter: MOON_DIAMETER });
     // Babylon ADDS the emissive texture to the emissive colour. Black here is
     // what lets the dark maria in the texture actually read as dark.
@@ -77,6 +91,30 @@ export class SunAndMoon {
   /** Height of the moon, -1 below the platform and 1 overhead. */
   get moonHeight(): number {
     return this.towardMoon.y;
+  }
+
+  /** The starburst. Switched off with the rest of the sun effects. */
+  setGlareVisible(visible: boolean): void {
+    this.sunGlare.mesh.setEnabled(visible);
+  }
+
+  setShadowQuality(quality: ShadowQuality): void {
+    this.shadows.setQuality(quality);
+  }
+
+  /** The sun disc, which the god rays use as their emitter. */
+  get sunMesh(): CelestialDisc["mesh"] {
+    return this.sunDisc.mesh;
+  }
+
+  /** Keeps the shadow frustum centred on this point as it moves. */
+  setShadowFocus(point: Vector3): void {
+    this.shadows.setFocus(point);
+  }
+
+  /** Anything added here casts a shadow from the sun. */
+  addShadowCaster(mesh: AbstractMesh): void {
+    this.shadows.addCaster(mesh);
   }
 
   /** Compass bearing of the sun in radians, 0 north, clockwise. */
@@ -116,7 +154,10 @@ export class SunAndMoon {
     // Moonlight is real but invisible next to daylight.
     this.moonLight.intensity = MOON_LIGHT_MAX * this.moonUp * (1 - this.sunUp);
 
+    this.shadows.update(this.sunUp);
+
     this.sunDisc.mesh.position.copyFrom(this.towardSun).scaleInPlace(CELESTIAL_DISTANCE);
+    this.sunGlare.mesh.position.copyFrom(this.sunDisc.mesh.position);
     this.moonDisc.mesh.position.copyFrom(this.towardMoon).scaleInPlace(CELESTIAL_DISTANCE);
     this.paintSunDisc();
   }

@@ -30,6 +30,7 @@ export function createGround(scene: Scene): GroundMesh {
   // The ground never moves, so skip the per-frame matrix recalculation.
   // Call unfreezeWorldMatrix() before moving or resizing it, or nothing happens.
   ground.checkCollisions = true;
+  ground.receiveShadows = true;
   ground.freezeWorldMatrix();
 
   // The material is deliberately NOT frozen. A frozen material skips the check

@@ -1,4 +1,7 @@
 import type { Light } from "@babylonjs/core/Lights/light";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { AMBIENT_LIGHT_NAME } from "../scenes/createEmptyScene";
 import { publishStats } from "../ui/bridge";
@@ -6,6 +9,7 @@ import { TimeOfDay } from "./TimeOfDay";
 import { createTimeOfDayLighting, sampleTimeOfDay } from "./timeOfDayPalette";
 import { SunAndMoon } from "./SunAndMoon";
 import { applyAmbientLight } from "./ambientLight";
+import type { ShadowQuality } from "../settings/gameSettings";
 
 export type DayNightCycleOptions = {
   /** Hour the game starts at, 0 to 24. Defaults to 8. */
@@ -28,6 +32,7 @@ export class DayNightCycle {
   private readonly clock: TimeOfDay;
   private readonly lighting = createTimeOfDayLighting();
   private lastPublishedMinute = -1;
+  private clockFrozen = false;
 
   constructor(scene: Scene, options: DayNightCycleOptions = {}) {
     const ambientLight = scene.getLightByName(AMBIENT_LIGHT_NAME);
@@ -61,6 +66,21 @@ export class DayNightCycle {
     return this.sunAndMoon.moonHeight;
   }
 
+  /** The sun disc, which the god rays use as their emitter. */
+  get sunMesh(): Mesh {
+    return this.sunAndMoon.sunMesh;
+  }
+
+  /** Keeps the shadow frustum centred on this point as it moves. */
+  setShadowFocus(point: Vector3): void {
+    this.sunAndMoon.setShadowFocus(point);
+  }
+
+  /** Anything added here casts a shadow from the sun. */
+  addShadowCaster(mesh: AbstractMesh): void {
+    this.sunAndMoon.addShadowCaster(mesh);
+  }
+
   /** Compass bearing of the sun in radians, 0 north, clockwise. */
   get sunBearing(): number {
     return this.sunAndMoon.sunBearing;
@@ -78,8 +98,21 @@ export class DayNightCycle {
   }
 
   advance(fixedDeltaSeconds: number): void {
-    this.clock.advance(fixedDeltaSeconds);
+    if (!this.clockFrozen) this.clock.advance(fixedDeltaSeconds);
     this.apply();
+  }
+
+  /** Holds the sun and moon where they are without pausing the game. */
+  setClockFrozen(frozen: boolean): void {
+    this.clockFrozen = frozen;
+  }
+
+  setSunEffectsVisible(visible: boolean): void {
+    this.sunAndMoon.setGlareVisible(visible);
+  }
+
+  setShadowQuality(quality: ShadowQuality): void {
+    this.sunAndMoon.setShadowQuality(quality);
   }
 
   /** Jump to an hour. Out-of-range values wrap: 26 becomes 2. */

@@ -5,6 +5,7 @@ import { mountOverlay } from "./ui/mountOverlay";
 import { DayNightCycle } from "./world/DayNightCycle";
 import { attachPlayer } from "./player/attachPlayer";
 import { MiniMap } from "./minimap/MiniMap";
+import { SunGodRays } from "./world/SunGodRays";
 
 const canvas = document.getElementById("render-canvas");
 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -24,12 +25,16 @@ const scene = runtime.loadScene(createMainScene);
 const dayNight = new DayNightCycle(scene);
 const miniMap = new MiniMap(scene);
 const player = attachPlayer(scene, canvas, miniMap.camera);
+dayNight.addShadowCaster(player.controller.bean);
+dayNight.setShadowFocus(player.controller.bean.position);
+const godRays = new SunGodRays(scene, player.controller.camera, dayNight.sunMesh);
 
 // setSimulationStep takes one function, so every system is composed here.
 runtime.setSimulationStep((fixedDeltaSeconds) => {
   dayNight.advance(fixedDeltaSeconds);
   player.update(fixedDeltaSeconds);
   miniMap.update(fixedDeltaSeconds, player.controller.bean, player.wantsOverheadMap(), dayNight);
+  godRays.update(dayNight.sunHeight);
 });
 
 runtime.start();
