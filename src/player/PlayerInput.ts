@@ -2,6 +2,7 @@ const FORWARD_KEYS = ["KeyW", "ArrowUp"] as const;
 const BACK_KEYS = ["KeyS", "ArrowDown"] as const;
 const LEFT_KEYS = ["KeyA", "ArrowLeft"] as const;
 const RIGHT_KEYS = ["KeyD", "ArrowRight"] as const;
+const RUN_KEYS = ["ShiftLeft", "ShiftRight"] as const;
 
 /** Keys whose browser behaviour would fight the game. */
 const BROWSER_DEFAULT_KEYS = new Set(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
@@ -44,8 +45,15 @@ export class PlayerInput {
   };
 
   private readonly handleCanvasClick = (): void => {
-    if (this.pointerLockWanted) void this.canvas.requestPointerLock();
+    this.requestPointerLock();
   };
+
+  private readonly handlePointerLockChange = (): void => {
+    this.onPointerLockChange?.(this.isPointerLocked);
+  };
+
+  /** Fires whenever the browser grabs or releases the mouse. */
+  onPointerLockChange: ((locked: boolean) => void) | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener("keydown", this.handleKeyDown);
@@ -53,6 +61,16 @@ export class PlayerInput {
     window.addEventListener("blur", this.handleBlur);
     window.addEventListener("pointermove", this.handlePointerMove);
     canvas.addEventListener("click", this.handleCanvasClick);
+    document.addEventListener("pointerlockchange", this.handlePointerLockChange);
+  }
+
+  get isPointerLocked(): boolean {
+    return document.pointerLockElement === this.canvas;
+  }
+
+  /** Must be called inside a real click, or the browser refuses the lock. */
+  requestPointerLock(): void {
+    if (this.pointerLockWanted) void this.canvas.requestPointerLock();
   }
 
   /** 1 forward, -1 back. */
@@ -72,6 +90,11 @@ export class PlayerInput {
     this.pendingLookX = 0;
     this.pendingLookY = 0;
     return this.look;
+  }
+
+  /** True while either Shift is held. */
+  get isRunning(): boolean {
+    return RUN_KEYS.some((code) => this.heldKeys.has(code));
   }
 
   /** True for as long as the key is down. */
@@ -102,6 +125,7 @@ export class PlayerInput {
     window.removeEventListener("blur", this.handleBlur);
     window.removeEventListener("pointermove", this.handlePointerMove);
     this.canvas.removeEventListener("click", this.handleCanvasClick);
+    document.removeEventListener("pointerlockchange", this.handlePointerLockChange);
   }
 
   private axis(positive: readonly string[], negative: readonly string[]): number {

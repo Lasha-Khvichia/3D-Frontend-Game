@@ -4,8 +4,11 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { createPlayerBean, PLAYER_EYE_HEIGHT, PLAYER_HEIGHT } from "./createPlayerBean";
 import type { PlayerInput } from "./PlayerInput";
+import { HeadBob } from "./HeadBob";
 
 const WALK_SPEED = 4.5;
+/** Holding Shift. About 1.8x walking, roughly a real sprint. */
+const RUN_SPEED = 8;
 const GRAVITY = -22;
 /** Radians of turn per pixel of mouse movement. */
 const LOOK_SENSITIVITY = 0.0022;
@@ -52,6 +55,9 @@ export class PlayerController {
   private groundedTimer = 0;
   private jumpBufferTimer = 0;
   private readonly displacement = new Vector3();
+  private readonly headBob = new HeadBob();
+  private sensitivityScale = 1;
+  private invertLook = false;
 
   constructor(
     scene: Scene,
@@ -62,6 +68,19 @@ export class PlayerController {
     this.camera.minZ = 0.1;
     this.camera.maxZ = 2000;
     this.syncCamera();
+  }
+
+  /** Multiplies the base look speed. 1 is the built-in feel. */
+  setLookSensitivity(scale: number): void {
+    this.sensitivityScale = Math.max(0.05, scale);
+  }
+
+  setInvertLook(invert: boolean): void {
+    this.invertLook = invert;
+  }
+
+  setHeadBobStrength(strength: number): void {
+    this.headBob.setStrength(strength);
   }
 
   get isGrounded(): boolean {
@@ -98,8 +117,10 @@ export class PlayerController {
 
   private applyLook(): void {
     const look = this.input.takeLook();
-    this.yaw += look.x * LOOK_SENSITIVITY;
-    this.pitch = Math.min(MAX_PITCH, Math.max(-MAX_PITCH, this.pitch + look.y * LOOK_SENSITIVITY));
+    const speed = LOOK_SENSITIVITY * this.sensitivityScale;
+    const vertical = this.invertLook ? -look.y : look.y;
+    this.yaw += look.x * speed;
+    this.pitch = Math.min(MAX_PITCH, Math.max(-MAX_PITCH, this.pitch + vertical * speed));
     this.bean.rotation.y = this.yaw;
   }
 
@@ -120,12 +141,14 @@ export class PlayerController {
       moveZ /= length;
     }
 
+    const groundSpeed = this.input.isRunning ? RUN_SPEED : WALK_SPEED;
+
     this.verticalSpeed += GRAVITY * seconds;
 
     this.displacement.set(
-      moveX * WALK_SPEED * seconds,
+      moveX * groundSpeed * seconds,
       this.verticalSpeed * seconds,
-      moveZ * WALK_SPEED * seconds,
+      moveZ * groundSpeed * seconds,
     );
 
     // moveWithCollisions starts from the world matrix, not from .position. The
@@ -133,7 +156,9 @@ export class PlayerController {
     // frame stale and the collision solver works from the wrong place.
     this.bean.computeWorldMatrix(true);
 
+    const beforeX = this.bean.position.x;
     const beforeY = this.bean.position.y;
+    const beforeZ = this.bean.position.z;
     this.bean.moveWithCollisions(this.displacement);
 
     // Falling freely, the actual drop equals the intended one. Anything less
@@ -149,14 +174,22 @@ export class PlayerController {
       this.groundedTimer = Math.max(0, this.groundedTimer - seconds);
     }
     this.grounded = this.groundedTimer > 0;
+
+    // Distance actually covered, not distance asked for: walking into a wall
+    // must stop the bob rather than keep it cycling on the spot.
+    const coveredX = this.bean.position.x - beforeX;
+    const coveredZ = this.bean.position.z - beforeZ;
+    this.headBob.advance(seconds, Math.hypot(coveredX, coveredZ), this.grounded);
   }
 
   private syncCamera(): void {
+    // Sway is sideways in the body's own frame, so it rides the right vector.
+    const sway = this.headBob.lateralOffset;
     this.camera.position.set(
-      this.bean.position.x,
-      this.bean.position.y + EYE_OFFSET,
-      this.bean.position.z,
+      this.bean.position.x + Math.cos(this.yaw) * sway,
+      this.bean.position.y + EYE_OFFSET + this.headBob.verticalOffset,
+      this.bean.position.z - Math.sin(this.yaw) * sway,
     );
-    this.camera.rotation.set(this.pitch, this.yaw, 0);
+    this.camera.rotation.set(this.pitch, this.yaw, this.headBob.roll);
   }
 }
