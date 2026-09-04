@@ -10,7 +10,7 @@ import { readMiniMapCanvas } from "../ui/bridge";
 import type { DayNightCycle } from "../world/DayNightCycle";
 
 /** Side of the map in CSS pixels. Must match `.overlay__minimap` in overlay.css. */
-export const MINI_MAP_SIZE_CSS = 180;
+export const MINI_MAP_SIZE_CSS = 220;
 /** Gap from the bottom-left corner of the screen, in CSS pixels. */
 const MINI_MAP_MARGIN_CSS = 16;
 
