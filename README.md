@@ -13,6 +13,38 @@ and never touches the render loop.
 | `C`                       | Swap between the player's eyes and the orbit camera |
 | `Esc`                     | Release the mouse                                   |
 
+## Pause and settings
+
+**The game is paused whenever the browser does not have the mouse.** Escape
+releases it in every browser and cannot be intercepted, so the key players press
+anyway is the one that works. Resume, or a click anywhere on the world, takes it
+back.
+
+Pausing freezes the simulation and keeps rendering, so the world stays on screen
+behind the menu. The fixed-step accumulator is reset on pause, or the time spent
+in the menu would replay as a burst of steps on resume.
+
+There is no pause in the orbit view (`C`), because the mouse is free there by
+design.
+
+| Setting              | Effect                                                   |
+| -------------------- | -------------------------------------------------------- |
+| Field of view        | 55 to 100 degrees, vertical                              |
+| Mouse sensitivity    | 0.25x to 3x                                              |
+| Head bob             | 0 to 100 percent of the bounce                           |
+| Invert vertical look | flips the mouse                                          |
+| Time of day          | jump the clock, or freeze it                             |
+| Quality              | low / medium / high, sets the three below                |
+| Render resolution    | 50 to 100 percent. **50% draws a quarter of the pixels** |
+| Sun rays and glare   | the most expensive thing on screen                       |
+| Shadows              | off / low / high                                         |
+
+Settings persist in `localStorage` and are merged onto the defaults on load, so
+a save from an older build still works. Changing any graphics value by hand
+drops the preset to "custom".
+
+The store is one-way: the menu writes, the game reads, nothing writes back.
+
 ## Commands
 
 | Command             | What it does                                 |
@@ -100,6 +132,28 @@ the moon's `emissiveColor` must stay black or the dark patches wash out.
 The sun disc is deliberately yellow, not white. Its halo is added on top of a
 blue sky, so a white sun bleeds blue.
 
+## Sun glare and god rays
+
+The sun disc is **0.53 degrees across, the real angular size of the sun from
+Earth**. It is a pinpoint on purpose. Two effects carry the drama instead:
+
+- **Starburst glare.** A screen-facing plane with four long spikes and four
+  short ones, painted procedurally and blended additively, so it behaves like
+  light hitting a lens rather than a decal in the sky. Because it billboards,
+  the spikes stay slim and screen-aligned however you turn. One draw call.
+- **God rays.** `VolumetricLightScatteringPostProcess` with the sun disc as its
+  emitter. Everything else renders black into that pass, so the platform edge
+  and the player genuinely cut the shafts. That occlusion is what separates it
+  from a painted effect.
+
+The god rays are **detached from the camera whenever the sun is below the
+horizon**, removing the pass rather than running it for nothing. They are
+attached to the player camera only, so the orbit view and the mini-map never
+pay for them.
+
+Tuning lives in `createSunGlare.ts` (spike count, reach, width) and
+`SunGodRays.ts` (exposure, decay, weight, density, samples).
+
 ## Night lighting
 
 Three numbers decide how dark night is. All are named constants:
@@ -115,8 +169,8 @@ reads as unlit no matter how strong the light is.
 
 ## Compass
 
-A compass is painted flat on the ground: **north is +z, east is +x**. It is
-unlit on purpose, so it stays readable at midnight.
+A compass is painted flat on the ground: **north is +z, east is +x**. It is lit
+like the ground, so it dims at night and takes shadows.
 
 **Do not freeze a material while the light count can still change.** A frozen
 material skips the check that rebuilds its shader, and silently stops receiving
@@ -130,9 +184,32 @@ body, pitch only tilts the view.
 Movement runs on the fixed 60 Hz step, so walking speed does not change with
 frame rate. Walking two directions at once is not faster than one.
 
+Walk 4.5 m/s, run 8 m/s on Shift.
+
 Jumping peaks at 1.11 m and lands after about 0.64 s. Two forgiveness windows
 make it feel right: 0.12 s of coyote time after leaving the ground, and 0.12 s
 of input buffering so a press just before landing still jumps.
+
+## Head bob
+
+Three motions layered, in `src/player/HeadBob.ts`:
+
+|                                  | Walk     | Run      |
+| -------------------------------- | -------- | -------- |
+| Rise and fall, once per footstep | 8.5 cm   | 15.1 cm  |
+| Sway, once per stride            | 5.4 cm   | 9.6 cm   |
+| Roll, with the sway              | 0.57 deg | 1.01 deg |
+| Footsteps per second             | 2.0      | 2.8      |
+
+Amplitudes are tied to **speed**, not to a walk/run switch, so the change
+between the two is a slide rather than a jump.
+
+The phase advances with **distance actually covered**, not with time. Walk into
+a wall and the bob stops instead of cycling on the spot. It also fades out in
+the air and back in on landing, over 0.15 s.
+
+Only the camera bobs. The bean itself is the collider and stays steady, so
+nothing about collisions changes.
 
 Collisions use Babylon's built-in solver, not a physics engine. The ground and
 four invisible walls at the platform edge are solid; the compass is not. Without
@@ -145,6 +222,35 @@ player upward and walls stop working.
 
 Speeds and sizes live in `src/player/PlayerController.ts` and
 `src/player/createPlayerBean.ts`.
+
+## Shadows
+
+Cast by the sun only, onto the ground and the compass. The player bean is the
+caster; add more with `dayNight.addShadowCaster(mesh)`.
+
+The shadow map is switched **off while the sun is below the horizon**. It is a
+whole extra render of every caster, and nothing is lit by the sun then anyway.
+
+Four traps, all of which fail silently:
+
+- **`shadowGenerator` does not import its own scene component.** Without
+  `import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent"` the
+  shadow maps are never rendered. No error, no warning, no shadow.
+- **An unlit material cannot receive a shadow.** The compass was
+  `disableLighting = true` and had to become lit, or the shadow would vanish
+  exactly where the player stands.
+- **A caster must be registered.** `receiveShadows` on the ground does nothing
+  on its own.
+- **`bias` is a fraction of the shadow map's depth range, not a distance.**
+  Leave `shadowMinZ` and `shadowMaxZ` undefined and Babylon falls back to the
+  active camera's, here 0.1 to 2000 — which turned a bias of 0.0008 into **1.6
+  metres** of offset. A directional light also starts at the world origin, which
+  is underground, so its shadow camera has to be parked up-sun of whatever it is
+  meant to be shadowing.
+
+Quality lives in `src/world/SunShadows.ts`: map size, the two biases, and how
+dark the shadow gets. The sun light refits its shadow frustum around the casters
+every frame, which is what keeps a 1024 map sharp.
 
 ## Mini-map
 

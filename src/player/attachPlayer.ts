@@ -2,6 +2,7 @@ import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Scene } from "@babylonjs/core/scene";
 import { ORBIT_CAMERA_NAME } from "../scenes/createEmptyScene";
+import { publishPaused, subscribeToCommands } from "../ui/bridge";
 import { CameraSwitcher } from "./CameraSwitcher";
 import { PlayerController } from "./PlayerController";
 import { PlayerInput } from "./PlayerInput";
@@ -42,6 +43,20 @@ export function attachPlayer(
     miniMapCamera,
   );
 
+  // Paused whenever the browser does not have the mouse, which is exactly what
+  // Escape does. In the orbit view the mouse is free by design, so it is never
+  // paused there.
+  const publishPauseState = (): void => {
+    publishPaused(switcher.isFirstPerson && !input.isPointerLocked);
+  };
+  input.onPointerLockChange = publishPauseState;
+  publishPauseState();
+
+  const unsubscribeCommands = subscribeToCommands((command) => {
+    // Must run inside the click that sent it, or the browser refuses the lock.
+    if (command.type === "resume") input.requestPointerLock();
+  });
+
   return {
     controller,
     wantsOverheadMap: () => input.isHeld(OVERHEAD_MAP_KEY),
@@ -49,12 +64,14 @@ export function attachPlayer(
       if (input.consumePress(TOGGLE_VIEW_KEY)) {
         switcher.toggle();
         input.setPointerLockWanted(switcher.isFirstPerson);
+        publishPauseState();
       }
       // Walking while looking through the orbit camera would be disorienting.
       if (switcher.isFirstPerson) controller.update(fixedDeltaSeconds);
       input.endStep();
     },
     dispose(): void {
+      unsubscribeCommands();
       input.dispose();
     },
   };

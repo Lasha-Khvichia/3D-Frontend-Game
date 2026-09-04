@@ -60,3 +60,139 @@
   display: block;
   pointer-events: none;
 }
+
+/* Pause menu. No backdrop-filter anywhere: blurring the canvas every frame is
+   a paint the browser cannot afford over a WebGL surface. */
+.menu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  /* Click-through on purpose, so clicking the world resumes. */
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgb(5 7 14 / 45%), rgb(5 7 14 / 78%));
+}
+
+.menu__panel {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 20px 22px 18px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 12px;
+  background: rgb(11 14 22 / 96%);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 55%);
+  pointer-events: auto;
+}
+
+.menu__title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.menu__section {
+  margin-top: 18px;
+}
+
+.menu__heading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.setting {
+  display: grid;
+  grid-template-columns: 118px 1fr 62px;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  font-size: 12px;
+}
+
+.setting__label {
+  opacity: 0.8;
+}
+
+.setting__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.6;
+}
+
+.setting__slider {
+  width: 100%;
+  accent-color: #e8603c;
+}
+
+.setting__toggle {
+  justify-self: start;
+  width: 16px;
+  height: 16px;
+  accent-color: #e8603c;
+}
+
+.setting__choices {
+  display: flex;
+  gap: 4px;
+}
+
+.setting__choice {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.setting__choice:hover {
+  background: rgb(255 255 255 / 8%);
+}
+
+.setting__choice.is-active {
+  border-color: #e8603c;
+  background: rgb(232 96 60 / 22%);
+}
+
+.menu__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.menu__button {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 6%);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.menu__button:hover {
+  background: rgb(255 255 255 / 12%);
+}
+
+.menu__button.is-primary {
+  border-color: #e8603c;
+  background: rgb(232 96 60 / 26%);
+}
+
+.menu__hint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  text-align: center;
+  opacity: 0.45;
+}

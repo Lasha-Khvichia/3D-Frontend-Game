@@ -18,9 +18,14 @@ export type GameStats = {
   timeOfDayHours: number;
   /** The mini-map only exists in first person. */
   firstPerson: boolean;
+  /** True while the pause menu is up and the world is frozen. */
+  paused: boolean;
 };
 
-export type OverlayCommand = "toggle-inspector";
+export type OverlayCommand =
+  | { readonly type: "toggle-inspector" }
+  | { readonly type: "set-time-of-day"; readonly hour: number }
+  | { readonly type: "resume" };
 
 let stats: GameStats = {
   backend: "unknown",
@@ -29,6 +34,7 @@ let stats: GameStats = {
   frameTimeMs: 0,
   timeOfDayHours: 0,
   firstPerson: true,
+  paused: true,
 };
 
 const statsListeners = new Set<() => void>();
@@ -76,4 +82,20 @@ export function setMiniMapCanvas(canvas: HTMLCanvasElement | null): void {
 
 export function readMiniMapCanvas(): HTMLCanvasElement | null {
   return miniMapCanvas;
+}
+
+/**
+ * Paused is kept out of GameStats because the render loop reads it every frame.
+ * React still needs to know, so changes are mirrored into the stats as well.
+ */
+let paused = true;
+
+export function publishPaused(next: boolean): void {
+  if (paused === next) return;
+  paused = next;
+  publishStats({ paused: next });
+}
+
+export function readPaused(): boolean {
+  return paused;
 }

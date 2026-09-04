@@ -13,7 +13,7 @@ export type EngineHandle = {
  * Rendering above 2x device pixel ratio costs fill rate and buys almost no
  * visible detail on phones and retina laptops.
  */
-const MAX_PIXEL_RATIO = 2;
+export const MAX_PIXEL_RATIO = 2;
 
 export async function createEngine(canvas: HTMLCanvasElement): Promise<EngineHandle> {
   if (await WebGPUEngine.IsSupportedAsync) {

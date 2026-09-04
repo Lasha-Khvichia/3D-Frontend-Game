@@ -4,7 +4,7 @@ import { createEngine, type RenderBackend } from "./createEngine";
 import { FixedStepLoop, type SimulationStep } from "./FixedStepLoop";
 import { StatsReporter } from "./StatsReporter";
 import { toggleInspector } from "./toggleInspector";
-import { publishStats, subscribeToCommands, type OverlayCommand } from "../ui/bridge";
+import { publishStats, readPaused, subscribeToCommands, type OverlayCommand } from "../ui/bridge";
 
 export type SceneFactory = (engine: AbstractEngine) => Scene;
 
@@ -21,7 +21,7 @@ export class GameRuntime {
   };
 
   private readonly handleCommand = (command: OverlayCommand): void => {
-    if (command === "toggle-inspector" && this.activeScene) {
+    if (command.type === "toggle-inspector" && this.activeScene) {
       void toggleInspector(this.activeScene);
     }
   };
@@ -80,6 +80,16 @@ export class GameRuntime {
   private renderFrame(): void {
     const scene = this.activeScene;
     if (!scene) return;
+
+    // Paused freezes the simulation but keeps rendering, so the world stays on
+    // screen behind the menu. The accumulator is reset so that time spent in
+    // the menu is not replayed as a burst of steps on resume.
+    if (readPaused()) {
+      this.loop.reset();
+      scene.render();
+      this.stats.tick();
+      return;
+    }
 
     const frameSeconds = this.engine.getDeltaTime() / 1000;
     this.loop.advance(
