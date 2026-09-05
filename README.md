@@ -172,9 +172,9 @@ reads as unlit no matter how strong the light is.
 Ten houses along one street, five a side, facing each other. Every one is built
 from code at startup. Nothing is downloaded, and there is no `.glb` anywhere.
 
-**Phase 0 is shells only**: walls, doorways, window holes and roofs, in one
-plain colour each. Doors, shutters, stonework and fireplaces come later, and all
-of them hang off the same blueprints.
+Phase 0 built the shells. **Phase 1 dressed them** in stone and timber. Doors,
+shutters and fireplaces come later, and all of them hang off the same
+blueprints.
 
 ### You can walk inside
 
@@ -212,6 +212,55 @@ player's collision ellipsoid is 0.8 m across, and level design guidance is that
 a gap needs to be roughly twice the player's width before it stops feeling like
 a snag. Phase 2 hangs a narrower door leaf inside the opening.
 
+### Stone and timber
+
+Four kinds of detail, all of it boxes, all of it decoration:
+
+|                 |                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------- |
+| Plinth          | A rough course of stone along the foot of every wall, 36 cm high                   |
+| Scattered stone | Single stones showing through the plaster, thinning out with height                |
+| Quoins          | Dressed blocks stacked up each corner, turned alternately                          |
+| Timber          | A plate under the eaves, a lintel over every opening, posts on the solid stretches |
+
+**Decoration is placed on the wall segments, not on the wall.** The segments are
+what is left after the openings are cut, so a stone can never land across a
+doorway or a window. That is checked: 67 openings, nothing covering any of them.
+
+Two details earn their place more than the rest. **Quoins** are where real
+builders spent their good stone, so they are the one thing that most says
+masonry rather than painted box, and they hide the seam where two walls meet.
+**Lintels** are what a hole in a wall needs above it; without one an opening
+reads as a hole cut in cardboard.
+
+Stone gathers low on the wall and thins towards the eaves, because the vertical
+position is squared before use. That is roughly where weather and repair leave
+it in real life.
+
+**Nothing here collides or casts a shadow.** Every piece is a few centimetres
+proud of a wall that already does both, so paying twice would buy nothing you
+could see. It also means a stone can never snag you.
+
+Placement is random but **seeded from the house's name**, so the village is
+identical on every load. Stone and timber run on separate streams, so changing
+how stone scatters does not reshuffle every beam in the village.
+
+1,488 stone blocks and 223 beams across the village, merged down to two meshes
+per house.
+
+### Fine detail is skipped where it cannot be seen
+
+Decoration sits on its own render layer (`src/world/fineDetailLayer.ts`) and is
+left out of two passes:
+
+- **The mini-map**, which shows 90 m of ground in 220 pixels. A 4 cm stone is
+  far smaller than one pixel there.
+- **The god-ray occlusion pass**, which re-renders the world in black to work
+  out what blocks the shafts. Something flat against a wall already in that
+  pass cannot change the silhouette.
+
+Together those took the frame from 249 draw calls back to 189.
+
 ### Ten different houses, not one repeated
 
 `houseShapes.ts` holds ten sets of dimensions: width, depth, wall height, roof
@@ -227,7 +276,7 @@ Twenty-odd boxes per house would otherwise be twenty-odd draw calls each. The
 merged wall mesh does the colliding itself — there is no hidden collider,
 because the visible geometry is already nothing but thick axis-aligned boxes.
 
-Ten houses cost 20 meshes and 5,824 vertices for the whole scene.
+Ten houses cost 40 meshes and 47,143 vertices for the whole scene.
 
 ## Grass
 

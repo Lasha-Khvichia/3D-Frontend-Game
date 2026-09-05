@@ -64,6 +64,18 @@ in use:
 | `@babylonjs/core/Meshes/thinInstanceMesh`                      | every `mesh.thinInstance*`   |
 | `@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent` | shadow maps rendering at all |
 
+**Babylon winds its front faces the opposite way to the usual right-handed
+rule.** Measured against `CreateBox`: on all twelve of its triangles the cross
+product of the wound edges points _into_ the box. Hand-built geometry wound the
+other way is invisible from the side you want and solid from the side you do
+not, with no error. If you write raw `VertexData`, check it against a box.
+
+**A single sheet of geometry has no back.** A wall is a solid box so its inside
+face renders normally, but a roof is one surface: without
+`backFaceCulling = false` you stand inside and see sky through it. Leave
+`twoSidedLighting` off — it is physically right and looks wrong, because nothing
+shines up at a ceiling and the underside comes out pure black.
+
 **React and the game talk only through `src/ui/bridge.ts`,** one way: the game
 publishes stats, React sends commands. React state must never be written at frame
 rate — the mini-map decoration canvas is deliberately passed through the bridge
@@ -95,10 +107,12 @@ solver to slide the player up. Downloaded glTF houses failed on both counts, and
 that is why they were removed. Keep walls at least 0.2 m thick and never put
 collision on anything sloped.
 
-**The village is phased.** Phase 0 (done) is bare shells. Phase 1 is stone and
-timber detail on the walls. Phase 2 is working doors and shutters, opened by
-walking into them or with `E`, barred from inside with `F`. Phase 3 is
-fireplaces, chimneys, fire and smoke. Each phase builds on `houseShapes.ts` and
+**The village is phased.** Phase 0 (done) is bare shells. Phase 1 (done) is
+stone and timber on the walls, placed on the wall segments so it can never cover
+an opening, seeded from each house's name so the village never changes between
+loads. Phase 2 is working doors and shutters, opened by walking into them or
+with `E`, barred from inside with `F`. Phase 3 is fireplaces, chimneys, fire and
+smoke. Each phase builds on `houseShapes.ts` and
 `houseBlueprint.ts` rather than replacing them.
 
 **Sun and moon are real astronomy** (`celestialPath.ts`), on separate clocks.
