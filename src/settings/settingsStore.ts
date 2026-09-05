@@ -6,7 +6,8 @@ import {
   type QualityPreset,
 } from "./gameSettings";
 
-const STORAGE_KEY = "game.settings.v1";
+// Bumped when a default changes in a way a saved file should not override.
+const STORAGE_KEY = "game.settings.v3";
 
 let settings: GameSettings = loadSaved();
 const listeners = new Set<() => void>();
