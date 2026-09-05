@@ -7,22 +7,47 @@ import { VILLAGE_HOUSES } from "./villageHouses";
 /**
  * Builds the whole village from code. Nothing is downloaded.
  *
- * Phase 0: shells only. Walls, doorways, window holes and roofs, in one plain
- * colour each. Doors, shutters, stone and timber detail come in later phases,
- * and every one of them hangs off the same blueprints.
+ * Phase 0 built the shells. Phase 1 dresses them: a stone plinth along the
+ * foot of every wall, single stones showing through the plaster above it,
+ * dressed blocks up each corner, and timber over the openings and under the
+ * eaves. Doors and fireplaces come later, off the same blueprints.
  *
  * Shadows and grass are not touched here. The caller owns those systems, and
  * every house it needs is in what comes back.
  */
 export function buildVillage(scene: Scene): House[] {
+  // Lime-plastered walls, weathered stone, dark oak, and a roof somewhere
+  // between thatch and shingle. Four flat colours: Phase 1 is about shape and
+  // material reading apart at a glance, not about texture.
   const materials = {
-    walls: createMaterial(scene, "house-walls", new Color3(0.62, 0.58, 0.5)),
-    roof: createMaterial(scene, "house-roof", new Color3(0.34, 0.24, 0.19)),
+    walls: createMaterial(scene, "plaster", new Color3(0.72, 0.68, 0.57)),
+    roof: makeRoofTwoSided(createMaterial(scene, "roof", new Color3(0.36, 0.27, 0.18))),
+    stone: createMaterial(scene, "stone", new Color3(0.46, 0.45, 0.42)),
+    timber: createMaterial(scene, "timber", new Color3(0.25, 0.17, 0.11)),
   };
 
   return VILLAGE_HOUSES.map(({ blueprint, centreX, centreZ }) =>
     buildHouse(scene, blueprint, centreX, centreZ, materials),
   );
+}
+
+/**
+ * Lets the roof be seen from underneath.
+ *
+ * A wall is a solid box, so standing in a room you are looking at the box's
+ * inner face and it renders normally. The roof is a single sheet with no
+ * inside, so with the usual one-sided rendering you would stand in a house and
+ * see sky through it.
+ *
+ * `twoSidedLighting` is deliberately left off. Turning it on flips the normal
+ * for the face you are looking at, which is physically right and looks wrong:
+ * nothing shines up at a ceiling, so the underside came out pure black. Left
+ * off, the underside is lit by the same upward normal as the top, and reads as
+ * a plain boarded ceiling.
+ */
+function makeRoofTwoSided(material: StandardMaterial): StandardMaterial {
+  material.backFaceCulling = false;
+  return material;
 }
 
 function createMaterial(scene: Scene, name: string, colour: Color3): StandardMaterial {

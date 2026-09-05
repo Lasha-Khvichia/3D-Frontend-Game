@@ -29,6 +29,9 @@ export type HouseBlueprint = {
  */
 export const WALL_THICKNESS = 0.35;
 
+/** A wall, and which face of the house it is, so decoration knows which way is out. */
+export type PlannedWall = WallSpec & { readonly side: Side };
+
 /**
  * Turns a blueprint into the four walls it is built from, openings included.
  *
@@ -39,7 +42,7 @@ export function planHouseWalls(
   blueprint: HouseBlueprint,
   centreX: number,
   centreZ: number,
-): WallSpec[] {
+): PlannedWall[] {
   const halfWidth = blueprint.width / 2;
   const halfDepth = blueprint.depth / 2;
   const inset = WALL_THICKNESS / 2;
@@ -69,6 +72,7 @@ export function planHouseWalls(
 
   return sides.map(({ side, line }) => ({
     ...line,
+    side,
     thickness: WALL_THICKNESS,
     height: blueprint.wallHeight,
     openings: planWallOpenings(line.to - line.from, side === blueprint.doorWall),

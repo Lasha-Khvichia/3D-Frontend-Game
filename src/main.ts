@@ -41,6 +41,8 @@ const village = buildVillage(scene);
 for (const house of village) {
   dayNight.addShadowCaster(house.walls);
   dayNight.addShadowCaster(house.roof);
+  // Stone and timber sit flat on walls that already block the light.
+  for (const detail of house.decor) godRays.excludeFromOcclusion(detail);
 }
 grass.setExclusions(village.map((house) => house.footprint));
 
