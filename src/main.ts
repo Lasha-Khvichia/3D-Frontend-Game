@@ -7,6 +7,7 @@ import { attachPlayer } from "./player/attachPlayer";
 import { MiniMap } from "./minimap/MiniMap";
 import { SunGodRays } from "./world/SunGodRays";
 import { GrassField } from "./world/GrassField";
+import { buildVillage } from "./world/houses/buildVillage";
 import { PLAYER_HEIGHT } from "./player/createPlayerBean";
 import { SettingsBinder } from "./settings/SettingsBinder";
 
@@ -34,6 +35,14 @@ dayNight.setShadowFocus(player.controller.bean.position);
 // Only what is registered flattens the grass. The ground never does.
 grass.addPusher(player.controller.bean, PLAYER_HEIGHT / 2);
 const godRays = new SunGodRays(scene, player.controller.camera, dayNight.sunMesh);
+
+// Built from code, not loaded, so the world is complete on the first frame.
+const village = buildVillage(scene);
+for (const house of village) {
+  dayNight.addShadowCaster(house.walls);
+  dayNight.addShadowCaster(house.roof);
+}
+grass.setExclusions(village.map((house) => house.footprint));
 
 const settings = new SettingsBinder({
   engine: scene.getEngine(),
