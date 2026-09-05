@@ -8,12 +8,20 @@ export type TriangleBuffers = {
 };
 
 /**
- * Adds one flat-shaded triangle, wound so its normal points away from `centre`.
+ * Adds one flat-shaded triangle facing away from `centre`.
  *
- * Deriving the winding beats getting it right by hand on every face: a triangle
- * wound the wrong way is simply invisible from outside, with no error and no
- * warning to say why. Vertices are not shared between triangles, which is what
- * keeps each face's normal flat instead of averaged with its neighbours.
+ * Deriving the facing beats getting it right by hand on every face: a triangle
+ * wound the wrong way is invisible from the side you want to see it from, and
+ * solid from the side you do not, with no error to say why.
+ *
+ * **Babylon winds its front faces the opposite way to the usual right-handed
+ * rule.** Measured against `CreateBox`: on all twelve of its triangles, the
+ * cross product of the wound edges points *into* the box, not out of it. So the
+ * corners go out in the order whose cross product points inward, while the
+ * stored normal, which lighting uses, still points outward.
+ *
+ * Vertices are not shared between triangles, which is what keeps each face's
+ * normal flat instead of averaged with its neighbours.
  */
 export function addFlatTriangle(
   buffers: TriangleBuffers,
@@ -24,7 +32,8 @@ export function addFlatTriangle(
 ): void {
   const normal = Vector3.Cross(b.subtract(a), c.subtract(a)).normalize();
   const pointsOutward = normal.dot(a.subtract(centre)) >= 0;
-  const ordered = pointsOutward ? [a, b, c] : [a, c, b];
+  // Swapped, because the front face is the one whose cross product points in.
+  const ordered = pointsOutward ? [a, c, b] : [a, b, c];
   if (!pointsOutward) normal.scaleInPlace(-1);
 
   const first = buffers.positions.length / 3;
