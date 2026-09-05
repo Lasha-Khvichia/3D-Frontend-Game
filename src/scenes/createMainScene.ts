@@ -2,7 +2,6 @@ import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import type { Scene } from "@babylonjs/core/scene";
 import { createEmptyScene } from "./createEmptyScene";
 import { createGround } from "../world/createGround";
-import { createCompassRose } from "../world/createCompassRose";
 import { createPlatformWalls } from "../world/createPlatformWalls";
 
 /**
@@ -12,7 +11,6 @@ import { createPlatformWalls } from "../world/createPlatformWalls";
 export function createMainScene(engine: AbstractEngine): Scene {
   const scene = createEmptyScene(engine);
   createGround(scene);
-  createCompassRose(scene);
   createPlatformWalls(scene);
   return scene;
 }
