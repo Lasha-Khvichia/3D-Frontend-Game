@@ -27,6 +27,15 @@ const CAMERA_DISTANCE = 60;
  */
 const NEAR_Z = 1;
 const FAR_Z = CAMERA_DISTANCE * 2.2;
+
+/**
+ * Side of the shadow box in metres, centred on the player.
+ *
+ * Fixed rather than auto-fitted around the casters. Auto-fitting resizes the
+ * box whenever a caster moves in or out of it, and shadow sharpness visibly
+ * pops as it does. A fixed box keeps one sharpness everywhere.
+ */
+const FRUSTUM_SIZE = 48;
 /**
  * Pushes the depth test along the light direction, killing shadow acne.
  * Measured as a fraction of the depth range above, so about 2.6 cm.
@@ -58,11 +67,12 @@ export class SunShadows {
     this.generator.normalBias = NORMAL_BIAS;
     this.generator.setDarkness(1 - DARKNESS);
 
-    // Refits the frustum sideways around the casters every frame, which is what
-    // makes 1024 look sharp. The depth range is ours, not Babylon's: left
-    // undefined it falls back to the active camera's 0.1 to 2000, and the bias
-    // is a fraction of that range, so 0.0008 became 1.6 metres of offset.
-    sunLight.autoUpdateExtends = true;
+    // A fixed box beats refitting: see FRUSTUM_SIZE above. The depth range is
+    // ours, not Babylon's: left undefined it falls back to the active camera's
+    // 0.1 to 2000, and the bias is a fraction of that range, so 0.0008 became
+    // 1.6 metres of offset.
+    sunLight.shadowFrustumSize = FRUSTUM_SIZE;
+    sunLight.autoUpdateExtends = false;
     sunLight.autoCalcShadowZBounds = false;
     sunLight.shadowMinZ = NEAR_Z;
     sunLight.shadowMaxZ = FAR_Z;
