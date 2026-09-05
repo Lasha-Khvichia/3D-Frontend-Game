@@ -2,6 +2,7 @@ import { Camera } from "@babylonjs/core/Cameras/camera";
 import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { WITHOUT_FINE_DETAIL } from "../world/fineDetailLayer";
 
 export const MINI_MAP_NAME = "minimap-camera";
 
@@ -28,6 +29,10 @@ export function createMiniMapCamera(scene: Scene): TargetCamera {
   // drifts by tens of degrees and flips as you turn. Deriving the up vector
   // from the camera's own rotation is exact at any pitch.
   camera.updateUpVectorFromRotation = true;
+
+  // Stone and timber detail is smaller than a pixel at map scale: see
+  // fineDetailLayer. Skipping it here is a draw call per house for nothing.
+  camera.layerMask = WITHOUT_FINE_DETAIL;
 
   return camera;
 }

@@ -1,5 +1,6 @@
 import { VolumetricLightScatteringPostProcess } from "@babylonjs/core/PostProcesses/volumetricLightScatteringPostProcess";
 import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
@@ -50,6 +51,17 @@ export class SunGodRays {
     this.effect.weight = WEIGHT;
     this.effect.density = DENSITY;
     this.attached = true;
+  }
+
+  /**
+   * Leaves a mesh out of the occlusion pass.
+   *
+   * The pass re-renders the world in black to work out what blocks the shafts.
+   * Anything that sits flat against something already in that pass cannot
+   * change the silhouette, so drawing it is a draw call that buys nothing.
+   */
+  excludeFromOcclusion(mesh: AbstractMesh): void {
+    this.effect.excludedMeshes.push(mesh);
   }
 
   /** Turns the whole effect off, whatever the sun is doing. */
