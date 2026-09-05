@@ -167,20 +167,87 @@ Three numbers decide how dark night is. All are named constants:
 The ground's `diffuseColor` matters as much as any of them. A near-black ground
 reads as unlit no matter how strong the light is.
 
-## Compass
+## Village
 
-A compass is painted flat on the ground: **north is +z, east is +x**. It is lit
-like the ground, so it dims at night and takes shadows.
+Ten houses along one street, five a side, facing each other. Every one is built
+from code at startup. Nothing is downloaded, and there is no `.glb` anywhere.
 
-**Do not freeze a material while the light count can still change.** A frozen
-material skips the check that rebuilds its shader, and silently stops receiving
-light.
+**Phase 0 is shells only**: walls, doorways, window holes and roofs, in one
+plain colour each. Doors, shutters, stonework and fireplaces come later, and all
+of them hang off the same blueprints.
+
+### You can walk inside
+
+That is the whole reason these are built rather than loaded. A house is four
+walls with holes cut in them, so a doorway is a real gap you walk through.
+
+A wall is not one mesh with holes punched through it. It is a row of solid
+boxes, one for each stretch of wall the openings leave behind, plus an apron
+under each window sill and a lintel over each opening. Boxes are what the
+collision solver handles well, and what the industry settled on after
+brush-based CSG fell out of use in the early 2000s.
+
+Two failures come free with that choice:
+
+- **Walls are 0.35 m thick.** Sprinting covers 0.133 m in one simulation step,
+  so there is a factor of 2.6 between the two. Thinner than a step and the
+  player crosses the wall entirely between two checks, touching nothing in
+  either — which is exactly how the old downloaded houses let you inside.
+- **The roof carries no collision at all.** A sloped face is the one shape the
+  solver handles badly: it slides you along whatever you hit, so a roof lifts
+  you up it. Nothing can reach the roof anyway. The lowest eaves are at 2.4 m
+  and a jump peaks at 1.11 m.
+
+### Sizes
+
+|                |                             |
+| -------------- | --------------------------- |
+| Doorway        | 1.4 m wide, 2.05 m tall     |
+| Window         | 0.95 m wide, sill at 1.05 m |
+| Wall thickness | 0.35 m                      |
+| Wall height    | 2.4 m to 3.4 m, by house    |
+
+The doorway is wider than a real medieval door, which was about 1.0 m. The
+player's collision ellipsoid is 0.8 m across, and level design guidance is that
+a gap needs to be roughly twice the player's width before it stops feeling like
+a snag. Phase 2 hangs a narrower door leaf inside the opening.
+
+### Ten different houses, not one repeated
+
+`houseShapes.ts` holds ten sets of dimensions: width, depth, wall height, roof
+rise, and which way the ridge runs. No two match. Window counts are not in that
+table because they follow from wall length, so the bigger houses pick up more
+windows on their own.
+
+`villageHouses.ts` puts them on the street. A house sits back from the middle of
+the street by half its own depth, and its door always faces the street.
+
+Each house is **two meshes**: the four walls merged into one, and the roof.
+Twenty-odd boxes per house would otherwise be twenty-odd draw calls each. The
+merged wall mesh does the colliding itself — there is no hidden collider,
+because the visible geometry is already nothing but thick axis-aligned boxes.
+
+Ten houses cost 20 meshes and 5,824 vertices for the whole scene.
 
 ## Grass
 
-A 32 m patch of 123,904 blades, about 123 per square metre and 9 cm apart, on a
-200 x 200 m platform. Blades are 5.5 cm wide, so at that spacing they overlap
-into a mat. Beyond the patch the ground colour carries it.
+A 40 m patch of 200,704 blades, about 123 per square metre and 9 cm apart, on a
+200 x 200 m platform. Blades are 46 cm tall and 4.2 cm wide, so at that spacing
+they overlap into a mat. Beyond the patch the ground colour carries it.
+
+**The breeze is animated on the shared blade mesh, not per blade.** Every blade
+is a thin instance of one 5-vertex mesh, so moving those five vertices moves all
+200,704 of them, on the GPU, every frame, for nothing. The tip traces a slow
+figure over about 3.4 seconds: 9 cm forward, 5 cm sideways, on a 46 cm blade.
+The base stays planted.
+
+An earlier version leaned each blade individually and swept the field in slices,
+because rewriting 200,000 transforms per frame is far beyond the budget. Each
+blade only refreshed 1.7 times a second, and it read as lag. Per-blade wind
+needs a vertex shader, not a CPU sweep.
+
+Because every blade carries its own yaw, they do not all lean the same way: the
+field rustles rather than tilting as one slab.
 
 Every blade is a **thin instance** of one 3-triangle mesh, so the whole field is
 **one draw call**. Their transforms live in a single `Float32Array`; only the
@@ -188,8 +255,8 @@ blades that actually moved are re-uploaded, with
 `thinInstancePartialBufferUpdate`.
 
 Blades lean away from anything registered with `grass.addPusher(node)`, and
-stand back up over 0.5 s. **Pushers are opt-in.** The ground, the compass and
-the walls are never added, so the platform itself never flattens the grass.
+stand back up over 0.5 s. **Pushers are opt-in.** The ground and the walls are
+never added, so the platform itself never flattens the grass.
 
 A blade's offset, yaw and height come from a hash of the **world cell** it
 stands in, not from its slot in the buffer. Walk away and back and every blade
@@ -200,8 +267,8 @@ width, so sliding the patch rewrites only the rows and columns that genuinely
 entered it: 8,448 blades instead of 123,904. Rebuilding all of them cost 6.7 ms,
 which is a dropped frame every metre you walk.
 
-Cost measured while running: **0.16 ms per step on average, 0.59 ms at worst**,
-against a 16.7 ms step.
+Cost measured while running, breeze included: **0.17 ms per step on average,
+1.06 ms at worst**, against a 16.7 ms step. Standing still it is 0.07 ms.
 
 Pushers carry a `bottomOffset` so the grass knows when one has been lifted clear
 of it. Without that, jumping drags a flattened circle around underneath you.
@@ -214,9 +281,8 @@ Two traps here:
   first.** Composing a world-space lean with each blade's own yaw the other way
   round rotates the lean by that yaw, and every blade falls a different way.
 
-Blades receive shadows but never cast them: the shadow frustum auto-fits around
-its casters, and 9,000 blades over 40 m would blow it up and blur the player's
-own shadow.
+Blades receive shadows but never cast them. 9,000 blades in the shadow map
+would cost a second render of the whole field and blur the player's own shadow.
 
 ## Player
 
@@ -254,8 +320,8 @@ Only the camera bobs. The bean itself is the collider and stays steady, so
 nothing about collisions changes.
 
 Collisions use Babylon's built-in solver, not a physics engine. The ground and
-four invisible walls at the platform edge are solid; the compass is not. Without
-those walls you would walk off and fall forever.
+four invisible walls at the platform edge are solid. Without those walls you
+would walk off and fall forever.
 
 **`moveWithCollisions` reads the mesh's world matrix, not `mesh.position`.**
 The simulation step runs before the render, so the matrix is a frame stale
@@ -267,7 +333,7 @@ Speeds and sizes live in `src/player/PlayerController.ts` and
 
 ## Shadows
 
-Cast by the sun only, onto the ground and the compass. The player bean is the
+Cast by the sun only, onto the ground and the grass. The player bean is the
 caster; add more with `dayNight.addShadowCaster(mesh)`.
 
 The shadow map is switched **off while the sun is below the horizon**. It is a
@@ -278,9 +344,9 @@ Four traps, all of which fail silently:
 - **`shadowGenerator` does not import its own scene component.** Without
   `import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent"` the
   shadow maps are never rendered. No error, no warning, no shadow.
-- **An unlit material cannot receive a shadow.** The compass was
-  `disableLighting = true` and had to become lit, or the shadow would vanish
-  exactly where the player stands.
+- **An unlit material cannot receive a shadow.** `disableLighting = true` skips
+  lighting entirely, so shadows simply do not land on that surface. It costs
+  nothing to set and gives no warning.
 - **A caster must be registered.** `receiveShadows` on the ground does nothing
   on its own.
 - **`bias` is a fraction of the shadow map's depth range, not a distance.**
@@ -291,8 +357,9 @@ Four traps, all of which fail silently:
   meant to be shadowing.
 
 Quality lives in `src/world/SunShadows.ts`: map size, the two biases, and how
-dark the shadow gets. The sun light refits its shadow frustum around the casters
-every frame, which is what keeps a 1024 map sharp.
+dark the shadow gets. The shadow box is a **fixed 48 m** centred on the player,
+not auto-fitted: refitting resizes it as casters come and go, and sharpness pops
+as it does.
 
 ## Mini-map
 
@@ -347,12 +414,30 @@ Overhead the squash is 1 and the ring is round.
 world is full. The map's pixel size lives in `MINI_MAP_SIZE_CSS` and must match
 `.overlay__minimap` in `overlay.css`.
 
+## Assets and where they came from
+
+All CC0, public domain, no attribution required. Credited anyway.
+
+Nothing is downloaded today. Everything on screen is built in code: the ground,
+the grass, the sky, the sun and the moon.
+
+Two sources were tried and dropped, worth knowing before reaching for either
+again. **Poly Haven has no buildings**, and its trees are film assets:
+`island_tree_01` is 60 MB of geometry for one tree, about 1.9 million vertices.
+For game-scale models, Quaternius via [poly.pizza](https://poly.pizza) is the
+one that fits: five buildings and two trees came to 6.7 MB in total.
+
+A photographed HDR sky was tried and removed. A photo has its own sun baked in,
+so it cannot move with the clock, and keeping it meant switching off our own
+sun, glare and god rays to avoid showing two. The procedural sky keeps all of
+them and costs nothing to download.
+
 ## Layout
 
 ```
 src/core/      engine, fixed-step loop, stats, inspector
 src/scenes/    scene factories
-src/world/     ground, compass, clock, day/night cycle, sun and moon
+src/world/     ground, grass, clock, day/night cycle, sun and moon
 src/player/    the bean, its camera, controls and collisions
 src/minimap/   the top-down camera and its overlay decorations
 src/systems/   gameplay systems (empty)
