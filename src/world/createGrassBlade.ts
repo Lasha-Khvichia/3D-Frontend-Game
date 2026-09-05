@@ -1,19 +1,22 @@
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
 
-/** Blade height in metres. Ankle high: tall enough to read, short enough to see over. */
-export const BLADE_HEIGHT = 0.34;
-const BASE_WIDTH = 0.055;
-const MID_WIDTH = 0.034;
-/** The blade leans forward slightly, so a field of them is not a bed of nails. */
-const MID_LEAN = 0.02;
-const TIP_LEAN = 0.06;
+/** Blade height in metres. Shin high, so the field has depth to walk into. */
+export const BLADE_HEIGHT = 0.46;
+const BASE_WIDTH = 0.042;
+const MID_WIDTH = 0.024;
+/** The blade curves forward, so a field of them is not a bed of nails. */
+const MID_LEAN = 0.035;
+const TIP_LEAN = 0.135;
 
-const BASE_COLOUR = [0.16, 0.3, 0.11] as const;
-const TIP_COLOUR = [0.45, 0.66, 0.26] as const;
+// Deep at the root where light does not reach, lighter and slightly yellow at
+// the tip. Cooler and richer than the first pass, which read as astroturf.
+const BASE_COLOUR = [0.09, 0.21, 0.08] as const;
+const TIP_COLOUR = [0.38, 0.62, 0.21] as const;
 
 /**
  * One grass blade, with its pivot at the base so leaning it is a rotation.
@@ -65,7 +68,8 @@ export function createGrassBlade(scene: Scene): Mesh {
     ...TIP_COLOUR,
     1,
   ];
-  data.applyToMesh(mesh);
+  // Updatable: the sway rewrites these five vertices every frame.
+  data.applyToMesh(mesh, true);
 
   const material = new StandardMaterial("grass-material", scene);
   material.diffuseColor = Color3.White();
@@ -96,4 +100,61 @@ function mixColour(amount: number): [number, number, number] {
     BASE_COLOUR[1] + (TIP_COLOUR[1] - BASE_COLOUR[1]) * amount,
     BASE_COLOUR[2] + (TIP_COLOUR[2] - BASE_COLOUR[2]) * amount,
   ];
+}
+
+/** Seconds for one full breath of the breeze. Slow on purpose. */
+const SWAY_PERIOD = 3.4;
+/** How far the tip drifts, in metres. A rustle, not a gale. */
+const SWAY_REACH = 0.045;
+/** The sideways drift runs at a different rate, so the tip traces a figure. */
+const SWAY_SIDE_PERIOD = 5.1;
+const SWAY_SIDE_REACH = 0.026;
+
+let swayTime = 0;
+const swayPositions = new Float32Array(15);
+
+/**
+ * A gentle breeze, animated on the blade mesh itself rather than per blade.
+ *
+ * Every blade in the field is a thin instance of this one mesh, so moving these
+ * five vertices moves all of them, on the GPU, every frame. Doing it per blade
+ * instead means rewriting 200,000 transforms, which is far too slow to run each
+ * frame: refreshing them in slices is what made the grass look like it lagged.
+ *
+ * Because each blade carries its own yaw, they do not all lean the same way.
+ * The field rustles rather than tilting as one slab.
+ */
+export function swayGrassBlade(mesh: Mesh, seconds: number): void {
+  swayTime += seconds;
+
+  const forward = Math.sin((swayTime / SWAY_PERIOD) * Math.PI * 2) * SWAY_REACH;
+  const sideways = Math.sin((swayTime / SWAY_SIDE_PERIOD) * Math.PI * 2) * SWAY_SIDE_REACH;
+
+  const halfBase = BASE_WIDTH / 2;
+  const halfMid = MID_WIDTH / 2;
+  const midHeight = BLADE_HEIGHT * 0.55;
+  // The base stays planted; the bend grows towards the tip.
+  const midForward = MID_LEAN + forward * 0.32;
+  const midSide = sideways * 0.32;
+  const tipForward = TIP_LEAN + forward;
+  const tipSide = sideways;
+
+  swayPositions.set([
+    -halfBase,
+    0,
+    0,
+    halfBase,
+    0,
+    0,
+    -halfMid + midSide,
+    midHeight,
+    midForward,
+    halfMid + midSide,
+    midHeight,
+    midForward,
+    tipSide,
+    BLADE_HEIGHT,
+    tipForward,
+  ]);
+  mesh.updateVerticesData(VertexBuffer.PositionKind, swayPositions);
 }

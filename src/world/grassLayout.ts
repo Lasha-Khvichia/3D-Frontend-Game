@@ -1,16 +1,17 @@
-/** Blades across one side of the patch. 352 x 352 is 123,904 blades. */
-export const PATCH_CELLS = 352;
+/** Blades across one side of the patch. 448 x 448 is 200,704 blades. */
+export const PATCH_CELLS = 448;
 /**
- * Metres per cell, one blade per cell. 0.09 is closer than a blade is wide, so
- * they overlap into a mat: about 123 per square metre, over a patch 32 m across.
+ * Metres per cell, one blade per cell. 0.09 is more than twice a blade's width,
+ * so they overlap into a mat: about 123 per square metre, over a patch 40 m
+ * across.
  */
 export const CELL_SIZE = 0.09;
 /**
  * The patch re-centres in steps of this many cells rather than continuously.
  * Each step rewrites the rows and columns that entered, and the blades that
- * appear are 16 m away.
+ * appear are 20 m away.
  */
-export const RECENTRE_STEP_CELLS = 12;
+export const RECENTRE_STEP_CELLS = 16;
 
 export const BLADE_COUNT = PATCH_CELLS * PATCH_CELLS;
 

@@ -6,7 +6,8 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 
-import { BLADE_HEIGHT, createGrassBlade } from "./createGrassBlade";
+import { BLADE_HEIGHT, createGrassBlade, swayGrassBlade } from "./createGrassBlade";
+import type { Footprint } from "./footprint";
 import {
   BLADE_COUNT,
   CELL_SIZE,
@@ -60,6 +61,8 @@ export class GrassField {
   /** Blades that are bent or still standing back up. */
   private readonly moving = new Set<number>();
   private readonly pushers: Pusher[] = [];
+  /** Rectangles where no grass grows, such as the ground under a house. */
+  private exclusions: readonly Footprint[] = [];
 
   private originCellX = 0;
   private originCellZ = 0;
@@ -89,10 +92,28 @@ export class GrassField {
     this.pushers.push({ node, bottomOffset });
   }
 
+  /**
+   * Stops grass growing inside these rectangles. Blades there are scaled to
+   * nothing, which costs no draw call and no branch in the shader.
+   *
+   * Takes the whole list at once because applying one rewrites all 200,000
+   * blades, and doing that ten times over would be ten times the work for the
+   * same result.
+   */
+  setExclusions(footprints: readonly Footprint[]): void {
+    this.exclusions = footprints;
+    for (let index = 0; index < BLADE_COUNT; index += 1) this.writeBlade(index);
+    this.mesh.thinInstanceBufferUpdated("matrix");
+  }
+
   update(seconds: number, focus: Vector3): void {
     this.followFocus(focus);
     this.applyPushers();
     this.relaxAndUpload(seconds);
+    // The breeze lives in the shared blade mesh, not in these transforms: see
+    // swayGrassBlade. Five vertices move and all 200,000 blades follow, every
+    // frame, for nothing.
+    swayGrassBlade(this.mesh, seconds);
   }
 
   /** Slides the patch along with the player, in whole steps of several cells. */
@@ -214,6 +235,13 @@ export class GrassField {
     this.mesh.thinInstancePartialBufferUpdate("matrix", span, lowest * FLOATS_PER_MATRIX);
   }
 
+  private isExcluded(x: number, z: number): boolean {
+    for (const area of this.exclusions) {
+      if (x >= area.minX && x <= area.maxX && z >= area.minZ && z <= area.maxZ) return true;
+    }
+    return false;
+  }
+
   private writeBlade(index: number): void {
     const column = index % PATCH_CELLS;
     const row = (index - column) / PATCH_CELLS;
@@ -227,15 +255,20 @@ export class GrassField {
       0,
       cellZ * CELL_SIZE + this.shape.offsetZ,
     );
-    this.scratchScale.set(1, this.shape.height, 1);
+    const buried = this.isExcluded(this.scratchPosition.x, this.scratchPosition.z);
+    this.scratchScale.set(buried ? 0 : 1, buried ? 0 : this.shape.height, buried ? 0 : 1);
 
-    const lean = this.lean[index] ?? 0;
+    const push = this.lean[index] ?? 0;
+    const lean = push * MAX_LEAN;
+    const leanX = this.leanX[index] ?? 0;
+    const leanZ = this.leanZ[index] ?? 0;
+
     Quaternion.RotationYawPitchRollToRef(this.shape.yaw, 0, 0, this.scratchYawTurn);
     if (lean > 0) {
       // Tipping the blade towards a horizontal direction means turning about the
       // axis at right angles to it.
-      this.scratchAxis.set(this.leanZ[index] ?? 0, 0, -(this.leanX[index] ?? 0));
-      Quaternion.RotationAxisToRef(this.scratchAxis, lean * MAX_LEAN, this.scratchLeanTurn);
+      this.scratchAxis.set(leanZ, 0, -leanX);
+      Quaternion.RotationAxisToRef(this.scratchAxis, lean, this.scratchLeanTurn);
       // a.multiplyToRef(b) is the Hamilton product a * b, which applies b FIRST.
       // The lean axis is a world direction, so the blade's own yaw has to be
       // spent before it; the other order rotates the lean by each blade's yaw
