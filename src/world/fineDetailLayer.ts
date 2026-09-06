@@ -5,6 +5,10 @@
  * a wall is far smaller than one pixel there. Drawing it costs a draw call and
  * changes nothing anyone can see.
  *
+ * The grass is here for the same reason but at a very different scale: it is
+ * over a million triangles, and the mini-map was pushing every one of them to
+ * fill a 220 pixel square over a ground plane that is already green.
+ *
  * Babylon renders a mesh when `mesh.layerMask & camera.layerMask` is non-zero.
  * Meshes and cameras both default to `0x0fffffff`, so putting fine detail on
  * bit 0 alone keeps it visible to every normal camera, and dropping bit 0 from

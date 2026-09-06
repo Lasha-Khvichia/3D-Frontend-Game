@@ -39,6 +39,8 @@ dayNight.setShadowFocus(player.controller.bean.position);
 // Only what is registered flattens the grass. The ground never does.
 grass.addPusher(player.controller.bean, PLAYER_HEIGHT / 2);
 const godRays = new SunGodRays(scene, player.controller.camera, dayNight.sunMesh);
+// A million triangles of grass, blocking nothing a sun shaft would miss.
+for (const mesh of grass.meshes) godRays.excludeFromOcclusion(mesh);
 
 // Built from code, not loaded, so the world is complete on the first frame.
 const village = buildVillage(scene);

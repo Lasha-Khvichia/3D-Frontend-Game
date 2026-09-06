@@ -2,6 +2,8 @@ import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { WorldEntity } from "../core/WorldEntity";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { FINE_DETAIL_LAYER } from "./fineDetailLayer";
 import type { Footprint } from "./footprint";
 import { swayGrassBlade } from "./createGrassBlade";
 import { GrassField } from "./GrassField";
@@ -30,10 +32,19 @@ export class Meadow extends WorldEntity {
     super();
     this.near = new GrassField(scene, NEAR_GRASS);
     this.far = new GrassField(scene, FAR_GRASS);
+    // Kept off the mini-map. Together these two meshes are over a million
+    // triangles, and the map was drawing every one of them into a 220 pixel
+    // square, over a ground plane that is already green.
+    for (const mesh of this.meshes) mesh.layerMask = FINE_DETAIL_LAYER;
   }
 
   get id(): string {
     return "meadow";
+  }
+
+  /** Both blade meshes, for the caller to keep out of passes that do not need them. */
+  get meshes(): Mesh[] {
+    return [this.near.mesh, this.far.mesh];
   }
 
   /** Anything added here flattens the grass it walks through. */

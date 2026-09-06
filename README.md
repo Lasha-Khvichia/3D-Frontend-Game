@@ -430,6 +430,13 @@ patch. Thirteen per square metre is what actually looks right.
 Both patches run the same code with different numbers, from `grassLayout.ts`.
 Cost together: **0.07 ms per step sprinting**, two draw calls.
 
+**The grass is drawn once per frame, not three times.** First person renders the
+world through three passes — the view, the mini-map, and the god-ray occlusion
+pass — and the grass was in all of them. It is now kept out of the last two: it
+is invisible at map scale over a ground plane that is already green, and it
+blocks nothing a shaft of sunlight would miss. That took first person from
+4.08 million triangles a frame to 1.97 million.
+
 **The breeze is animated on the shared blade mesh, not per blade.** Every blade
 is a thin instance of one 5-vertex mesh, so moving those five vertices moves all
 200,704 of them, on the GPU, every frame, for nothing. The tip traces a slow
