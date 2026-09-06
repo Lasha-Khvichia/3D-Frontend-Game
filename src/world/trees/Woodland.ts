@@ -47,6 +47,15 @@ export class Woodland extends WorldEntity {
     return this.trees.map((tree) => tree.branches.mesh);
   }
 
+  /** Leaves are far too many to shadow, but they should take one. */
+  get shadowReceivers(): AbstractMesh[] {
+    return this.trees.map((tree) => tree.canopy.mesh);
+  }
+
+  get leafCount(): number {
+    return this.trees.reduce((total, tree) => total + tree.canopy.count, 0);
+  }
+
   /** Passed to the grass, so none grows out of a trunk. */
   get footprints(): Footprint[] {
     return this.trees.map((tree) => tree.footprint);

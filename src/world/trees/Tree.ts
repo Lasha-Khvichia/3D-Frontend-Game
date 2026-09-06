@@ -8,6 +8,8 @@ import { createSeededRandom, seedFromText } from "../houses/seededRandom";
 import type { BranchSpec } from "./branchSpec";
 import { collideTree } from "./collideTree";
 import { growTreeSkeleton } from "./growTreeSkeleton";
+import { scatterLeaves } from "./scatterLeaves";
+import { TreeCanopy } from "./TreeCanopy";
 import { TreeBranches } from "./TreeBranches";
 import { TREE_SPECIES, type TreeSpeciesName } from "./treeSpecies";
 
@@ -27,6 +29,7 @@ const CLEARING = 0.5;
  */
 export class Tree extends WorldEntity {
   readonly branches: TreeBranches;
+  readonly canopy: TreeCanopy;
   readonly skeleton: readonly BranchSpec[];
   /** One invisible shell holding every branch. See collideTree. */
   private readonly solid: Mesh | null;
@@ -44,6 +47,16 @@ export class Tree extends WorldEntity {
     this.skeleton = growTreeSkeleton(shape, createSeededRandom(seedFromText(name)));
     this.branches = new TreeBranches(scene, name, this.skeleton, bark);
     this.branches.mesh.position.set(centreX, 0, centreZ);
+
+    // One random stream for the wood and another for the leaves, so changing
+    // how leaves scatter does not regrow every tree in the wood.
+    const leaves = scatterLeaves(
+      this.skeleton,
+      shape,
+      createSeededRandom(seedFromText(`${name}-leaves`)),
+    );
+    this.canopy = new TreeCanopy(scene, name, leaves, shape.leaf);
+    this.canopy.mesh.position.set(centreX, 0, centreZ);
 
     this.solid = collideTree(scene, name, this.skeleton, new Vector3(centreX, 0, centreZ));
   }
@@ -65,6 +78,7 @@ export class Tree extends WorldEntity {
 
   override dispose(): void {
     this.branches.dispose();
+    this.canopy.dispose();
     this.solid?.dispose();
   }
 }

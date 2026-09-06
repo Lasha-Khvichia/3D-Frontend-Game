@@ -42,8 +42,8 @@ export const TREE_SPECIES = {
     segments: 3,
     bark: new Color3(0.29, 0.22, 0.16),
     leaf: new Color3(0.24, 0.42, 0.15),
-    leaves: 4000,
-    leafSize: 0.19,
+    leaves: 4600,
+    leafSize: 0.28,
   },
   birch: {
     trunkHeight: 4.6,
@@ -56,8 +56,8 @@ export const TREE_SPECIES = {
     segments: 4,
     bark: new Color3(0.74, 0.72, 0.66),
     leaf: new Color3(0.42, 0.58, 0.2),
-    leaves: 3200,
-    leafSize: 0.15,
+    leaves: 3800,
+    leafSize: 0.21,
   },
   pine: {
     trunkHeight: 6.2,
@@ -70,8 +70,8 @@ export const TREE_SPECIES = {
     segments: 2,
     bark: new Color3(0.24, 0.18, 0.14),
     leaf: new Color3(0.15, 0.31, 0.16),
-    leaves: 4200,
-    leafSize: 0.12,
+    leaves: 4600,
+    leafSize: 0.17,
   },
   willow: {
     trunkHeight: 2.8,
@@ -84,8 +84,8 @@ export const TREE_SPECIES = {
     segments: 4,
     bark: new Color3(0.32, 0.26, 0.19),
     leaf: new Color3(0.36, 0.5, 0.19),
-    leaves: 4600,
-    leafSize: 0.22,
+    leaves: 5000,
+    leafSize: 0.31,
   },
 } as const satisfies Record<string, TreeSpecies>;
 
