@@ -11,6 +11,7 @@ import { GrassField } from "./world/GrassField";
 import { buildVillage } from "./world/houses/buildVillage";
 import { VillageOpenings } from "./world/openings/VillageOpenings";
 import { VillageFires } from "./world/fire/VillageFires";
+import { Woodland } from "./world/trees/Woodland";
 import { PLAYER_HEIGHT } from "./player/createPlayerBean";
 import { SettingsBinder } from "./settings/SettingsBinder";
 
@@ -47,7 +48,6 @@ for (const house of village) {
   // Stone and timber sit flat on walls that already block the light.
   for (const detail of house.decor) godRays.excludeFromOcclusion(detail);
 }
-grass.setExclusions(village.map((house) => house.footprint));
 
 // Doors and shutters. They move, so they cannot be merged into the houses.
 const openings = new VillageOpenings(scene, village);
@@ -57,6 +57,12 @@ for (const mesh of openings.occlusionSkips) godRays.excludeFromOcclusion(mesh);
 // Fireplaces, chimneys, and the one firelight the whole village shares.
 const fires = new VillageFires(scene, village);
 for (const mesh of fires.shadowCasters) dayNight.addShadowCaster(mesh);
+
+const woodland = new Woodland(scene);
+for (const mesh of woodland.shadowCasters) dayNight.addShadowCaster(mesh);
+
+// One list, set once: applying an exclusion rewrites every blade in the field.
+grass.setExclusions([...village.map((house) => house.footprint), ...woodland.footprints]);
 
 const settings = new SettingsBinder({
   engine: scene.getEngine(),
