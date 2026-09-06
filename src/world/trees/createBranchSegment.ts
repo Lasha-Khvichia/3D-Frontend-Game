@@ -32,8 +32,10 @@ export function createBranchSegment(name: string, scene: Scene): Mesh {
     const tipFar = ring(side + 1, 1, SEGMENT_TAPER);
     addFlatTriangle(buffers, centre, baseNear, baseFar, tipFar);
     addFlatTriangle(buffers, centre, baseNear, tipFar, tipNear);
-    // Capped at the top, or the outermost twigs are visibly hollow tubes.
+    // Capped at both ends. An open tube is see-through from the side at every
+    // fork, where the parent's end and the child's start do not line up.
     addFlatTriangle(buffers, centre, tipNear, tipFar, new Vector3(0, 1, 0));
+    addFlatTriangle(buffers, centre, baseFar, baseNear, new Vector3(0, 0, 0));
   }
 
   const mesh = new Mesh(name, scene);

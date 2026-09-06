@@ -1,4 +1,4 @@
-import { CreateBox } from "@babylonjs/core/Meshes/Builders/boxBuilder";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
@@ -6,19 +6,11 @@ import { WorldEntity } from "../../core/WorldEntity";
 import type { Footprint } from "../footprint";
 import { createSeededRandom, seedFromText } from "../houses/seededRandom";
 import type { BranchSpec } from "./branchSpec";
+import { collideTree } from "./collideTree";
 import { growTreeSkeleton } from "./growTreeSkeleton";
 import { TreeBranches } from "./TreeBranches";
 import { TREE_SPECIES, type TreeSpeciesName } from "./treeSpecies";
 
-/**
- * How wide the trunk's collider is, as a share of the trunk's radius.
- *
- * A square box inside a round trunk would need 1.41. A little wider than that
- * lets the player brush the bark rather than stopping short of it, and the
- * narrowest trunk here is still 0.35 m across — far thicker than the 0.133 m a
- * sprinting player covers in one step, which is what stops them passing through.
- */
-const TRUNK_COLLIDER_SHARE = 1.6;
 /** Grass is cleared this far past the trunk, so none grows out of the wood. */
 const CLEARING = 0.5;
 
@@ -29,14 +21,15 @@ const CLEARING = 0.5;
  * a branch's coordinates are relative to its own tree. Offsetting four hundred
  * segments instead would buy nothing and cost four hundred vectors.
  *
- * **Only the trunk collides.** A branch collider is a sloped surface, and
- * Babylon's solver slides the player along whatever it hits, so branches would
- * carry the player up into the canopy. Leaves never collide either.
+ * **Every branch collides**, trunk to twig, through one merged invisible shell.
+ * Within reach its boxes are upright so nothing can lift the player; higher up
+ * they lie along the wood, where nothing can reach them anyway.
  */
 export class Tree extends WorldEntity {
   readonly branches: TreeBranches;
   readonly skeleton: readonly BranchSpec[];
-  private readonly trunk: Mesh;
+  /** One invisible shell holding every branch. See collideTree. */
+  private readonly solid: Mesh | null;
 
   constructor(
     scene: Scene,
@@ -52,17 +45,7 @@ export class Tree extends WorldEntity {
     this.branches = new TreeBranches(scene, name, this.skeleton, bark);
     this.branches.mesh.position.set(centreX, 0, centreZ);
 
-    const side = shape.trunkRadius * TRUNK_COLLIDER_SHARE;
-    this.trunk = CreateBox(
-      `${name}-trunk-collider`,
-      { width: side, height: shape.trunkHeight, depth: side },
-      scene,
-    );
-    this.trunk.position.set(centreX, shape.trunkHeight / 2, centreZ);
-    this.trunk.isVisible = false;
-    this.trunk.isPickable = false;
-    this.trunk.checkCollisions = true;
-    this.trunk.freezeWorldMatrix();
+    this.solid = collideTree(scene, name, this.skeleton, new Vector3(centreX, 0, centreZ));
   }
 
   get id(): string {
@@ -82,6 +65,6 @@ export class Tree extends WorldEntity {
 
   override dispose(): void {
     this.branches.dispose();
-    this.trunk.dispose();
+    this.solid?.dispose();
   }
 }

@@ -12,6 +12,15 @@ import { createBranchSegment } from "./createBranchSegment";
 
 const FLOATS_PER_MATRIX = 16;
 const UP = new Vector3(0, 1, 0);
+/**
+ * Every segment is drawn this much longer than it really is.
+ *
+ * Segments meet end to end at an angle, and a fork leaves a child's base
+ * hanging off the side of its parent. Butted exactly together they leave a
+ * wedge of daylight at every joint; overlapping buries it. It costs nothing:
+ * the overshoot is inside the next piece of wood.
+ */
+const JOINT_OVERLAP = 1.12;
 
 /**
  * All the wood in one tree: a single mesh drawn once, however many branches.
@@ -83,7 +92,7 @@ export class TreeBranches extends WorldEntity {
     const spec = this.specs[index];
     if (!spec) return;
     const amount = this.visible[index] ?? 1;
-    const length = Vector3.Distance(spec.start, spec.end);
+    const length = Vector3.Distance(spec.start, spec.end) * JOINT_OVERLAP;
     const direction = spec.end.subtract(spec.start).normalize();
 
     Quaternion.FromUnitVectorsToRef(UP, direction, this.scratchTurn);
