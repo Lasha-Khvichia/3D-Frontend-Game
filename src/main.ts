@@ -10,6 +10,7 @@ import { SunGodRays } from "./world/SunGodRays";
 import { GrassField } from "./world/GrassField";
 import { buildVillage } from "./world/houses/buildVillage";
 import { VillageOpenings } from "./world/openings/VillageOpenings";
+import { VillageFires } from "./world/fire/VillageFires";
 import { PLAYER_HEIGHT } from "./player/createPlayerBean";
 import { SettingsBinder } from "./settings/SettingsBinder";
 
@@ -53,6 +54,9 @@ const openings = new VillageOpenings(scene, village);
 for (const mesh of openings.shadowCasters) dayNight.addShadowCaster(mesh);
 for (const mesh of openings.occlusionSkips) godRays.excludeFromOcclusion(mesh);
 
+// Fireplaces, chimneys, and the one firelight the whole village shares.
+const fires = new VillageFires(scene, village);
+for (const mesh of fires.shadowCasters) dayNight.addShadowCaster(mesh);
 
 const settings = new SettingsBinder({
   engine: scene.getEngine(),
@@ -72,6 +76,7 @@ runtime.setSimulationStep((fixedDeltaSeconds) => {
   player.update(fixedDeltaSeconds);
   miniMap.update(fixedDeltaSeconds, player.controller.bean, player.wantsOverheadMap(), dayNight);
   godRays.update(dayNight.sunHeight);
+  fires.update(fixedDeltaSeconds, player.controller.bean.position);
   grass.update(fixedDeltaSeconds, player.controller.bean.position);
 });
 
