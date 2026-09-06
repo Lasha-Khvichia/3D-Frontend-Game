@@ -196,3 +196,20 @@
   text-align: center;
   opacity: 0.45;
 }
+
+/* Sits just under the middle of the screen, where the eye already is. */
+.overlay__prompt {
+  position: absolute;
+  bottom: 21%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 7px 14px;
+  border-radius: 7px;
+  background: rgb(0 0 0 / 42%);
+  color: rgb(255 255 255 / 88%);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 60%);
+}

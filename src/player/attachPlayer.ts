@@ -11,11 +11,22 @@ import { PlayerInput } from "./PlayerInput";
 const TOGGLE_VIEW_KEY = "KeyC";
 /** Held to lift the mini-map camera from behind you to straight overhead. */
 const OVERHEAD_MAP_KEY = "KeyT";
+/** Opens and closes shutters. */
+const OPEN_KEY = "KeyE";
+/** Bars a door from inside, bolts a window. */
+const LOCK_KEY = "KeyF";
 
 export type Player = {
   readonly controller: PlayerController;
   /** True while the mini-map key is held. */
   wantsOverheadMap(): boolean;
+  /**
+   * The two interaction keys, each true once per press.
+   *
+   * Must be read before `update`, which drops any press nothing consumed so a
+   * key cannot fire a step late.
+   */
+  takeOpeningKeys(): { readonly open: boolean; readonly lock: boolean };
   update(fixedDeltaSeconds: number): void;
   dispose(): void;
 };
@@ -60,6 +71,11 @@ export function attachPlayer(
   return {
     controller,
     wantsOverheadMap: () => input.isHeld(OVERHEAD_MAP_KEY),
+    takeOpeningKeys: () => ({
+      // Nothing is within arm's reach from the orbit camera.
+      open: switcher.isFirstPerson && input.consumePress(OPEN_KEY),
+      lock: switcher.isFirstPerson && input.consumePress(LOCK_KEY),
+    }),
     update(fixedDeltaSeconds: number): void {
       if (input.consumePress(TOGGLE_VIEW_KEY)) {
         switcher.toggle();

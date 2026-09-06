@@ -1,5 +1,8 @@
+export type OpeningKind = "door" | "window";
+
 /** A hole cut through a wall: a doorway, or a window. */
 export type Opening = {
+  readonly kind: OpeningKind;
   /** Distance from the wall's start to the opening's near edge. */
   readonly start: number;
   readonly width: number;

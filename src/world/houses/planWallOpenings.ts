@@ -26,10 +26,15 @@ const CORNER_MARGIN = 0.7;
  * Wider walls simply get more windows, so ten houses of different sizes read as
  * ten different houses without ten hand-written opening lists.
  */
-export function planWallOpenings(span: number, hasDoor: boolean): Opening[] {
+export function planWallOpenings(span: number, hasDoor: boolean, hasChimney = false): Opening[] {
+  // A chimney breast fills the middle of its wall from floor to eaves. A window
+  // in the same wall would end up behind the stack.
+  if (hasChimney) return [];
+
   const openings: Opening[] = [];
   if (hasDoor) {
     openings.push({
+      kind: "door",
       start: (span - DOORWAY_WIDTH) / 2,
       width: DOORWAY_WIDTH,
       sill: 0,
@@ -43,6 +48,7 @@ export function planWallOpenings(span: number, hasDoor: boolean): Opening[] {
 
   for (const centre of windowCentres(span, count, hasDoor)) {
     openings.push({
+      kind: "window",
       start: centre - WINDOW_WIDTH / 2,
       width: WINDOW_WIDTH,
       sill: WINDOW_SILL,

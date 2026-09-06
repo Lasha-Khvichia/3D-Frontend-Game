@@ -2,12 +2,14 @@ import "./styles/base.css";
 import { GameRuntime } from "./core/GameRuntime";
 import { createMainScene } from "./scenes/createMainScene";
 import { mountOverlay } from "./ui/mountOverlay";
+import { publishPrompt } from "./ui/bridge";
 import { DayNightCycle } from "./world/DayNightCycle";
 import { attachPlayer } from "./player/attachPlayer";
 import { MiniMap } from "./minimap/MiniMap";
 import { SunGodRays } from "./world/SunGodRays";
 import { GrassField } from "./world/GrassField";
 import { buildVillage } from "./world/houses/buildVillage";
+import { VillageOpenings } from "./world/openings/VillageOpenings";
 import { PLAYER_HEIGHT } from "./player/createPlayerBean";
 import { SettingsBinder } from "./settings/SettingsBinder";
 
@@ -46,6 +48,12 @@ for (const house of village) {
 }
 grass.setExclusions(village.map((house) => house.footprint));
 
+// Doors and shutters. They move, so they cannot be merged into the houses.
+const openings = new VillageOpenings(scene, village);
+for (const mesh of openings.shadowCasters) dayNight.addShadowCaster(mesh);
+for (const mesh of openings.occlusionSkips) godRays.excludeFromOcclusion(mesh);
+
+
 const settings = new SettingsBinder({
   engine: scene.getEngine(),
   camera: player.controller.camera,
@@ -57,6 +65,10 @@ const settings = new SettingsBinder({
 // setSimulationStep takes one function, so every system is composed here.
 runtime.setSimulationStep((fixedDeltaSeconds) => {
   dayNight.advance(fixedDeltaSeconds);
+  // Before the player's own update, which clears any key press nothing took.
+  publishPrompt(
+    openings.update(fixedDeltaSeconds, player.controller.bean.position, player.takeOpeningKeys()),
+  );
   player.update(fixedDeltaSeconds);
   miniMap.update(fixedDeltaSeconds, player.controller.bean, player.wantsOverheadMap(), dayNight);
   godRays.update(dayNight.sunHeight);

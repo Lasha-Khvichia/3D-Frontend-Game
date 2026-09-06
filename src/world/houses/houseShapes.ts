@@ -1,7 +1,7 @@
 import type { HouseBlueprint } from "./houseBlueprint";
 
 /** A house's dimensions, before it is given a place on the street. */
-export type HouseShape = Omit<HouseBlueprint, "name" | "doorWall">;
+export type HouseShape = Omit<HouseBlueprint, "name" | "doorWall" | "chimneyWall">;
 
 /**
  * The ten houses the village is built from.

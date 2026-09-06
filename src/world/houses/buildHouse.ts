@@ -2,19 +2,25 @@ import type { Material } from "@babylonjs/core/Materials/material";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import type { Footprint } from "../footprint";
-import { FINE_DETAIL_LAYER } from "../fineDetailLayer";
 import { buildWallSegments } from "./buildWallSegments";
 import { createGableRoof } from "./createGableRoof";
-import { decorateHouse } from "./decorateHouse";
+import { buildDecorMeshes, decorateHouse } from "./decorateHouse";
 import { planHouseWalls, type HouseBlueprint } from "./houseBlueprint";
 import { mergeBoxes } from "./mergeBoxes";
+import { placeOpenings, type PlacedOpening } from "./placeOpenings";
 
 export type House = {
+  /** The numbers it was built from, and where it stands. */
+  readonly blueprint: HouseBlueprint;
+  readonly centreX: number;
+  readonly centreZ: number;
   /** One mesh for all four walls. This is also what the player collides with. */
   readonly walls: Mesh;
   readonly roof: Mesh;
   /** Stone and timber. Decoration only: no collision, no shadow casting. */
   readonly decor: Mesh[];
+  /** Every doorway and window hole, located, ready to hang a leaf in. */
+  readonly openings: PlacedOpening[];
   /** The ground the house stands on, so grass can be kept from growing inside. */
   readonly footprint: Footprint;
 };
@@ -72,23 +78,16 @@ export function buildHouse(
   roof.freezeWorldMatrix();
 
   const decoration = decorateHouse(blueprint, centreX, centreZ, planned);
-  const decor: Mesh[] = [];
-  for (const [part, material] of [
-    [decoration.stone, materials.stone],
-    [decoration.timber, materials.timber],
-  ] as const) {
-    const mesh = mergeBoxes(scene, `${blueprint.name}-${material.name}`, part);
-    if (!mesh) continue;
-    mesh.material = material;
-    mesh.receiveShadows = true;
-    mesh.layerMask = FINE_DETAIL_LAYER;
-    decor.push(mesh);
-  }
+  const decor = buildDecorMeshes(scene, blueprint.name, decoration, materials);
 
   return {
+    blueprint,
+    centreX,
+    centreZ,
     walls,
     roof,
     decor,
+    openings: planned.flatMap((wall) => placeOpenings(wall, blueprint.name)),
     footprint: {
       minX: centreX - blueprint.width / 2 - GRASS_MARGIN,
       maxX: centreX + blueprint.width / 2 + GRASS_MARGIN,

@@ -1,5 +1,6 @@
-import type { HouseBlueprint } from "./houseBlueprint";
+import type { HouseBlueprint, Side } from "./houseBlueprint";
 import { HOUSE_SHAPES, type HouseName } from "./houseShapes";
+import { seedFromText } from "./seededRandom";
 
 /** Middle of the street the two rows of houses face across. */
 const STREET_CENTRE_Z = 30;
@@ -33,9 +34,31 @@ export type PlacedHouse = {
 export const VILLAGE_HOUSES: readonly PlacedHouse[] = STREET.map(({ name, row, x }) => {
   const shape = HOUSE_SHAPES[name];
   const setBack = STREET_HALF_WIDTH + shape.depth / 2;
+  const doorWall = row === "north" ? "south" : "north";
   return {
-    blueprint: { ...shape, name, doorWall: row === "north" ? "south" : "north" },
+    blueprint: {
+      ...shape,
+      name,
+      doorWall,
+      chimneyWall: chimneyWallFor(name, shape.ridgeAxis, doorWall),
+    },
     centreX: x,
     centreZ: row === "north" ? STREET_CENTRE_Z + setBack : STREET_CENTRE_Z - setBack,
   };
 });
+
+/**
+ * The chimney climbs a gable end, which is how these houses were really built:
+ * the stack goes up the wall the roof slopes down to, not through the middle of
+ * the roof. Which end is the same for a given house on every load, and differs
+ * between houses, so the street does not read as one house repeated.
+ */
+function chimneyWallFor(name: HouseName, ridgeAxis: "x" | "z", doorWall: Side): Side {
+  const [first, second]: readonly [Side, Side] =
+    ridgeAxis === "x" ? ["east", "west"] : ["north", "south"];
+  if (first === doorWall) return second;
+  if (second === doorWall) return first;
+  // Neither end is the door wall, so either will do. Picked from the name so
+  // the stacks do not all end up on the same side of the street.
+  return seedFromText(name) % 2 === 0 ? first : second;
+}

@@ -15,6 +15,8 @@ export type HouseBlueprint = {
   readonly roofRise: number;
   /** The wall the doorway is cut into. Point it at the street. */
   readonly doorWall: Side;
+  /** The wall the fireplace backs onto and the chimney climbs. Never the door wall. */
+  readonly chimneyWall: Side;
   /** The roof ridge runs along this axis. Changes the silhouette completely. */
   readonly ridgeAxis: "x" | "z";
 };
@@ -75,7 +77,11 @@ export function planHouseWalls(
     side,
     thickness: WALL_THICKNESS,
     height: blueprint.wallHeight,
-    openings: planWallOpenings(line.to - line.from, side === blueprint.doorWall),
+    openings: planWallOpenings(
+      line.to - line.from,
+      side === blueprint.doorWall,
+      side === blueprint.chimneyWall,
+    ),
   }));
 }
 

@@ -1,4 +1,9 @@
+import type { Material } from "@babylonjs/core/Materials/material";
+import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { Scene } from "@babylonjs/core/scene";
+import { FINE_DETAIL_LAYER } from "../fineDetailLayer";
 import { buildWallSegments, type BoxSpec } from "./buildWallSegments";
+import { mergeBoxes } from "./mergeBoxes";
 import { frameWallTimber } from "./frameWallTimber";
 import type { HouseBlueprint, PlannedWall } from "./houseBlueprint";
 import { scatterWallStones } from "./scatterWallStones";
@@ -41,4 +46,29 @@ export function decorateHouse(
   stone.push(...stackCornerQuoins(blueprint, centreX, centreZ, stoneRandom));
 
   return { stone, timber };
+}
+
+/**
+ * Welds the decoration into one mesh per material and puts it on the layer that
+ * close-up detail belongs to.
+ */
+export function buildDecorMeshes(
+  scene: Scene,
+  houseName: string,
+  decor: HouseDecor,
+  materials: { readonly stone: Material; readonly timber: Material },
+): Mesh[] {
+  const meshes: Mesh[] = [];
+  for (const [boxes, material] of [
+    [decor.stone, materials.stone],
+    [decor.timber, materials.timber],
+  ] as const) {
+    const mesh = mergeBoxes(scene, `${houseName}-${material.name}`, boxes);
+    if (!mesh) continue;
+    mesh.material = material;
+    mesh.receiveShadows = true;
+    mesh.layerMask = FINE_DETAIL_LAYER;
+    meshes.push(mesh);
+  }
+  return meshes;
 }
