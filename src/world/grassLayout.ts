@@ -1,19 +1,60 @@
-/** Blades across one side of the patch. 448 x 448 is 200,704 blades. */
-export const PATCH_CELLS = 448;
 /**
- * Metres per cell, one blade per cell. 0.09 is more than twice a blade's width,
- * so they overlap into a mat: about 123 per square metre, over a patch 40 m
- * across.
+ * The size and spacing of one patch of grass.
+ *
+ * There are two: a dense one under your feet and a sparse one reaching to the
+ * horizon. Everything that used to be a fixed number now comes from here, so
+ * both patches run the same code with different numbers.
  */
-export const CELL_SIZE = 0.09;
-/**
- * The patch re-centres in steps of this many cells rather than continuously.
- * Each step rewrites the rows and columns that entered, and the blades that
- * appear are 20 m away.
- */
-export const RECENTRE_STEP_CELLS = 16;
+export type GrassLayout = {
+  /** Blades across one side of the patch. */
+  readonly patchCells: number;
+  /** Metres per cell, one blade per cell. */
+  readonly cellSize: number;
+  /**
+   * The patch re-centres in whole steps of this many cells rather than
+   * continuously, so blades appear far from the player rather than underfoot.
+   */
+  readonly recentreStepCells: number;
+  readonly bladeCount: number;
+  /** Blades are drawn this many times their modelled height. */
+  readonly heightScale: number;
+  /** Half the patch's width, in metres. */
+  readonly reach: number;
+};
 
-export const BLADE_COUNT = PATCH_CELLS * PATCH_CELLS;
+function layout(
+  patchCells: number,
+  cellSize: number,
+  recentreStepCells: number,
+  heightScale: number,
+): GrassLayout {
+  return {
+    patchCells,
+    cellSize,
+    recentreStepCells,
+    heightScale,
+    bladeCount: patchCells * patchCells,
+    reach: (patchCells * cellSize) / 2,
+  };
+}
+
+/**
+ * Underfoot: 0.09 m apart is more than twice a blade's width, so blades overlap
+ * into a mat. About 123 per square metre, over 40 m.
+ */
+export const NEAR_GRASS = layout(448, 0.09, 16, 1);
+
+/**
+ * To the horizon: the same number of blades spread over eight times the ground,
+ * so about 13 per square metre over 107 m.
+ *
+ * Sparse close up and convincing far away, which is the only place it is seen.
+ * Looking at the horizon you see grass at a grazing angle, and blades that
+ * stand well apart on the ground still overlap completely from there. They are
+ * drawn half as tall again to help, which also hides the join with the dense
+ * patch.
+ */
+export const FAR_GRASS = layout(384, 0.28, 24, 1.5);
 
 /**
  * A blade's look is derived from the world cell it stands in, not from its slot
@@ -30,11 +71,16 @@ export type BladeShape = {
 const HEIGHT_MIN = 0.72;
 const HEIGHT_RANGE = 0.56;
 
-export function shapeForCell(cellX: number, cellZ: number, out: BladeShape): void {
-  out.offsetX = (hash(cellX, cellZ, 0x9e37) - 0.5) * CELL_SIZE;
-  out.offsetZ = (hash(cellX, cellZ, 0x85eb) - 0.5) * CELL_SIZE;
+export function shapeForCell(
+  cellX: number,
+  cellZ: number,
+  out: BladeShape,
+  grass: GrassLayout,
+): void {
+  out.offsetX = (hash(cellX, cellZ, 0x9e37) - 0.5) * grass.cellSize;
+  out.offsetZ = (hash(cellX, cellZ, 0x85eb) - 0.5) * grass.cellSize;
   out.yaw = hash(cellX, cellZ, 0xc2b2) * Math.PI * 2;
-  out.height = HEIGHT_MIN + hash(cellX, cellZ, 0x27d4) * HEIGHT_RANGE;
+  out.height = (HEIGHT_MIN + hash(cellX, cellZ, 0x27d4) * HEIGHT_RANGE) * grass.heightScale;
 }
 
 export function createBladeShape(): BladeShape {

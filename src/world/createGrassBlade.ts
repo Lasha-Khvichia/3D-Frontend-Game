@@ -123,8 +123,11 @@ const swayPositions = new Float32Array(15);
  *
  * Because each blade carries its own yaw, they do not all lean the same way.
  * The field rustles rather than tilting as one slab.
+ *
+ * Takes every blade mesh at once, because the clock advances inside it. Called
+ * once per mesh, the near and far patches would run at different speeds.
  */
-export function swayGrassBlade(mesh: Mesh, seconds: number): void {
+export function swayGrassBlade(meshes: readonly Mesh[], seconds: number): void {
   swayTime += seconds;
 
   const forward = Math.sin((swayTime / SWAY_PERIOD) * Math.PI * 2) * SWAY_REACH;
@@ -156,5 +159,5 @@ export function swayGrassBlade(mesh: Mesh, seconds: number): void {
     BLADE_HEIGHT,
     tipForward,
   ]);
-  mesh.updateVerticesData(VertexBuffer.PositionKind, swayPositions);
+  for (const mesh of meshes) mesh.updateVerticesData(VertexBuffer.PositionKind, swayPositions);
 }

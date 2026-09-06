@@ -6,16 +6,9 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 
-import { BLADE_HEIGHT, createGrassBlade, swayGrassBlade } from "./createGrassBlade";
+import { BLADE_HEIGHT, createGrassBlade } from "./createGrassBlade";
 import type { Footprint } from "./footprint";
-import {
-  BLADE_COUNT,
-  CELL_SIZE,
-  PATCH_CELLS,
-  RECENTRE_STEP_CELLS,
-  createBladeShape,
-  shapeForCell,
-} from "./grassLayout";
+import { createBladeShape, shapeForCell, type GrassLayout } from "./grassLayout";
 
 type Pusher = {
   readonly node: TransformNode;
@@ -54,10 +47,10 @@ const FLOATS_PER_MATRIX = 16;
 export class GrassField {
   readonly mesh: Mesh;
 
-  private readonly matrices = new Float32Array(BLADE_COUNT * FLOATS_PER_MATRIX);
-  private readonly lean = new Float32Array(BLADE_COUNT);
-  private readonly leanX = new Float32Array(BLADE_COUNT);
-  private readonly leanZ = new Float32Array(BLADE_COUNT);
+  private readonly matrices: Float32Array;
+  private readonly lean: Float32Array;
+  private readonly leanX: Float32Array;
+  private readonly leanZ: Float32Array;
   /** Blades that are bent or still standing back up. */
   private readonly moving = new Set<number>();
   private readonly pushers: Pusher[] = [];
@@ -76,9 +69,16 @@ export class GrassField {
   private readonly scratchTurn = new Quaternion();
   private readonly scratchMatrix = new Matrix();
 
-  constructor(scene: Scene) {
+  constructor(
+    scene: Scene,
+    private readonly grass: GrassLayout,
+  ) {
     this.mesh = createGrassBlade(scene);
-    for (let index = 0; index < BLADE_COUNT; index += 1) this.writeBlade(index);
+    this.matrices = new Float32Array(grass.bladeCount * FLOATS_PER_MATRIX);
+    this.lean = new Float32Array(grass.bladeCount);
+    this.leanX = new Float32Array(grass.bladeCount);
+    this.leanZ = new Float32Array(grass.bladeCount);
+    for (let index = 0; index < grass.bladeCount; index += 1) this.writeBlade(index);
     this.mesh.thinInstanceSetBuffer("matrix", this.matrices, FLOATS_PER_MATRIX, false);
   }
 
@@ -102,7 +102,7 @@ export class GrassField {
    */
   setExclusions(footprints: readonly Footprint[]): void {
     this.exclusions = footprints;
-    for (let index = 0; index < BLADE_COUNT; index += 1) this.writeBlade(index);
+    for (let index = 0; index < this.grass.bladeCount; index += 1) this.writeBlade(index);
     this.mesh.thinInstanceBufferUpdated("matrix");
   }
 
@@ -110,18 +110,14 @@ export class GrassField {
     this.followFocus(focus);
     this.applyPushers();
     this.relaxAndUpload(seconds);
-    // The breeze lives in the shared blade mesh, not in these transforms: see
-    // swayGrassBlade. Five vertices move and all 200,000 blades follow, every
-    // frame, for nothing.
-    swayGrassBlade(this.mesh, seconds);
   }
 
   /** Slides the patch along with the player, in whole steps of several cells. */
   private followFocus(focus: Vector3): void {
-    const half = PATCH_CELLS / 2;
-    const step = RECENTRE_STEP_CELLS;
-    const wantedX = Math.round(Math.floor(focus.x / CELL_SIZE) / step) * step - half;
-    const wantedZ = Math.round(Math.floor(focus.z / CELL_SIZE) / step) * step - half;
+    const half = this.grass.patchCells / 2;
+    const step = this.grass.recentreStepCells;
+    const wantedX = Math.round(Math.floor(focus.x / this.grass.cellSize) / step) * step - half;
+    const wantedZ = Math.round(Math.floor(focus.z / this.grass.cellSize) / step) * step - half;
     if (wantedX === this.originCellX && wantedZ === this.originCellZ) return;
 
     this.slideTo(wantedX, wantedZ);
@@ -138,23 +134,23 @@ export class GrassField {
     this.originCellZ = nextZ;
 
     // A jump longer than the patch replaces all of it anyway.
-    if (Math.abs(shiftX) >= PATCH_CELLS || Math.abs(shiftZ) >= PATCH_CELLS) {
-      for (let index = 0; index < BLADE_COUNT; index += 1) this.refreshSlot(index);
+    if (Math.abs(shiftX) >= this.grass.patchCells || Math.abs(shiftZ) >= this.grass.patchCells) {
+      for (let index = 0; index < this.grass.bladeCount; index += 1) this.refreshSlot(index);
       return;
     }
 
     const firstColumn = shiftX > 0 ? previousX : nextX;
     for (let step = 0; step < Math.abs(shiftX); step += 1) {
-      const column = wrapSlot(firstColumn + step);
-      for (let row = 0; row < PATCH_CELLS; row += 1) {
-        this.refreshSlot(row * PATCH_CELLS + column);
+      const column = wrapSlot(firstColumn + step, this.grass.patchCells);
+      for (let row = 0; row < this.grass.patchCells; row += 1) {
+        this.refreshSlot(row * this.grass.patchCells + column);
       }
     }
 
     const firstRow = shiftZ > 0 ? previousZ : nextZ;
     for (let step = 0; step < Math.abs(shiftZ); step += 1) {
-      const rowStart = wrapSlot(firstRow + step) * PATCH_CELLS;
-      for (let column = 0; column < PATCH_CELLS; column += 1) {
+      const rowStart = wrapSlot(firstRow + step, this.grass.patchCells) * this.grass.patchCells;
+      for (let column = 0; column < this.grass.patchCells; column += 1) {
         this.refreshSlot(rowStart + column);
       }
     }
@@ -177,16 +173,17 @@ export class GrassField {
       if (lift >= LIFT_CLEARANCE) continue;
       const groundedShare = 1 - Math.max(0, lift) / LIFT_CLEARANCE;
 
-      const centreCellX = Math.floor(centre.x / CELL_SIZE);
-      const centreCellZ = Math.floor(centre.z / CELL_SIZE);
-      const reach = Math.ceil(PUSH_RADIUS / CELL_SIZE);
+      const centreCellX = Math.floor(centre.x / this.grass.cellSize);
+      const centreCellZ = Math.floor(centre.z / this.grass.cellSize);
+      const reach = Math.ceil(PUSH_RADIUS / this.grass.cellSize);
 
       for (let cellZ = centreCellZ - reach; cellZ <= centreCellZ + reach; cellZ += 1) {
-        if (cellZ < this.originCellZ || cellZ >= this.originCellZ + PATCH_CELLS) continue;
-        const rowStart = wrapSlot(cellZ) * PATCH_CELLS;
+        if (cellZ < this.originCellZ || cellZ >= this.originCellZ + this.grass.patchCells) continue;
+        const rowStart = wrapSlot(cellZ, this.grass.patchCells) * this.grass.patchCells;
         for (let cellX = centreCellX - reach; cellX <= centreCellX + reach; cellX += 1) {
-          if (cellX < this.originCellX || cellX >= this.originCellX + PATCH_CELLS) continue;
-          this.pushBlade(rowStart + wrapSlot(cellX), centre, groundedShare);
+          if (cellX < this.originCellX || cellX >= this.originCellX + this.grass.patchCells)
+            continue;
+          this.pushBlade(rowStart + wrapSlot(cellX, this.grass.patchCells), centre, groundedShare);
         }
       }
     }
@@ -216,7 +213,7 @@ export class GrassField {
     if (this.moving.size === 0) return;
 
     const recovery = seconds / RECOVER_SECONDS;
-    let lowest = BLADE_COUNT;
+    let lowest = this.grass.bladeCount;
     let highest = -1;
 
     for (const index of this.moving) {
@@ -243,17 +240,17 @@ export class GrassField {
   }
 
   private writeBlade(index: number): void {
-    const column = index % PATCH_CELLS;
-    const row = (index - column) / PATCH_CELLS;
+    const column = index % this.grass.patchCells;
+    const row = (index - column) / this.grass.patchCells;
     // The one world cell inside the patch whose slot is this one.
-    const cellX = this.originCellX + wrapSlot(column - this.originCellX);
-    const cellZ = this.originCellZ + wrapSlot(row - this.originCellZ);
-    shapeForCell(cellX, cellZ, this.shape);
+    const cellX = this.originCellX + wrapSlot(column - this.originCellX, this.grass.patchCells);
+    const cellZ = this.originCellZ + wrapSlot(row - this.originCellZ, this.grass.patchCells);
+    shapeForCell(cellX, cellZ, this.shape, this.grass);
 
     this.scratchPosition.set(
-      cellX * CELL_SIZE + this.shape.offsetX,
+      cellX * this.grass.cellSize + this.shape.offsetX,
       0,
-      cellZ * CELL_SIZE + this.shape.offsetZ,
+      cellZ * this.grass.cellSize + this.shape.offsetZ,
     );
     const buried = this.isExcluded(this.scratchPosition.x, this.scratchPosition.z);
     this.scratchScale.set(buried ? 0 : 1, buried ? 0 : this.shape.height, buried ? 0 : 1);
@@ -289,6 +286,6 @@ export class GrassField {
 }
 
 /** Maps a world cell onto its slot in the patch, for any sign. */
-function wrapSlot(cell: number): number {
-  return ((cell % PATCH_CELLS) + PATCH_CELLS) % PATCH_CELLS;
+function wrapSlot(cell: number, patchCells: number): number {
+  return ((cell % patchCells) + patchCells) % patchCells;
 }

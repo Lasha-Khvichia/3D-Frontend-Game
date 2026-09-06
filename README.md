@@ -407,9 +407,28 @@ Ten houses cost 40 meshes and 47,143 vertices for the whole scene.
 
 ## Grass
 
-A 40 m patch of 200,704 blades, about 123 per square metre and 9 cm apart, on a
-200 x 200 m platform. Blades are 46 cm tall and 4.2 cm wide, so at that spacing
-they overlap into a mat. Beyond the patch the ground colour carries it.
+**Two patches, both following the player.** One patch cannot do both jobs: dense
+grass has to stay small or it costs everything, and a small patch ends in a hard
+edge with bare ground beyond it, which is the first thing the eye finds when you
+look up.
+
+|         | Near        | Far                |
+| ------- | ----------- | ------------------ |
+| Blades  | 200,704     | 147,456            |
+| Across  | 40 m        | 108 m              |
+| Density | 123 per m²  | 13 per m²          |
+| Drawn   | as modelled | half as tall again |
+
+The far patch is sparse standing in it and solid from any distance, because
+looking at the horizon you see grass at a grazing angle and blades that stand
+well apart on the ground still overlap completely from there. Being taller helps
+that, and also softens the join with the dense patch.
+
+Literal half density over that area would be 813,000 blades, four times the near
+patch. Thirteen per square metre is what actually looks right.
+
+Both patches run the same code with different numbers, from `grassLayout.ts`.
+Cost together: **0.07 ms per step sprinting**, two draw calls.
 
 **The breeze is animated on the shared blade mesh, not per blade.** Every blade
 is a thin instance of one 5-vertex mesh, so moving those five vertices moves all
@@ -459,6 +478,67 @@ Two traps here:
 
 Blades receive shadows but never cast them. 9,000 blades in the shadow map
 would cost a second render of the whole field and blur the player's own shadow.
+
+## Trees
+
+Twelve trees, four species, grown from code. Each is a list of straight segments
+produced by recursive branching, seeded from its own name so the wood is
+identical on every load and no two trees are alike. About 275 segments and 4,500
+leaves per tree.
+
+### Every leaf is an entity, and none of them is a mesh
+
+A `Leaf` is a handle onto one slot in its tree's canopy buffer. So a canopy is
+**one draw call** while every leaf stays separately addressable — movable,
+resizable, removable, and later pickable. Taking one off re-uploads its own
+sixteen floats and disturbs nothing else. `Branch` works the same way.
+
+Two fields per leaf and an id worked out on demand rather than stored. There are
+53,600 of them; a string kept on each would cost more than the leaf.
+
+The blade is modelled, not a card with a leaf painted on in transparency. Cards
+need a texture and need sorting where they overlap, and a canopy is nothing but
+overlapping leaves. Four triangles of real geometry cost less and light
+properly. The fold down the middle matters: a flat leaf has one normal, so a
+whole canopy flashes uniformly as the sun moves.
+
+Leaves are scattered by picking a twig at random for each one rather than
+filling twig by twig. That is what will make the level-of-detail lever work:
+thinning a canopy draws only the first part of the buffer, which only looks
+right if the early entries are spread through the whole tree.
+
+### Every branch is solid, trunk to twig
+
+Through one merged invisible shell per tree. Merged rather than left as separate
+meshes, because the collision system walks every mesh in the scene that has
+collision turned on, and twelve trees would otherwise add ten thousand to that
+walk. It cannot reuse the visible branch mesh: that is drawn as thin instances,
+and collision only ever sees the one shape they are made from.
+
+The shell uses two box shapes, chosen by height, and the reason is the design:
+
+- **Within reach every box is upright**, and a leaning segment is cut into
+  several of them. A tilted collider is the one shape the solver handles badly —
+  it slides the player along whatever is hit, so a tilted box lifts them a few
+  centimetres at a time and a tree becomes a staircase.
+- **Out of reach, one box lies along the wood.** Tighter, far cheaper, and
+  nothing up there can be walked into anyway.
+
+You can step onto a low branch, 11 cm up. That is a step, not a climb.
+
+Verified: 2,478 pushes at branches from three sides each, at every height —
+never once inside the wood. Collision costs 0.004 ms per step while touching a
+tree.
+
+### Two things that must agree
+
+The segment mesh's taper and the grower's are **one shared constant**. Apart,
+every segment starts wider than the last one finished and the trunk grows a
+visible collar at each joint. Segments are also drawn 12% long and capped at
+both ends: butted exactly together they leave a wedge of daylight at every fork.
+
+Building the wood costs 248 ms. Forty trees would be nearer a second, so they
+will need building a few per frame.
 
 ## Player
 

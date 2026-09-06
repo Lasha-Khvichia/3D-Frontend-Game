@@ -7,7 +7,7 @@ import { DayNightCycle } from "./world/DayNightCycle";
 import { attachPlayer } from "./player/attachPlayer";
 import { MiniMap } from "./minimap/MiniMap";
 import { SunGodRays } from "./world/SunGodRays";
-import { GrassField } from "./world/GrassField";
+import { Meadow } from "./world/Meadow";
 import { buildVillage } from "./world/houses/buildVillage";
 import { VillageOpenings } from "./world/openings/VillageOpenings";
 import { VillageFires } from "./world/fire/VillageFires";
@@ -32,7 +32,7 @@ const scene = runtime.loadScene(createMainScene);
 
 const dayNight = new DayNightCycle(scene);
 const miniMap = new MiniMap(scene);
-const grass = new GrassField(scene);
+const grass = new Meadow(scene);
 const player = attachPlayer(scene, canvas, miniMap.camera);
 dayNight.addShadowCaster(player.controller.bean);
 dayNight.setShadowFocus(player.controller.bean.position);

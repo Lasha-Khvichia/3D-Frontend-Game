@@ -10,15 +10,15 @@
  * `id` is a getter rather than a stored field on purpose. There will be
  * hundreds of thousands of leaves, and a string held on each of them would cost
  * more memory than the leaf itself.
+ *
+ * There is deliberately **no `update`** here. Every system in this game needs
+ * different context to advance — a delta, or a delta and where the player is,
+ * or a delta and which keys were pressed — and forcing one signature on all of
+ * them is the exact rigidity a shallow base is supposed to avoid. The
+ * simulation step in `main.ts` calls each system with what it actually needs.
  */
 export abstract class WorldEntity {
   abstract get id(): string;
-
-  /**
-   * Called from the fixed simulation step. Optional: most entities are moved by
-   * something above them and never need a tick of their own.
-   */
-  update?(seconds: number): void;
 
   /** Releases anything the entity owns. Handles onto shared buffers own nothing. */
   dispose(): void {}

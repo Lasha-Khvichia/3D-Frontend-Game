@@ -64,6 +64,10 @@ in use:
 | `@babylonjs/core/Meshes/thinInstanceMesh`                      | every `mesh.thinInstance*`   |
 | `@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent` | shadow maps rendering at all |
 
+**`thinInstanceGetWorldMatrices()` caches its answer.** Reading it before and
+after a change returns the first snapshot twice and reports that nothing
+happened. Read it once, after the change.
+
 **Babylon winds its front faces the opposite way to the usual right-handed
 rule.** Measured against `CreateBox`: on all twelve of its triangles the cross
 product of the wound edges points _into_ the box. Hand-built geometry wound the
@@ -91,6 +95,24 @@ only when `rotation.z` changes. Both the player camera and the mini-map camera
 set it.
 
 ## Systems worth knowing before you touch them
+
+**Trees** (`src/world/trees/`) are grown from code, not loaded. A `Leaf` and a
+`Branch` are entities but own no mesh: each is a handle onto one slot in a shared
+thin-instance buffer, which is what lets 53,600 leaves stay addressable while a
+canopy is one draw call. Ids are getters, never stored fields. Collision is one
+merged invisible shell per tree — upright boxes within reach, boxes lying along
+the wood above it, and never a tilted collider low down or the tree becomes a
+staircase.
+
+**`WorldEntity`** (`src/core/WorldEntity.ts`) is the base every world object
+shares: an `id` getter and `dispose`, and deliberately **no `update`**. Every
+system needs different context to advance, and forcing one signature on all of
+them is the rigidity a shallow base exists to avoid.
+
+**Grass is two patches** (`src/world/Meadow.ts`), dense underfoot and sparse to
+the horizon, both running `GrassField` with different numbers from
+`grassLayout.ts`. One patch cannot do both: dense grass must stay small, and a
+small patch ends in a hard edge with bare ground beyond it.
 
 **Grass** (`src/world/GrassField.ts`) is 200,704 thin instances of one 5-vertex
 mesh in one draw call. Never rewrite all transforms in a frame — the patch is a
