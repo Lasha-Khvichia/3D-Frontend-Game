@@ -2,6 +2,7 @@ import { Camera } from "@babylonjs/core/Cameras/camera";
 import { TargetCamera } from "@babylonjs/core/Cameras/targetCamera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { createPose, pitchFor } from "./miniMapPoses";
 import { WITHOUT_FINE_DETAIL } from "../world/fineDetailLayer";
 
 export const MINI_MAP_NAME = "minimap-camera";
@@ -31,6 +32,19 @@ export function createMiniMapCamera(scene: Scene): TargetCamera {
   // 100 m is comfortably more than the widest the box ever gets (45 m), so
   // nothing the map can contain is ever behind the near plane. Orthographic
   // depth is linear, so the wider range costs no precision worth having.
+  // MiniMap resets these every step, but they must not start null: with no
+  // orthographic box Babylon falls back to one the size of the render target
+  // measured in metres, which is hundreds of times too wide.
+  const chase = createPose();
+  // Aimed down at the chase angle from the start. MiniMap re-aims it every
+  // step, but no step runs while the game is paused, and a map camera left
+  // looking at the horizon shows a strip of sky on the pause screen.
+  camera.rotation.x = pitchFor(chase);
+  camera.orthoLeft = -chase.halfExtent;
+  camera.orthoRight = chase.halfExtent;
+  camera.orthoTop = chase.halfExtent;
+  camera.orthoBottom = -chase.halfExtent;
+
   camera.minZ = -100;
   camera.maxZ = 400;
 

@@ -1,18 +1,15 @@
-import { Viewport } from "@babylonjs/core/Maths/math.viewport";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import type { TargetCamera } from "@babylonjs/core/Cameras/targetCamera";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { createMiniMapCamera } from "./createMiniMapCamera";
+import { fitMiniMapViewport } from "./fitMiniMapViewport";
 import { blendPose, createPose, POSE_TRANSITION_SECONDS } from "./miniMapPoses";
 import { drawMiniMapDecor, type MiniMapDecor } from "./drawMiniMapDecor";
 import { readMiniMapCanvas } from "../ui/bridge";
 import type { DayNightCycle } from "../world/DayNightCycle";
 
-/** Side of the map in CSS pixels. Must match `.overlay__minimap` in overlay.css. */
-export const MINI_MAP_SIZE_CSS = 220;
-/** Gap from the bottom-left corner of the screen, in CSS pixels. */
-const MINI_MAP_MARGIN_CSS = 16;
+export { MINI_MAP_SIZE_CSS } from "./fitMiniMapViewport";
 
 /**
  * A second camera that follows the player, drawn into the bottom left corner,
@@ -29,6 +26,7 @@ export class MiniMap {
   readonly camera: TargetCamera;
 
   private readonly engine: AbstractEngine;
+  private readonly stopWatchingResize: ReturnType<AbstractEngine["onResizeObservable"]["add"]>;
   private readonly pose = createPose();
   private blend = 0;
   private readonly decor: MiniMapDecor = {
@@ -44,6 +42,17 @@ export class MiniMap {
   constructor(scene: Scene) {
     this.camera = createMiniMapCamera(scene);
     this.engine = scene.getEngine();
+    // Immediately, not on the first step: the game starts paused and no step
+    // runs until the player clicks in, and a camera without its own viewport
+    // covers the whole screen.
+    fitMiniMapViewport(this.camera, this.engine);
+    this.stopWatchingResize = this.engine.onResizeObservable.add(() =>
+      fitMiniMapViewport(this.camera, this.engine),
+    );
+  }
+
+  dispose(): void {
+    this.engine.onResizeObservable.remove(this.stopWatchingResize);
   }
 
   /** 0 over the shoulder, 1 straight overhead. */
@@ -59,7 +68,6 @@ export class MiniMap {
   ): void {
     this.advanceBlend(seconds, wantsOverhead);
     const pitch = this.placeCamera(player);
-    this.placeViewport();
     this.paintDecor(player.rotation.y, pitch, dayNight);
   }
 
@@ -93,26 +101,6 @@ export class MiniMap {
     this.camera.orthoTop = this.pose.halfExtent;
     this.camera.orthoBottom = -this.pose.halfExtent;
     return pitch;
-  }
-
-  /**
-   * Babylon viewports are fractions of the render target, but the map is a
-   * fixed pixel size, so this has to be recomputed whenever the window changes.
-   */
-  private placeViewport(): void {
-    const scaling = this.engine.getHardwareScalingLevel();
-    const sizePixels = MINI_MAP_SIZE_CSS / scaling;
-    const marginPixels = MINI_MAP_MARGIN_CSS / scaling;
-    const width = this.engine.getRenderWidth();
-    const height = this.engine.getRenderHeight();
-    if (width <= 0 || height <= 0) return;
-
-    this.camera.viewport = new Viewport(
-      marginPixels / width,
-      marginPixels / height,
-      sizePixels / width,
-      sizePixels / height,
-    );
   }
 
   private paintDecor(yaw: number, pitch: number, dayNight: DayNightCycle): void {

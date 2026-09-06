@@ -85,6 +85,7 @@ runtime.start();
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     settings.dispose();
+    miniMap.dispose();
     player.dispose();
     runtime.dispose();
   });
