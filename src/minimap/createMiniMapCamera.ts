@@ -20,7 +20,18 @@ export const MINI_MAP_NAME = "minimap-camera";
 export function createMiniMapCamera(scene: Scene): TargetCamera {
   const camera = new TargetCamera(MINI_MAP_NAME, new Vector3(0, 9, -14), scene);
   camera.mode = Camera.ORTHOGRAPHIC_CAMERA;
-  camera.minZ = 0.5;
+  // Negative on purpose, and only sane because this camera is orthographic.
+  //
+  // An orthographic camera's rays are parallel, so the bottom of its box is
+  // 18 m below the camera itself. Pitched down over the player's shoulder, the
+  // ground along that bottom edge lies BEHIND the camera plane, at negative
+  // view depth. With the usual small positive near plane it was clipped away,
+  // and the bottom 18% of the map showed the first-person view through it.
+  //
+  // 100 m is comfortably more than the widest the box ever gets (45 m), so
+  // nothing the map can contain is ever behind the near plane. Orthographic
+  // depth is linear, so the wider range costs no precision worth having.
+  camera.minZ = -100;
   camera.maxZ = 400;
 
   // Without this, Babylon builds the view matrix against the fixed world up of
