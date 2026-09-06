@@ -172,9 +172,8 @@ reads as unlit no matter how strong the light is.
 Ten houses along one street, five a side, facing each other. Every one is built
 from code at startup. Nothing is downloaded, and there is no `.glb` anywhere.
 
-Phase 0 built the shells. **Phase 1 dressed them** in stone and timber. Doors,
-shutters and fireplaces come later, and all of them hang off the same
-blueprints.
+Phase 0 built the shells, **Phase 1 dressed them** in stone and timber, **Phase
+2 hung the doors and shutters**, and **Phase 3 lit the fires**.
 
 ### You can walk inside
 
@@ -260,6 +259,134 @@ left out of two passes:
   pass cannot change the silhouette.
 
 Together those took the frame from 249 draw calls back to 189.
+
+## Doors and shutters
+
+| Input                           | What it does                |
+| ------------------------------- | --------------------------- |
+| Walk into a door                | Opens it                    |
+| Lean on an open door's far edge | Shuts it                    |
+| `F` at a door, from inside      | Drops or lifts the bar      |
+| `E` at a window                 | Opens or shuts the shutters |
+| `F` at a window                 | Bolts or unbolts them       |
+
+Ten doors and 57 windows, 124 leaves in all. A prompt appears when you are
+close enough for a key to do something. Doors get no prompt for opening,
+because walking into one is the whole control.
+
+### A push always swings the leaf away from whoever pushed it
+
+From the street a door opens inwards; from inside it opens outwards; leaning on
+an open leaf swings it shut. That single rule is what makes it impossible for a
+door to sweep through the player, which is the usual way a push-to-open door
+goes wrong. Games solve it the same way, with a door that is hinged both ways
+and picks its direction from where you are standing.
+
+Three things stop a door fluttering, and all three were needed:
+
+- **A push is ignored while the leaf is still moving.** Without this the door
+  reverses part way through its own swing and never arrives.
+- **Shutting is judged at the leaf's far edge**, where a hand would go, not at
+  its middle. The far edge of an open door is the part furthest from the
+  doorway.
+- **Shutting also requires you to be clear of the doorway.** Otherwise walking
+  in through a door you just opened slams it behind you.
+
+### The collider is not the door
+
+A real plank door is about 3 cm thick. Sprinting covers 13 cm in one simulation
+step, so a collider that thin could be crossed between two steps without ever
+being touched. The boards you see are 6 cm; the invisible collider on the same
+hinge is **22 cm**. Shutters get the same treatment at 12 cm.
+
+### Barring and bolting
+
+The bar is a **drawbar that slides**, not something on a hinge: that is how it
+was actually done, and sliding is one number to animate with no rotation to get
+the wrong way round. It waits for the door to shut before sliding across, so it
+is never seen lying over an open doorway.
+
+**The bar can only be reached from inside.** Pressing `F` from the street does
+nothing at all. While it is down the door will not open for anyone, from either
+side. Pressing `F` again inside lifts it.
+
+Windows get a **small bolt that drops** from above instead. A beam the size of a
+door bar across a window would cover the whole opening and look absurd.
+
+Shutters open until they lie back flat against the wall, which is what real
+shutters do and the reason they can carry collision without becoming something
+you snag on.
+
+Cost measured while running: **0.055 ms per step** for all 67 openings, against
+a 16.7 ms budget. Nothing needed optimising.
+
+## Fireplaces, chimneys, fire and smoke
+
+Every house has a hearth burning and a chimney smoking.
+
+### Where the chimney goes, and what it costs the wall
+
+The stack climbs the outside of a **gable end**, the way these were really
+built, rather than passing through the roof. That means the roof needs no hole
+cut in it.
+
+**The chimney wall carries no windows at all.** A window there would end up
+behind the stack or behind the chimney breast. That is why the village has 43
+windows rather than 57. Which gable end takes the stack is fixed per house and
+varies between them, so the street does not read as one house repeated.
+
+Everything about a fireplace is placed in a frame of reference stuck to that
+wall — across it, out through it, and up. The same numbers then build the
+fireplace whichever of the four walls it lands on, with no axis swapping.
+
+### The fire and the smoke are not the same effect
+
+They are in different places and behave in opposite ways, so they are separate
+systems on separate leashes.
+
+|             | Fire                                 | Smoke                             |
+| ----------- | ------------------------------------ | --------------------------------- |
+| Blending    | Additive, so overlaps brighten       | Alpha, so it darkens the sky      |
+| Gravity     | **Upward.** Hot gas accelerates away | Slight rise plus a sideways drift |
+| Life        | 0.45 to 1.05 s                       | 2.3 to 4.2 s                      |
+| Size        | Small, tapering as it climbs         | Grows from 0.32 to 2.3            |
+| Runs within | 20 m                                 | 150 m                             |
+
+**Both were tuned by looking, not by guessing.** Three things had to be fixed
+that no amount of reading would have caught:
+
+- **Large particles read as floating balls** however they are coloured. It is
+  the overlap of dozens of small additive ones that looks like flame.
+- **Particles are densest where they are born**, so starting them at full
+  strength piles opaque white into the bottom of the hearth however low the
+  alpha goes. They now fade in over the first quarter of their life.
+- **Smoke stacks its own alpha.** A value that looks right on one particle turns
+  into solid black on twenty. It came out looking like a foundry before it came
+  out looking like a cottage.
+
+Every chimney drifts the same way, which is what makes it read as wind rather
+than as ten unrelated effects.
+
+### One firelight for the whole village
+
+There is exactly **one** point light, moved to whichever fire the player is
+nearest and given a flicker from two waves at unrelated speeds. Ten point lights
+would blow past the four a standard material will consider at once, and the
+player can only ever be in one room, so nine of them would light nothing anybody
+could see.
+
+That takes the scene to **4 lights: ambient, sun, moon, firelight.** Exactly the
+limit. A fifth would silently stop one of them being used.
+
+### Standing in the fire
+
+You cannot. The visible surround has to leave the opening clear so the fire can
+be seen through it, so a separate invisible block fills the opening. You can
+step onto the hearthstone — it lifts you 9 cm, which is what a hearthstone does.
+
+Cost of the whole system: **0.001 ms per step**, plus whatever the particles
+themselves cost on the GPU. Five fires and ten smoke plumes run from the middle
+of the street; none of the fires run from the far corner of the platform.
 
 ### Ten different houses, not one repeated
 

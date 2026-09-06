@@ -99,6 +99,16 @@ with `thinInstancePartialBufferUpdate`. The breeze animates the **shared blade
 mesh**, so all instances move for free; per-blade wind would need a vertex shader.
 Grass only bends for meshes registered with `addPusher()`.
 
+**The scene is at its light budget: 4.** Ambient, sun, moon, and the single
+firelight that moves to whichever hearth the player is nearest. A standard
+material only considers four at once, so a fifth light would silently stop one
+of the others being used. Move the shared light rather than adding another.
+
+**A merged mesh comes back with its world matrix frozen.** Right for scenery,
+wrong for anything hung on a hinge: frozen means the parent can turn all it
+likes and the mesh will not follow, with no error. Call `unfreezeWorldMatrix()`
+after parenting a merged mesh to something that moves.
+
 **Houses are built from code, not loaded** (`src/world/houses/`). A house is
 rows of solid boxes with the openings left out, under a roof that carries no
 collision. That shape is deliberate: boxes are thick enough that a sprinting
@@ -110,9 +120,10 @@ collision on anything sloped.
 **The village is phased.** Phase 0 (done) is bare shells. Phase 1 (done) is
 stone and timber on the walls, placed on the wall segments so it can never cover
 an opening, seeded from each house's name so the village never changes between
-loads. Phase 2 is working doors and shutters, opened by walking into them or
-with `E`, barred from inside with `F`. Phase 3 is fireplaces, chimneys, fire and
-smoke. Each phase builds on `houseShapes.ts` and
+loads. Phase 2 (done) is working doors and shutters in
+`src/world/openings/`: doors open by walking into them, `E` works shutters, `F`
+bars a door from inside or bolts a window. Phase 3 (done) is fireplaces, chimneys, fire
+and smoke, in `src/world/fire/`. Each phase builds on `houseShapes.ts` and
 `houseBlueprint.ts` rather than replacing them.
 
 **Sun and moon are real astronomy** (`celestialPath.ts`), on separate clocks.
