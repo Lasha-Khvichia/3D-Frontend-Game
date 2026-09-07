@@ -12,6 +12,7 @@ import { buildVillage } from "./world/houses/buildVillage";
 import { VillageOpenings } from "./world/openings/VillageOpenings";
 import { VillageFires } from "./world/fire/VillageFires";
 import { Woodland } from "./world/trees/Woodland";
+import { TreeWind } from "./world/trees/TreeWind";
 import { PLAYER_HEIGHT } from "./player/createPlayerBean";
 import { SettingsBinder } from "./settings/SettingsBinder";
 
@@ -42,7 +43,6 @@ const godRays = new SunGodRays(scene, player.controller.camera, dayNight.sunMesh
 // A million triangles of grass, blocking nothing a sun shaft would miss.
 for (const mesh of grass.meshes) godRays.excludeFromOcclusion(mesh);
 
-// Built from code, not loaded, so the world is complete on the first frame.
 const village = buildVillage(scene);
 for (const house of village) {
   dayNight.addShadowCaster(house.walls);
@@ -51,7 +51,6 @@ for (const house of village) {
   for (const detail of house.decor) godRays.excludeFromOcclusion(detail);
 }
 
-// Doors and shutters. They move, so they cannot be merged into the houses.
 const openings = new VillageOpenings(scene, village);
 for (const mesh of openings.shadowCasters) dayNight.addShadowCaster(mesh);
 for (const mesh of openings.occlusionSkips) godRays.excludeFromOcclusion(mesh);
@@ -60,10 +59,10 @@ for (const mesh of openings.occlusionSkips) godRays.excludeFromOcclusion(mesh);
 const fires = new VillageFires(scene, village);
 for (const mesh of fires.shadowCasters) dayNight.addShadowCaster(mesh);
 
-const woodland = new Woodland(scene);
+const wind = new TreeWind(scene.getEngine());
+const woodland = new Woodland(scene, wind);
 for (const mesh of woodland.shadowCasters) dayNight.addShadowCaster(mesh);
 
-// One list, set once: applying an exclusion rewrites every blade in the field.
 grass.setExclusions([...village.map((house) => house.footprint), ...woodland.footprints]);
 
 const settings = new SettingsBinder({
@@ -85,6 +84,7 @@ runtime.setSimulationStep((fixedDeltaSeconds) => {
   miniMap.update(fixedDeltaSeconds, player.controller.bean, player.wantsOverheadMap(), dayNight);
   godRays.update(dayNight.sunHeight);
   fires.update(fixedDeltaSeconds, player.controller.bean.position);
+  wind.update(fixedDeltaSeconds);
   grass.update(fixedDeltaSeconds, player.controller.bean.position);
 });
 

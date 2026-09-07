@@ -537,6 +537,42 @@ Verified: 2,478 pushes at branches from three sides each, at every height —
 never once inside the wood. Collision costs 0.004 ms per step while touching a
 tree.
 
+### Wind
+
+Three motions added together in the vertex shader, which is how vegetation wind
+is done everywhere:
+
+|              | Rises with                                          | Speed  |
+| ------------ | --------------------------------------------------- | ------ |
+| Trunk bend   | the **square** of height, so the base stays planted | slow   |
+| Branch sway  | distance out from the trunk                         | medium |
+| Leaf flutter | nothing; it is a flat couple of centimetres         | fast   |
+
+A gust envelope scales the first two up and down over about thirty seconds, so
+the wood breathes rather than oscillating.
+
+It is a **material plugin on the standard material**, not a material of our own.
+A material of our own would have to re-implement lighting, shadows and fog to
+keep the trees looking like everything else; this injects a few lines into the
+shader Babylon already builds and leaves the rest alone.
+
+**No per-vertex data and no extra buffers.** Everything comes from the vertex's
+world position and `world`, the mesh's own matrix, whose translation is the foot
+of that tree. With thin instances Babylon builds `finalWorld = world * instance`,
+so the difference between the two is the offset within the tree — which gives
+both height and distance from the trunk for free. The phase comes from where the
+tree stands, so no two trees move together.
+
+**Leaves bend and sway by exactly as much as the wood.** They are separate
+meshes and nothing but those two numbers keeps them together; make the leaf sway
+larger and the leaves slide off their twigs. Only the flutter is theirs alone.
+
+Two limits worth knowing. The shader is GLSL, so on a **WebGPU** engine the wind
+switches itself off rather than breaking every tree material — WebGPU needs
+WGSL. And a vertex shader that moves geometry does not move its **shadow**,
+because the shadow pass runs a different shader; the trunk bend is a few
+centimetres, so the drift is not visible, but it is there.
+
 ### Two things that must agree
 
 The segment mesh's taper and the grower's are **one shared constant**. Apart,

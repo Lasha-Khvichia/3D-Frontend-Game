@@ -1,7 +1,6 @@
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Material } from "@babylonjs/core/Materials/material";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { addFlatTriangle, type TriangleBuffers } from "../houses/addFlatTriangle";
@@ -22,7 +21,7 @@ const FOLD = 0.09;
  * canopy of them flashes uniformly as the sun moves; folded, the two halves
  * catch light separately and the canopy breaks up.
  */
-export function createLeafBlade(name: string, colour: Color3, scene: Scene): Mesh {
+export function createLeafBlade(name: string, material: Material, scene: Scene): Mesh {
   const base = new Vector3(0, 0, 0);
   const right = new Vector3(0.33, 0.45, 0);
   const tip = new Vector3(0, 1, 0);
@@ -44,13 +43,6 @@ export function createLeafBlade(name: string, colour: Color3, scene: Scene): Mes
   data.indices = buffers.indices;
   data.applyToMesh(mesh);
 
-  const material = new StandardMaterial(`${name}-material`, scene);
-  material.diffuseColor = colour;
-  material.specularColor = Color3.Black();
-  // Leaves are seen from both sides. twoSidedLighting stays off: it flips the
-  // normal for the back face, which is right for a solid and wrong here, where
-  // a leaf lit from behind should read as lit, not black.
-  material.backFaceCulling = false;
   mesh.material = material;
 
   mesh.isPickable = false;

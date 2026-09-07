@@ -64,6 +64,12 @@ in use:
 | `@babylonjs/core/Meshes/thinInstanceMesh`                      | every `mesh.thinInstance*`   |
 | `@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent` | shadow maps rendering at all |
 
+**A material's effect and the effect a mesh is drawn with are different
+objects.** `material.getEffect()` returns whatever was last bound, which is often
+not the instanced variant the mesh actually uses. Check
+`mesh.subMeshes[0].effect.defines` instead — reading the wrong one reported a
+working shader plugin as missing.
+
 **`thinInstanceGetWorldMatrices()` caches its answer.** Reading it before and
 after a change returns the first snapshot twice and reports that nothing
 happened. Read it once, after the change.
@@ -103,6 +109,12 @@ canopy is one draw call. Ids are getters, never stored fields. Collision is one
 merged invisible shell per tree — upright boxes within reach, boxes lying along
 the wood above it, and never a tilted collider low down or the tree becomes a
 staircase.
+
+**Tree wind is a material plugin** (`src/world/trees/WindMaterialPlugin.ts`) on
+the standard material, so lighting, shadows and fog keep working. It is GLSL, so
+it disables itself on a WebGPU engine rather than breaking every tree material.
+Leaf and wood strengths must keep the same bend and sway or leaves slide off
+their twigs.
 
 **`WorldEntity`** (`src/core/WorldEntity.ts`) is the base every world object
 shares: an `id` getter and `dispose`, and deliberately **no `update`**. Every

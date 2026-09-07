@@ -5,8 +5,9 @@ import type { Scene } from "@babylonjs/core/scene";
 import { WorldEntity } from "../../core/WorldEntity";
 import type { Footprint } from "../footprint";
 import { Tree } from "./Tree";
+import { LEAF_WIND, TreeWind, WOOD_WIND } from "./TreeWind";
 import { TREE_PLACEMENTS } from "./treeLayout";
-import { TREE_SPECIES, type TreeSpeciesName } from "./treeSpecies";
+import { TREE_SPECIES } from "./treeSpecies";
 
 /**
  * Every tree in the world.
@@ -19,23 +20,44 @@ import { TREE_SPECIES, type TreeSpeciesName } from "./treeSpecies";
 export class Woodland extends WorldEntity {
   readonly trees: Tree[];
 
-  constructor(scene: Scene) {
+  constructor(scene: Scene, wind: TreeWind) {
     super();
-    const barks = new Map<TreeSpeciesName, StandardMaterial>();
-    const barkFor = (species: TreeSpeciesName): StandardMaterial => {
-      const existing = barks.get(species);
+    // One material per species rather than per tree, so four oaks share one and
+    // the wind is attached to it once.
+    const shared = new Map<string, StandardMaterial>();
+    const materialFor = (
+      key: string,
+      colour: Color3,
+      leaf: boolean,
+      strength: typeof WOOD_WIND,
+    ): StandardMaterial => {
+      const existing = shared.get(key);
       if (existing) return existing;
-      const material = new StandardMaterial(`bark-${species}`, scene);
-      material.diffuseColor = TREE_SPECIES[species].bark;
-      // Specular on bark under a moving sun reads as wet plastic.
+      const material = new StandardMaterial(key, scene);
+      material.diffuseColor = colour;
+      // Specular on bark or leaves under a moving sun reads as wet plastic.
       material.specularColor = Color3.Black();
-      barks.set(species, material);
+      // Leaves are seen from both sides. twoSidedLighting stays off: it flips
+      // the normal for the back face, which is right for a solid and wrong
+      // here, where a leaf lit from behind should read as lit, not black.
+      if (leaf) material.backFaceCulling = false;
+      wind.applyTo(material, strength);
+      shared.set(key, material);
       return material;
     };
 
-    this.trees = TREE_PLACEMENTS.map(
-      (spot) => new Tree(scene, spot.name, spot.species, spot.x, spot.z, barkFor(spot.species)),
-    );
+    this.trees = TREE_PLACEMENTS.map((spot) => {
+      const shape = TREE_SPECIES[spot.species];
+      return new Tree(
+        scene,
+        spot.name,
+        spot.species,
+        spot.x,
+        spot.z,
+        materialFor(`bark-${spot.species}`, shape.bark, false, WOOD_WIND),
+        materialFor(`leaf-${spot.species}`, shape.leaf, true, LEAF_WIND),
+      );
+    });
   }
 
   get id(): string {

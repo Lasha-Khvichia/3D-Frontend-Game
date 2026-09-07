@@ -41,6 +41,7 @@ export class Tree extends WorldEntity {
     readonly centreX: number,
     readonly centreZ: number,
     bark: Material,
+    leaf: Material,
   ) {
     super();
     const shape = TREE_SPECIES[species];
@@ -55,7 +56,7 @@ export class Tree extends WorldEntity {
       shape,
       createSeededRandom(seedFromText(`${name}-leaves`)),
     );
-    this.canopy = new TreeCanopy(scene, name, leaves, shape.leaf);
+    this.canopy = new TreeCanopy(scene, name, leaves, leaf);
     this.canopy.mesh.position.set(centreX, 0, centreZ);
 
     this.solid = collideTree(scene, name, this.skeleton, new Vector3(centreX, 0, centreZ));

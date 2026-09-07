@@ -1,7 +1,7 @@
 // Registers Mesh.thinInstance*. Without it the whole API is absent from Mesh.
 import "@babylonjs/core/Meshes/thinInstanceMesh";
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
-import type { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Material } from "@babylonjs/core/Materials/material";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { WorldEntity } from "../../core/WorldEntity";
@@ -35,10 +35,10 @@ export class TreeCanopy extends WorldEntity {
     scene: Scene,
     private readonly treeName: string,
     private readonly specs: readonly LeafSpec[],
-    colour: Color3,
+    material: Material,
   ) {
     super();
-    this.mesh = createLeafBlade(`${treeName}-leaves`, colour, scene);
+    this.mesh = createLeafBlade(`${treeName}-leaves`, material, scene);
 
     this.matrices = new Float32Array(specs.length * FLOATS_PER_MATRIX);
     this.visible = new Float32Array(specs.length).fill(1);
