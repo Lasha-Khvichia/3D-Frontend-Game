@@ -678,6 +678,38 @@ Jumping peaks at 1.11 m and lands after about 0.64 s. Two forgiveness windows
 make it feel right: 0.12 s of coyote time after leaving the ground, and 0.12 s
 of input buffering so a press just before landing still jumps.
 
+### Air control
+
+**Horizontal speed is state, not something recomputed from the keys every
+step.** On the ground the legs set it outright, which is what makes walking feel
+immediate. Off the ground there are no legs to push with, so the speed carried
+off the ground is kept and only nudged, in `steerInAir.ts`.
+
+Only the part of your speed already pointing where you are asking to go counts
+against the limit. That one detail is what makes it feel right:
+
+|                                            |                                                                             |
+| ------------------------------------------ | --------------------------------------------------------------------------- |
+| Jump from a standstill, then press forward | you creep up to **2 m/s**, and cover **1.10 m** over the hop                |
+| Walk the same 0.64 s on the ground         | **2.88 m**, so a jump is well under half                                    |
+| Jump while sprinting at 8 m/s              | forward adds nothing, and you keep all **5.07 m** of it                     |
+| Press sideways, either case                | full 2 m/s of steering, because sideways is a direction you had no speed in |
+
+Momentum is never taken away in the air. Air braking belongs to the ground, and
+the ground takes it back the instant the feet land.
+
+### Standing still means standing still
+
+**Babylon's collision solver has no friction.** On a slope it answers the
+downward push of gravity by sliding the player along the face. Measured on a
+house roof: 4 cm a second, hands off the keys, which walks you off the eaves in
+under a minute.
+
+So when the floor stopped the fall and the player asked for no horizontal
+movement, `PlayerController` puts x and z back where they were. Nothing asked
+for that movement. Walking up or down a slope is untouched, because that
+movement was asked for.
+
 ## Parkour
 
 Line up with a wall and press **Space**. If there is a ledge in front of you,

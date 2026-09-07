@@ -6,6 +6,7 @@ import { createPlayerBean, PLAYER_EYE_HEIGHT, PLAYER_HEIGHT } from "./createPlay
 import { ClimbMove } from "./ClimbMove";
 import { findLedge } from "./findLedge";
 import type { PlayerInput } from "./PlayerInput";
+import { steerInAir } from "./steerInAir";
 import { HeadBob } from "./HeadBob";
 
 const WALK_SPEED = 4.5;
@@ -57,6 +58,8 @@ export class PlayerController {
   private groundedTimer = 0;
   private jumpBufferTimer = 0;
   private readonly displacement = new Vector3();
+  /** Horizontal speed, kept between steps so a jump carries its run with it. */
+  private readonly velocity = new Vector3();
   private readonly headBob = new HeadBob();
   private sensitivityScale = 1;
   private invertLook = false;
@@ -131,6 +134,7 @@ export class PlayerController {
     if (!this.climb?.isDone) return;
     this.climb = null;
     this.verticalSpeed = 0;
+    this.velocity.set(0, 0, 0);
     this.groundedTimer = 0;
     this.grounded = false;
   }
@@ -193,14 +197,23 @@ export class PlayerController {
       moveZ /= length;
     }
 
-    const groundSpeed = this.input.isRunning ? RUN_SPEED : WALK_SPEED;
+    // On the ground the legs set the speed outright, which is what makes
+    // walking feel immediate. In the air there are no legs to push with, so the
+    // speed carried off the ground is kept and only nudged.
+    if (this.grounded) {
+      const groundSpeed = this.input.isRunning ? RUN_SPEED : WALK_SPEED;
+      this.velocity.x = moveX * groundSpeed;
+      this.velocity.z = moveZ * groundSpeed;
+    } else {
+      steerInAir(this.velocity, moveX, moveZ, seconds);
+    }
 
     this.verticalSpeed += GRAVITY * seconds;
 
     this.displacement.set(
-      moveX * groundSpeed * seconds,
+      this.velocity.x * seconds,
       this.verticalSpeed * seconds,
-      moveZ * groundSpeed * seconds,
+      this.velocity.z * seconds,
     );
 
     // moveWithCollisions starts from the world matrix, not from .position. The
@@ -218,6 +231,18 @@ export class PlayerController {
     const actualDrop = this.bean.position.y - beforeY;
     const floorStoppedTheFall =
       this.verticalSpeed < 0 && actualDrop > this.displacement.y + GROUND_EPSILON;
+
+    // Standing still has to mean standing still. Babylon's solver has no
+    // friction: on a slope it answers the downward push of gravity by sliding
+    // the player along the face, so a roof carries you off itself at 4 cm a
+    // second with your hands off the keys. Nothing asked for that movement, so
+    // it is given back. Walking up or down a slope is untouched, because that
+    // movement was asked for.
+    const askedToMove = this.displacement.x !== 0 || this.displacement.z !== 0;
+    if (floorStoppedTheFall && !askedToMove) {
+      this.bean.position.x = beforeX;
+      this.bean.position.z = beforeZ;
+    }
 
     if (floorStoppedTheFall) {
       this.verticalSpeed = 0;

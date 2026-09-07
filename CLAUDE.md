@@ -177,6 +177,10 @@ slides it down the roof and wedges it between steps. A sloped collider is only
 safe because the wedge's lowest point is the wall top, 2.4 m up, out of reach of
 a 1.11 m jump and a 2.0 m climb. Anything reachable on foot must still be boxes.
 
+**Nothing pushes the player sideways unless the player asked.** The solver has
+no friction, so gravity on a slope slides you. `PlayerController` restores x and
+z after a move that was grounded and had no horizontal input.
+
 **The village is phased.** Phase 0 (done) is bare shells. Phase 1 (done) is
 stone and timber on the walls, placed on the wall segments so it can never cover
 an opening, seeded from each house's name so the village never changes between
