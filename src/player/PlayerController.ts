@@ -3,6 +3,8 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { createPlayerBean, PLAYER_EYE_HEIGHT, PLAYER_HEIGHT } from "./createPlayerBean";
+import { ClimbMove } from "./ClimbMove";
+import { findLedge } from "./findLedge";
 import type { PlayerInput } from "./PlayerInput";
 import { HeadBob } from "./HeadBob";
 
@@ -58,9 +60,11 @@ export class PlayerController {
   private readonly headBob = new HeadBob();
   private sensitivityScale = 1;
   private invertLook = false;
+  /** Set while hauling over a ledge. Nothing else moves the player meanwhile. */
+  private climb: ClimbMove | null = null;
 
   constructor(
-    scene: Scene,
+    private readonly scene: Scene,
     private readonly input: PlayerInput,
   ) {
     this.bean = createPlayerBean(scene);
@@ -94,11 +98,41 @@ export class PlayerController {
     return this.grounded;
   }
 
+  get isClimbing(): boolean {
+    return this.climb !== null;
+  }
+
   update(fixedDeltaSeconds: number): void {
+    // Looking around stays free during a climb. Taking the mouse away to play a
+    // cinematic fights the player's hand, which is worse than any camera move
+    // is worth.
     this.applyLook();
+
+    if (this.climb) {
+      this.advanceClimb(fixedDeltaSeconds);
+      this.syncCamera();
+      return;
+    }
+
     this.applyJump(fixedDeltaSeconds);
     this.applyMovement(fixedDeltaSeconds);
     this.syncCamera();
+  }
+
+  /**
+   * Moves the player along the scripted path, then hands control back with no
+   * vertical speed, so a vault that ends in the air simply falls.
+   */
+  private advanceClimb(seconds: number): void {
+    this.climb?.advance(seconds, this.bean.position);
+    // Fed no distance: the bob is driven by ground covered, and a climb would
+    // read to it as a sprint.
+    this.headBob.advance(seconds, 0, false);
+    if (!this.climb?.isDone) return;
+    this.climb = null;
+    this.verticalSpeed = 0;
+    this.groundedTimer = 0;
+    this.grounded = false;
   }
 
   /**
@@ -113,7 +147,18 @@ export class PlayerController {
       this.jumpBufferTimer = Math.max(0, this.jumpBufferTimer - seconds);
     }
 
-    if (this.jumpBufferTimer <= 0 || !this.grounded) return;
+    if (this.jumpBufferTimer <= 0) return;
+
+    // A ledge beats a jump, and works in mid-air too: jumping at a wall and
+    // grabbing the top of it is the point of the move.
+    const ledge = findLedge(this.scene, this.bean, this.yaw);
+    if (ledge) {
+      this.climb = new ClimbMove(this.bean.position, ledge);
+      this.jumpBufferTimer = 0;
+      return;
+    }
+
+    if (!this.grounded) return;
 
     this.verticalSpeed = JUMP_SPEED;
     this.jumpBufferTimer = 0;

@@ -639,6 +639,72 @@ Jumping peaks at 1.11 m and lands after about 0.64 s. Two forgiveness windows
 make it feel right: 0.12 s of coyote time after leaving the ground, and 0.12 s
 of input buffering so a press just before landing still jumps.
 
+## Parkour
+
+Line up with a wall and press **Space**. If there is a ledge in front of you,
+you climb it instead of jumping; if there is not, you jump as before. One key,
+two meanings, and it never fires when you did not ask.
+
+|                  |                                                               |
+| ---------------- | ------------------------------------------------------------- |
+| Grabbable        | 0.5 m to 2.0 m above your feet — knee to 20 cm over your head |
+| Broad top        | you end up standing on it                                     |
+| Thin wall        | you go over and land on the far side                          |
+| Works in mid-air | yes; jumping at a wall and grabbing the top is the point      |
+
+### Finding a ledge
+
+Four rays, in `src/player/findLedge.ts`.
+
+1. **Face**, forward from **30 cm above the feet**. Cast from the chest it sails
+   clean over a knee-high wall and finds nothing.
+2. **Top**, down from 20 cm over your head, just past that face.
+3. **Clearance**, up from the ledge.
+4. **Landing**, down from 1.1 m past the face. Within 35 cm of the ledge and it
+   is a platform to stand on; lower and it is a thin wall to cross, and this is
+   where you land.
+
+**Every ray carries a predicate, and it is not optional.** Everything solid here
+is invisible, unpickable, or both — of the eleven solid meshes in the game only
+the ground passes Babylon's default filter of enabled, visible and pickable.
+Supplying a predicate replaces that filter entirely, so `mesh.checkCollisions`
+picks exactly the world the player already collides with. No mesh flag anywhere
+had to change.
+
+### Standing room versus room to pass
+
+To stand on a ledge you need to fit standing. To go _over_ something you only
+need room to pass, so a vault asks for 90 cm rather than 1.85 m.
+
+That one distinction is what makes **windows climbable**. The wall under a
+window is a thin wall with a gap above it, which is precisely the case the move
+is for. All 43 windows in the village can be vaulted through, and you land on
+the floor inside. Demanding standing room refused every one of them.
+
+Doors are refused, correctly — a doorway reaches the floor, so there is no ledge
+to take hold of. You walk through.
+
+**Nothing else in the village is climbable**: house walls are 2.4 m to 3.4 m,
+which is over the limit by design.
+
+### The climb
+
+A scripted path, because `moveWithCollisions` cannot climb the very thing it
+exists to stop you at. Writing the position directly needs nothing turned off: a
+mesh's `checkCollisions` governs what other things do about it, not what it does
+itself.
+
+Two eased legs — 0.35 s up, 0.30 s over — and that is the whole animation. One
+straight interpolation is a diagonal slide through the wall; up first and over
+second is a climb.
+
+The camera needs no special handling, because `syncCamera` rebuilds it from the
+player's position every step. **Looking around stays free** during a climb:
+taking the mouse away to play a cinematic fights the player's hand. The head bob
+is fed no distance while climbing, or it reads the move as a sprint.
+
+Finding a ledge costs 0.023 ms, and only runs when Space is pressed.
+
 ## Head bob
 
 Three motions layered, in `src/player/HeadBob.ts`:

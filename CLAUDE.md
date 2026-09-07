@@ -58,17 +58,25 @@ keep it that way.
 the API is simply absent or does nothing, with no error and no warning. The four
 in use:
 
-| Import                                                         | Enables                      |
-| -------------------------------------------------------------- | ---------------------------- |
-| `@babylonjs/core/Collisions/collisionCoordinator`              | `moveWithCollisions`         |
-| `@babylonjs/core/Meshes/thinInstanceMesh`                      | every `mesh.thinInstance*`   |
-| `@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent` | shadow maps rendering at all |
+| Import                                                         | Enables                                     |
+| -------------------------------------------------------------- | ------------------------------------------- |
+| `@babylonjs/core/Collisions/collisionCoordinator`              | `moveWithCollisions`                        |
+| `@babylonjs/core/Meshes/thinInstanceMesh`                      | every `mesh.thinInstance*`                  |
+| `@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent` | shadow maps rendering at all                |
+| `@babylonjs/core/Culling/ray`                                  | `scene.pickWithRay`, which otherwise throws |
 
 **A material's effect and the effect a mesh is drawn with are different
 objects.** `material.getEffect()` returns whatever was last bound, which is often
 not the instanced variant the mesh actually uses. Check
 `mesh.subMeshes[0].effect.defines` instead — reading the wrong one reported a
 working shader plugin as missing.
+
+**Picking needs a predicate here, always.** Everything solid in this game is
+invisible, unpickable or both, and Babylon's default pick filter wants enabled,
+visible _and_ pickable — only the ground passes. Pass
+`(mesh) => mesh.checkCollisions` and picking matches the world the player
+collides with. A scratch scene also needs `StandardMaterial` imported or picking
+degrades to bounding boxes: hits come back with `faceId -1` and no `pickedPoint`.
 
 **`thinInstanceGetWorldMatrices()` caches its answer.** Reading it before and
 after a change returns the first snapshot twice and reports that nothing
