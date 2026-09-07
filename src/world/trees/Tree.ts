@@ -11,6 +11,7 @@ import { growTreeSkeleton } from "./growTreeSkeleton";
 import { scatterLeaves } from "./scatterLeaves";
 import { TreeCanopy } from "./TreeCanopy";
 import { TreeBranches } from "./TreeBranches";
+import { LEAF_SHARE, LEAF_SIZE, type DetailTier } from "./treeDetail";
 import { TREE_SPECIES, type TreeSpeciesName } from "./treeSpecies";
 
 /** Grass is cleared this far past the trunk, so none grows out of the wood. */
@@ -33,6 +34,7 @@ export class Tree extends WorldEntity {
   readonly skeleton: readonly BranchSpec[];
   /** One invisible shell holding every branch. See collideTree. */
   private readonly solid: Mesh | null;
+  private tier: DetailTier = "near";
 
   constructor(
     scene: Scene,
@@ -64,6 +66,18 @@ export class Tree extends WorldEntity {
 
   get id(): string {
     return this.name;
+  }
+
+  get detail(): DetailTier {
+    return this.tier;
+  }
+
+  /** Thins the canopy for distance, growing what remains to keep it solid. */
+  setDetail(tier: DetailTier): boolean {
+    if (tier === this.tier) return false;
+    this.tier = tier;
+    this.canopy.setDrawnCount(this.canopy.count * LEAF_SHARE[tier], LEAF_SIZE[tier]);
+    return true;
   }
 
   /** The ground the tree stands on, for keeping grass out of the trunk. */

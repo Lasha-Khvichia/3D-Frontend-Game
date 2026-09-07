@@ -1,35 +1,31 @@
 // Registers Mesh.thinInstance*. Without it the whole API is absent from Mesh.
 import "@babylonjs/core/Meshes/thinInstanceMesh";
-import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
+
 import type { Material } from "@babylonjs/core/Materials/material";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { WorldEntity } from "../../core/WorldEntity";
 import { createLeafBlade } from "./createLeafBlade";
 import { Leaf } from "./Leaf";
+import { composeLeafMatrix, createLeafScratch } from "./leafMatrix";
 import type { LeafSpec } from "./scatterLeaves";
 
 const FLOATS_PER_MATRIX = 16;
-const UP = new Vector3(0, 1, 0);
 
 /**
  * Every leaf on one tree, in a single mesh drawn once.
  *
  * Four thousand leaves, four thousand `Leaf` entities, one draw call. A leaf
- * that changes re-uploads its own sixteen floats and nothing else, which is how
- * the grass field carries two hundred thousand blades.
+ * that changes re-uploads its own sixteen floats and nothing else.
  */
 export class TreeCanopy extends WorldEntity {
   readonly mesh: Mesh;
   private readonly matrices: Float32Array;
   private readonly leaves: Leaf[];
   private readonly visible: Float32Array;
+  private sizeScale = 1;
 
-  private readonly scratchScale = new Vector3();
-  private readonly scratchAim = new Quaternion();
-  private readonly scratchRoll = new Quaternion();
-  private readonly scratchTurn = new Quaternion();
-  private readonly scratchMatrix = new Matrix();
+  private readonly scratch = createLeafScratch();
 
   constructor(
     scene: Scene,
@@ -60,12 +56,18 @@ export class TreeCanopy extends WorldEntity {
   }
 
   /**
-   * How many leaves are drawn, from the start of the buffer. The
-   * level-of-detail lever: leaves were scattered in random order, so the first
-   * half are spread through the canopy rather than piled on one limb.
+   * How many leaves are drawn, from the start of the buffer, and how big they
+   * are. Leaves were scattered in random order, so the first half are spread
+   * through the canopy rather than piled on one limb.
    */
-  setDrawnCount(count: number): void {
+  setDrawnCount(count: number, sizeScale: number): void {
     this.mesh.thinInstanceCount = Math.max(0, Math.min(this.leaves.length, Math.round(count)));
+    if (sizeScale === this.sizeScale) return;
+    this.sizeScale = sizeScale;
+    // Every leaf: the whole canopy resizes together. The one expensive thing a
+    // tree does at runtime, so only one tree may change tier per step.
+    for (let index = 0; index < this.leaves.length; index += 1) this.writeLeaf(index);
+    this.mesh.thinInstanceBufferUpdated("matrix");
   }
 
   setLeafScale(index: number, amount: number): void {
@@ -87,14 +89,10 @@ export class TreeCanopy extends WorldEntity {
   private writeLeaf(index: number): void {
     const spec = this.specs[index];
     if (!spec) return;
-    const size = spec.size * (this.visible[index] ?? 1);
-
-    Quaternion.FromUnitVectorsToRef(UP, spec.direction, this.scratchAim);
-    Quaternion.RotationAxisToRef(UP, spec.roll, this.scratchRoll);
-    // a.multiplyToRef(b) applies b first: spin about the stalk, then aim.
-    this.scratchAim.multiplyToRef(this.scratchRoll, this.scratchTurn);
-    this.scratchScale.set(size, size, size);
-    Matrix.ComposeToRef(this.scratchScale, this.scratchTurn, spec.position, this.scratchMatrix);
-    this.scratchMatrix.copyToArray(this.matrices, index * FLOATS_PER_MATRIX);
+    const size = spec.size * (this.visible[index] ?? 1) * this.sizeScale;
+    composeLeafMatrix(spec, size, this.scratch).copyToArray(
+      this.matrices,
+      index * FLOATS_PER_MATRIX,
+    );
   }
 }

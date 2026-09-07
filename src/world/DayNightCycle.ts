@@ -77,6 +77,15 @@ export class DayNightCycle {
   }
 
   /** Anything added here casts a shadow from the sun. */
+  /**
+   * Taking a caster out again matters once the world is bigger than the shadow
+   * box: a tree 100 m away is drawn into the shadow map every frame and casts
+   * nothing anyone can see.
+   */
+  removeShadowCaster(mesh: AbstractMesh): void {
+    this.sunAndMoon.removeShadowCaster(mesh);
+  }
+
   addShadowCaster(mesh: AbstractMesh): void {
     this.sunAndMoon.addShadowCaster(mesh);
   }

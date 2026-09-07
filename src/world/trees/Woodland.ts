@@ -1,13 +1,13 @@
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { WorldEntity } from "../../core/WorldEntity";
 import type { Footprint } from "../footprint";
 import { Tree } from "./Tree";
-import { LEAF_WIND, TreeWind, WOOD_WIND } from "./TreeWind";
+import { createTreeMaterials } from "./treeMaterials";
+import type { TreeWind } from "./TreeWind";
+import { SHADOW_RANGE, tierFor } from "./treeDetail";
 import { TREE_PLACEMENTS } from "./treeLayout";
-import { TREE_SPECIES } from "./treeSpecies";
 
 /**
  * Every tree in the world.
@@ -17,45 +17,35 @@ import { TREE_SPECIES } from "./treeSpecies";
  * own instance buffer, which is what lets a tree be culled when it is behind
  * you: a single buffer for the whole wood could never be.
  */
+/** What the woodland needs from whoever owns the sun. */
+export type ShadowRegistry = {
+  addShadowCaster(mesh: AbstractMesh): void;
+  removeShadowCaster(mesh: AbstractMesh): void;
+};
+
 export class Woodland extends WorldEntity {
   readonly trees: Tree[];
+  /** Trees currently in the shadow map. */
+  private readonly casting = new Set<Tree>();
 
-  constructor(scene: Scene, wind: TreeWind) {
+  constructor(
+    scene: Scene,
+    wind: TreeWind,
+    private readonly shadows: ShadowRegistry,
+  ) {
     super();
-    // One material per species rather than per tree, so four oaks share one and
-    // the wind is attached to it once.
-    const shared = new Map<string, StandardMaterial>();
-    const materialFor = (
-      key: string,
-      colour: Color3,
-      leaf: boolean,
-      strength: typeof WOOD_WIND,
-    ): StandardMaterial => {
-      const existing = shared.get(key);
-      if (existing) return existing;
-      const material = new StandardMaterial(key, scene);
-      material.diffuseColor = colour;
-      // Specular on bark or leaves under a moving sun reads as wet plastic.
-      material.specularColor = Color3.Black();
-      // Leaves are seen from both sides. twoSidedLighting stays off: it flips
-      // the normal for the back face, which is right for a solid and wrong
-      // here, where a leaf lit from behind should read as lit, not black.
-      if (leaf) material.backFaceCulling = false;
-      wind.applyTo(material, strength);
-      shared.set(key, material);
-      return material;
-    };
+    const materialsFor = createTreeMaterials(scene, wind);
 
     this.trees = TREE_PLACEMENTS.map((spot) => {
-      const shape = TREE_SPECIES[spot.species];
+      const materials = materialsFor(spot.species);
       return new Tree(
         scene,
         spot.name,
         spot.species,
         spot.x,
         spot.z,
-        materialFor(`bark-${spot.species}`, shape.bark, false, WOOD_WIND),
-        materialFor(`leaf-${spot.species}`, shape.leaf, true, LEAF_WIND),
+        materials.bark,
+        materials.leaf,
       );
     });
   }
@@ -64,14 +54,35 @@ export class Woodland extends WorldEntity {
     return "woodland";
   }
 
-  /** Wood casts a shadow. Registered by the caller, which owns the sun. */
-  get shadowCasters(): AbstractMesh[] {
-    return this.trees.map((tree) => tree.branches.mesh);
+  /**
+   * Thins distant canopies, and keeps only nearby trees in the shadow map. The
+   * shadow box is a fixed 48 m, so a tree beyond it is drawn into the map every
+   * frame and casts nothing anyone can see. With forty trees that is most.
+   */
+  update(player: Vector3): void {
+    // Changing a tree's tier rewrites its whole canopy, so at most one tree may
+    // change per step. Several at once would show as a hitch.
+    let changed = false;
+
+    for (const tree of this.trees) {
+      const distance = Math.hypot(player.x - tree.centreX, player.z - tree.centreZ);
+      const wantedTier = tierFor(distance, tree.detail);
+      if (!changed && wantedTier !== tree.detail) changed = tree.setDetail(wantedTier);
+
+      const wanted = distance < SHADOW_RANGE;
+      if (wanted === this.casting.has(tree)) continue;
+      for (const mesh of [tree.branches.mesh, tree.canopy.mesh]) {
+        if (wanted) this.shadows.addShadowCaster(mesh);
+        else this.shadows.removeShadowCaster(mesh);
+      }
+      if (wanted) this.casting.add(tree);
+      else this.casting.delete(tree);
+    }
   }
 
-  /** Leaves are far too many to shadow, but they should take one. */
-  get shadowReceivers(): AbstractMesh[] {
-    return this.trees.map((tree) => tree.canopy.mesh);
+  /** How many trees are in the shadow map right now. */
+  get castingCount(): number {
+    return this.casting.size;
   }
 
   get leafCount(): number {

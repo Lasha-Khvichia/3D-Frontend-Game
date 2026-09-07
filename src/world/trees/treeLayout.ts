@@ -1,4 +1,5 @@
-import type { TreeSpeciesName } from "./treeSpecies";
+import { createSeededRandom, seedFromText } from "../houses/seededRandom";
+import { TREE_SPECIES, type TreeSpeciesName } from "./treeSpecies";
 
 export type TreePlacement = {
   readonly name: string;
@@ -7,28 +8,52 @@ export type TreePlacement = {
   readonly z: number;
 };
 
+/** How many trees the wood holds. */
+const TREE_COUNT = 44;
+/** Inside this the village stands, and no tree may. */
+const VILLAGE = { minX: -44, maxX: 35, minZ: 14, maxZ: 47 };
+/** The player starts here and should not start inside a trunk. */
+const SPAWN_CLEARANCE = 9;
+/** Half the platform, less enough room that no tree grows through the edge. */
+const REACH = 88;
+/** No two trunks closer than this, or the wood reads as a hedge. */
+const SPACING = 9;
+/** Give up rather than loop forever if the ground runs out. */
+const ATTEMPTS = 4000;
+
+const SPECIES = Object.keys(TREE_SPECIES) as TreeSpeciesName[];
+
 /**
- * Where the trees stand.
+ * Where the trees stand, scattered rather than listed.
  *
- * Ringed around the village rather than in it: the houses occupy roughly x -39
- * to 30 and z 18 to 43, and the street between them has to stay open. Every
- * tree here is clear of both, and no two are within eight metres of each other.
+ * Rejection sampling from a seeded stream: throw a point at the platform, keep
+ * it if it is clear of the village, of the spawn, of the platform edge and of
+ * every tree already placed. Deterministic, so the wood is in the same place on
+ * every load, and the count is one number to change.
  *
- * Twelve for now. The count goes up once there is a level-of-detail system to
- * carry it; forty full-detail trees before then would only prove that forty
- * full-detail trees are slow.
+ * Listing forty-four positions by hand would be forty-four chances to overlap a
+ * house by two metres and not notice.
  */
-export const TREE_PLACEMENTS: readonly TreePlacement[] = [
-  { name: "oak-west-gate", species: "oak", x: -46, z: 34 },
-  { name: "birch-north-lane", species: "birch", x: -44, z: 46 },
-  { name: "pine-north-ridge", species: "pine", x: -30, z: 52 },
-  { name: "oak-behind-hall", species: "oak", x: -10, z: 54 },
-  { name: "willow-north-pool", species: "willow", x: 8, z: 51 },
-  { name: "pine-north-east", species: "pine", x: 26, z: 53 },
-  { name: "birch-east-gate", species: "birch", x: 40, z: 40 },
-  { name: "oak-east-field", species: "oak", x: 44, z: 26 },
-  { name: "willow-south-east", species: "willow", x: 30, z: 10 },
-  { name: "pine-south-field", species: "pine", x: 6, z: 8 },
-  { name: "birch-south-lane", species: "birch", x: -18, z: 9 },
-  { name: "oak-south-west", species: "oak", x: -40, z: 14 },
-];
+export const TREE_PLACEMENTS: readonly TreePlacement[] = scatterTrees();
+
+function scatterTrees(): TreePlacement[] {
+  const random = createSeededRandom(seedFromText("woodland"));
+  const placed: TreePlacement[] = [];
+
+  for (let attempt = 0; attempt < ATTEMPTS && placed.length < TREE_COUNT; attempt += 1) {
+    const x = (random() * 2 - 1) * REACH;
+    const z = (random() * 2 - 1) * REACH;
+    if (x > VILLAGE.minX && x < VILLAGE.maxX && z > VILLAGE.minZ && z < VILLAGE.maxZ) continue;
+    if (Math.hypot(x, z) < SPAWN_CLEARANCE) continue;
+    if (placed.some((tree) => Math.hypot(tree.x - x, tree.z - z) < SPACING)) continue;
+
+    placed.push({
+      name: `tree-${placed.length}`,
+      species: SPECIES[Math.floor(random() * SPECIES.length)] ?? "oak",
+      x,
+      z,
+    });
+  }
+
+  return placed;
+}

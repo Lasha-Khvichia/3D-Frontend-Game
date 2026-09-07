@@ -488,10 +488,15 @@ would cost a second render of the whole field and blur the player's own shadow.
 
 ## Trees
 
-Twelve trees, four species, grown from code. Each is a list of straight segments
-produced by recursive branching, seeded from its own name so the wood is
-identical on every load and no two trees are alike. About 275 segments and 4,500
-leaves per tree.
+**Forty-four trees, four species**, grown from code. Each is a list of straight
+segments produced by recursive branching, seeded from its own name so the wood is
+identical on every load and no two trees are alike. About 275 segments and 4,700
+leaves per tree, 206,800 leaves in all.
+
+Positions are scattered rather than listed: points thrown at the platform and
+kept if they are clear of the village, the spawn, the platform edge and every
+tree already placed. Listing forty-four positions by hand would be forty-four
+chances to overlap a house by two metres and not notice.
 
 ### Every leaf is an entity, and none of them is a mesh
 
@@ -513,6 +518,37 @@ Leaves are scattered by picking a twig at random for each one rather than
 filling twig by twig. That is what will make the level-of-detail lever work:
 thinning a canopy draws only the first part of the buffer, which only looks
 right if the early entries are spread through the whole tree.
+
+### Level of detail
+
+| Tier | Range      | Leaves drawn | Drawn at      |
+| ---- | ---------- | ------------ | ------------- |
+| Near | under 32 m | all of them  | modelled size |
+| Mid  | under 72 m | 45%          | 1.49x         |
+| Far  | beyond     | 18%          | 2.36x         |
+
+**The size compensation is the part that matters.** Thinning a canopy without it
+makes distant trees look _bare_, which is worse than the cost it saves — a tree
+in the distance should read as more solid, not less. Area goes as the square of
+size, so drawing a share `s` of the leaves and scaling them by 1/sqrt(s) keeps
+the coverage identical. Measured on one tree walked away from: 4,600 leaves at
+0.205, then 2,070 at 0.306, then 828 at 0.483 — **coverage 193 at every tier**.
+
+From the middle of the world that draws 73,110 leaves of 206,800.
+
+Thresholds have five metres of slack, so a tree does not flicker between tiers
+when you stand on a boundary. Changing a tier rewrites a whole canopy, so **only
+one tree may change per step**; several at once would show as a hitch.
+
+### Only nearby trees cast shadows
+
+The shadow box is a fixed 48 m centred on the player, so a tree beyond it is
+drawn into the shadow map every frame and casts nothing anyone can see. With
+forty-four trees that is nearly all of them. Trees are added to and removed from
+the map as they come within 32 m: **one tree in the map instead of forty-four**.
+
+That needed new plumbing — `DayNightCycle` could add a shadow caster but never
+remove one.
 
 ### Every branch is solid, trunk to twig
 
@@ -580,8 +616,14 @@ every segment starts wider than the last one finished and the trunk grows a
 visible collar at each joint. Segments are also drawn 12% long and capped at
 both ends: butted exactly together they leave a wedge of daylight at every fork.
 
-Building the wood costs 248 ms. Forty trees would be nearer a second, so they
-will need building a few per frame.
+Building the wood costs **266 ms for forty-four trees**, and the whole world
+549 ms.
+
+It was 16 ms a tree slower than that. The collision shell was built as 368 box
+meshes and merged, which is the obvious way to write it and cost **16 of the
+23 ms** a tree took: making a Babylon mesh is expensive and there are 368 of them
+in one tree. It is now stamped out as raw geometry from one box's vertices,
+copied 368 times, which is arithmetic. 16 ms became 2.3 ms.
 
 ## Player
 

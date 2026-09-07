@@ -113,6 +113,10 @@ export class SunAndMoon {
   }
 
   /** Anything added here casts a shadow from the sun. */
+  removeShadowCaster(mesh: AbstractMesh): void {
+    this.shadows.removeCaster(mesh);
+  }
+
   addShadowCaster(mesh: AbstractMesh): void {
     this.shadows.addCaster(mesh);
   }

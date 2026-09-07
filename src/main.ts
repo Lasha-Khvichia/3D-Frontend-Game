@@ -60,8 +60,7 @@ const fires = new VillageFires(scene, village);
 for (const mesh of fires.shadowCasters) dayNight.addShadowCaster(mesh);
 
 const wind = new TreeWind(scene.getEngine());
-const woodland = new Woodland(scene, wind);
-for (const mesh of woodland.shadowCasters) dayNight.addShadowCaster(mesh);
+const woodland = new Woodland(scene, wind, dayNight);
 
 grass.setExclusions([...village.map((house) => house.footprint), ...woodland.footprints]);
 
@@ -85,6 +84,7 @@ runtime.setSimulationStep((fixedDeltaSeconds) => {
   godRays.update(dayNight.sunHeight);
   fires.update(fixedDeltaSeconds, player.controller.bean.position);
   wind.update(fixedDeltaSeconds);
+  woodland.update(player.controller.bean.position);
   grass.update(fixedDeltaSeconds, player.controller.bean.position);
 });
 

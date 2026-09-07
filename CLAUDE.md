@@ -110,6 +110,16 @@ merged invisible shell per tree — upright boxes within reach, boxes lying alon
 the wood above it, and never a tilted collider low down or the tree becomes a
 staircase.
 
+**Tree canopies have three detail tiers** (`src/world/trees/treeDetail.ts`) by
+distance. Thinning a canopy always scales the remaining leaves by 1/sqrt(share),
+or distant trees look bare rather than distant. A tier change rewrites the whole
+canopy, so `Woodland` allows only one per step. Only trees within 32 m are in the
+shadow map; the box is 48 m, so the rest cast nothing visible.
+
+**Making a Babylon mesh is expensive.** Building geometry as many meshes and
+merging them cost 16 of the 23 ms a tree took. Stamp one template's vertices into
+raw arrays instead — see `collideTree.ts`.
+
 **Tree wind is a material plugin** (`src/world/trees/WindMaterialPlugin.ts`) on
 the standard material, so lighting, shadows and fog keep working. It is GLSL, so
 it disables itself on a WebGPU engine rather than breaking every tree material.
