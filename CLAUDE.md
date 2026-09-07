@@ -162,12 +162,20 @@ likes and the mesh will not follow, with no error. Call `unfreezeWorldMatrix()`
 after parenting a merged mesh to something that moves.
 
 **Houses are built from code, not loaded** (`src/world/houses/`). A house is
-rows of solid boxes with the openings left out, under a roof that carries no
-collision. That shape is deliberate: boxes are thick enough that a sprinting
-player cannot cross one between two steps, and have no sloped face for the
-solver to slide the player up. Downloaded glTF houses failed on both counts, and
-that is why they were removed. Keep walls at least 0.2 m thick and never put
-collision on anything sloped.
+rows of solid boxes with the openings left out. That shape is deliberate: boxes
+are thick enough that a sprinting player cannot cross one between two steps, and
+have no sloped face for the solver to slide the player up. Downloaded glTF
+houses failed on both counts, and that is why they were removed. Keep walls at
+least 0.2 m thick.
+
+**Collision is never put on a sloped face except one: the roof.** The roof mesh
+is a single sheet and stays uncollidable; `collideRoof.ts` puts an invisible
+solid wedge behind it — the loft, eight triangles. A staircase of upright boxes
+was tried there and is wrong: **the player's collision ellipsoid is 0.4 m in
+radius, so on centimetre steps it rests on corners rather than faces**, which
+slides it down the roof and wedges it between steps. A sloped collider is only
+safe because the wedge's lowest point is the wall top, 2.4 m up, out of reach of
+a 1.11 m jump and a 2.0 m climb. Anything reachable on foot must still be boxes.
 
 **The village is phased.** Phase 0 (done) is bare shells. Phase 1 (done) is
 stone and timber on the walls, placed on the wall segments so it can never cover

@@ -192,10 +192,9 @@ Two failures come free with that choice:
   so there is a factor of 2.6 between the two. Thinner than a step and the
   player crosses the wall entirely between two checks, touching nothing in
   either — which is exactly how the old downloaded houses let you inside.
-- **The roof carries no collision at all.** A sloped face is the one shape the
-  solver handles badly: it slides you along whatever you hit, so a roof lifts
-  you up it. Nothing can reach the roof anyway. The lowest eaves are at 2.4 m
-  and a jump peaks at 1.11 m.
+- **The roof mesh carries no collision.** It is a single sheet, and a sheet is
+  something to fall through rather than something to stand on. An invisible
+  solid behind it does the stopping — see below.
 
 ### Sizes
 
@@ -398,12 +397,52 @@ windows on their own.
 `villageHouses.ts` puts them on the street. A house sits back from the middle of
 the street by half its own depth, and its door always faces the street.
 
-Each house is **two meshes**: the four walls merged into one, and the roof.
-Twenty-odd boxes per house would otherwise be twenty-odd draw calls each. The
-merged wall mesh does the colliding itself — there is no hidden collider,
+Each house is **two drawn meshes**: the four walls merged into one, and the
+roof. Twenty-odd boxes per house would otherwise be twenty-odd draw calls each.
+The merged wall mesh does the colliding itself — there is no hidden collider,
 because the visible geometry is already nothing but thick axis-aligned boxes.
 
 Ten houses cost 40 meshes and 47,143 vertices for the whole scene.
+
+### The roof collider
+
+`collideRoof.ts` adds one invisible mesh per house: the loft. Two roof planes on
+top, a flat floor at the top of the walls, two triangles closing the gable ends.
+**Eight triangles, six corners, ten houses.** It never renders and never casts a
+shadow.
+
+**This is the only sloping collider in the game**, and it took being wrong twice
+to get here.
+
+| Attempt            | What happened                                          |
+| ------------------ | ------------------------------------------------------ |
+| No collider        | you fall through the roof onto the floor               |
+| Staircase of boxes | solid, but you sink into it and then creep up it       |
+| Solid wedge        | you land on the surface, walk up and down it, stay put |
+
+The staircase is the trick the tree colliders use, and it is wrong here for a
+measurable reason. **The player's collision shape is an ellipsoid 0.4 m in
+radius, and steps small enough to hide are a few centimetres.** An ellipsoid
+resting on a staircase touches step _corners_, not step faces, and the contact
+normal at a corner points sideways as well as up. Standing still, that slid the
+player down the roof at 3.6 cm a second; moving, it wedged them between two
+corners and squeezed them along.
+
+That is not a tuning problem. An ellipsoid of radius `r` only rests stably on a
+staircase when the step rise is under `r − √(r² − d²)` for step depth `d`. On
+these 37° roofs that needs steps roughly `2r` deep — 0.8 m — which would stand
+you 0.6 m above the shingles.
+
+The reason to avoid a sloped collider does not reach a roof. The danger is that
+a slope works like a ramp and lifts a player who walks into it; the lowest point
+of this one is the top of the walls, **2.4 m up on the shortest house in the
+village** — above a 1.11 m jump and above the 2.0 m a climb reaches. There is no
+way to walk into it.
+
+The collider stops at the walls, so the 0.4 m eave overhang is not solid. Out
+there it would hang below the wall top and be an invisible thing to hit your
+head on while walking round the house. Standing on a roof, the floor runs out
+0.4 m before the edge you can see.
 
 ## Grass
 

@@ -3,6 +3,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import type { Footprint } from "../footprint";
 import { buildWallSegments } from "./buildWallSegments";
+import { createRoofCollider } from "./collideRoof";
 import { createGableRoof } from "./createGableRoof";
 import { buildDecorMeshes, decorateHouse } from "./decorateHouse";
 import { planHouseWalls, type HouseBlueprint } from "./houseBlueprint";
@@ -17,6 +18,8 @@ export type House = {
   /** One mesh for all four walls. This is also what the player collides with. */
   readonly walls: Mesh;
   readonly roof: Mesh;
+  /** Invisible steps under the roof, so it can be stood on and not fallen through. */
+  readonly roofCollider: Mesh;
   /** Stone and timber. Decoration only: no collision, no shadow casting. */
   readonly decor: Mesh[];
   /** Every doorway and window hole, located, ready to hang a leaf in. */
@@ -60,22 +63,23 @@ export function buildHouse(
   walls.receiveShadows = true;
   walls.checkCollisions = true;
 
-  const roof = createGableRoof(
-    `${blueprint.name}-roof`,
-    {
-      centreX,
-      centreZ,
-      width: blueprint.width,
-      depth: blueprint.depth,
-      eaveY: blueprint.wallHeight,
-      ridgeY: blueprint.wallHeight + blueprint.roofRise,
-      ridgeAxis: blueprint.ridgeAxis,
-    },
-    scene,
-  );
+  const roofSpec = {
+    centreX,
+    centreZ,
+    width: blueprint.width,
+    depth: blueprint.depth,
+    eaveY: blueprint.wallHeight,
+    ridgeY: blueprint.wallHeight + blueprint.roofRise,
+    ridgeAxis: blueprint.ridgeAxis,
+  };
+  const roof = createGableRoof(`${blueprint.name}-roof`, roofSpec, scene);
   roof.material = materials.roof;
   roof.receiveShadows = true;
   roof.freezeWorldMatrix();
+
+  // The roof mesh itself carries no collision. It is a single sheet, which is
+  // something to fall through; the solid loft behind it does the stopping.
+  const roofCollider = createRoofCollider(`${blueprint.name}-roof-solid`, roofSpec, scene);
 
   const decoration = decorateHouse(blueprint, centreX, centreZ, planned);
   const decor = buildDecorMeshes(scene, blueprint.name, decoration, materials);
@@ -86,6 +90,7 @@ export function buildHouse(
     centreZ,
     walls,
     roof,
+    roofCollider,
     decor,
     openings: planned.flatMap((wall) => placeOpenings(wall, blueprint.name)),
     footprint: {
