@@ -236,3 +236,118 @@
     transform: translate(-50%, -8px);
   }
 }
+
+/* The world map, opened with M: painted paper on a dark table. */
+.world-map {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  overflow: hidden;
+  background: rgb(24 18 12 / 94%);
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.world-map:active {
+  cursor: grabbing;
+}
+
+.world-map__sheet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  box-shadow: 0 0 80px rgb(0 0 0 / 70%);
+}
+
+.world-map__picture {
+  display: block;
+}
+
+.world-map__label {
+  position: absolute;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: Georgia, "Palatino Linotype", "Book Antiqua", serif;
+  color: rgb(66 44 26);
+  text-shadow: 0 0 3px rgb(240 226 194);
+}
+
+.world-map__label.is-settlement {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+}
+
+.world-map__label.is-river {
+  font-size: 15px;
+  font-style: italic;
+  letter-spacing: 0.14em;
+  color: rgb(38 70 92);
+}
+
+.world-map__label.is-mountain {
+  font-size: 18px;
+  font-variant: small-caps;
+  letter-spacing: 0.3em;
+  color: rgb(92 62 36);
+}
+
+.world-map__you {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+
+.world-map__you path {
+  fill: rgb(170 36 28);
+  stroke: rgb(250 238 210);
+  stroke-width: 1.6;
+}
+
+.world-map__hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 14px;
+  transform: translateX(-50%);
+  background: rgb(24 18 12 / 80%);
+  font:
+    14px Georgia,
+    serif;
+  color: rgb(236 222 190);
+  pointer-events: none;
+}
+
+/* The season's colour, beside its name and on the date slider. */
+.season-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--season-colour);
+  box-shadow: 0 0 6px var(--season-colour);
+}
+
+.season-dot--spring {
+  --season-colour: #7fd46a;
+}
+
+.season-dot--summer {
+  --season-colour: #f5c542;
+}
+
+.season-dot--autumn {
+  --season-colour: #e8813a;
+}
+
+.season-dot--winter {
+  --season-colour: #9fd3f0;
+}

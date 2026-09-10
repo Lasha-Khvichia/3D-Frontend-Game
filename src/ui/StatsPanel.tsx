@@ -1,12 +1,23 @@
 import { useGameStats } from "./useGameStats";
+import { formatClock, formatDate, formatSeason, formatTemperature } from "./formatCalendar";
+import { SeasonDot } from "./SeasonDot";
 
 export function StatsPanel() {
   const stats = useGameStats();
 
   return (
     <dl className="overlay__stats">
+      <dt>Season</dt>
+      <dd>
+        <SeasonDot season={stats.date.season} />
+        {formatSeason(stats.date.season)}
+      </dd>
+      <dt>Date</dt>
+      <dd>{formatDate(stats.date)}</dd>
       <dt>Time</dt>
       <dd>{formatClock(stats.timeOfDayHours)}</dd>
+      <dt>Air</dt>
+      <dd>{formatTemperature(stats.airTemperature)}</dd>
       <dt>Backend</dt>
       <dd>{stats.backend}</dd>
       <dt>FPS</dt>
@@ -15,16 +26,8 @@ export function StatsPanel() {
       <dd>{stats.drawCalls}</dd>
       <dt>Frame</dt>
       <dd>{stats.frameTimeMs} ms</dd>
+      <dt>Resolution</dt>
+      <dd>{Math.round(stats.resolutionShare * 100)}%</dd>
     </dl>
   );
-}
-
-function formatClock(hours: number): string {
-  const wholeHours = Math.floor(hours);
-  const minutes = Math.floor((hours - wholeHours) * 60);
-  return `${pad(wholeHours)}:${pad(minutes)}`;
-}
-
-function pad(value: number): string {
-  return String(value).padStart(2, "0");
 }

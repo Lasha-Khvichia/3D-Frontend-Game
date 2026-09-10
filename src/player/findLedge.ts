@@ -43,7 +43,10 @@ export function findLedge(
   yaw: number,
   ground: Ground,
 ): Ledge | null {
-  const solid = (mesh: AbstractMesh): boolean => mesh.checkCollisions && mesh !== bean;
+  // Enabled too: given a filter, Babylon stops checking it, and a house hidden
+  // by distance must not stop a ray the player would walk straight through.
+  const solid = (mesh: AbstractMesh): boolean =>
+    mesh.checkCollisions && mesh.isEnabled() && mesh !== bean;
   const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
   const down = new Vector3(0, -1, 0);
   const middle = bean.position;

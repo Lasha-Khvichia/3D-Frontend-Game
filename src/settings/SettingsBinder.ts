@@ -1,24 +1,29 @@
-import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
+import type { AutoResolution } from "../core/AutoResolution";
 import type { TargetCamera } from "@babylonjs/core/Cameras/targetCamera";
 import type { PlayerController } from "../player/PlayerController";
 import type { DayNightCycle } from "../world/DayNightCycle";
 import type { SunGodRays } from "../world/SunGodRays";
+import type { WorldStreaming } from "../world/WorldStreaming";
+import type { Sky } from "../world/sky/Sky";
 import { MAX_PIXEL_RATIO } from "../core/createEngine";
 import { subscribeToCommands } from "../ui/bridge";
 import { readSettings, subscribeToSettings } from "./settingsStore";
 import type { GameSettings } from "./gameSettings";
 
 export type SettingsTargets = {
-  readonly engine: AbstractEngine;
+  readonly resolution: AutoResolution;
   readonly camera: TargetCamera;
   readonly controller: PlayerController;
   readonly dayNight: DayNightCycle;
   readonly godRays: SunGodRays;
+  readonly streaming: WorldStreaming;
+  readonly sky: Sky;
 };
 
 /**
  * Pushes the settings store into the running game, and handles the live
- * controls the menu sends that are not settings, such as jumping the clock.
+ * controls the menu sends that are not settings, such as jumping the clock or
+ * the date.
  *
  * Everything here is one-way: the menu writes, the game reads. Nothing in the
  * game writes back into settings.
@@ -31,6 +36,10 @@ export class SettingsBinder {
     this.unsubscribeSettings = subscribeToSettings(() => this.apply(readSettings()));
     this.unsubscribeCommands = subscribeToCommands((command) => {
       if (command.type === "set-time-of-day") targets.dayNight.setTimeOfDay(command.hour);
+      else if (command.type === "set-date") targets.dayNight.setDayOfYear(command.dayOfYear);
+      else return;
+      // The menu is open, so the game is paused: the sky must follow now, not on resume.
+      targets.sky.repaint();
     });
     this.apply(readSettings());
   }
@@ -41,7 +50,7 @@ export class SettingsBinder {
   }
 
   private apply(settings: GameSettings): void {
-    const { engine, camera, controller, dayNight, godRays } = this.targets;
+    const { resolution, camera, controller, dayNight, godRays, streaming, sky } = this.targets;
 
     // Babylon's fov is vertical and in radians.
     camera.fov = (settings.fieldOfView * Math.PI) / 180;
@@ -49,15 +58,17 @@ export class SettingsBinder {
     controller.setInvertLook(settings.invertLook);
     controller.setHeadBobStrength(settings.headBobStrength);
     controller.setMoveSpeedScale(settings.travelSpeed);
+    streaming.setRenderDistance(settings.renderDistance);
 
     // Hardware scaling is the inverse of resolution, and it sits on top of the
     // device pixel ratio cap rather than replacing it.
     const ratio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO) * settings.renderScale;
-    engine.setHardwareScalingLevel(1 / ratio);
+    resolution.configure(ratio, settings.autoResolution);
 
     godRays.setEnabled(settings.sunEffects);
     dayNight.setSunEffectsVisible(settings.sunEffects);
     dayNight.setShadowQuality(settings.shadowQuality);
+    sky.setQuality(settings.clouds);
     dayNight.setClockFrozen(settings.clockFrozen);
   }
 }

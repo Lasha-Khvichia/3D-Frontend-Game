@@ -9,12 +9,10 @@
 /** Height of the water surface. The village is 2.5 m above it. */
 export const SEA_LEVEL = -2.5;
 
-/** Distance between neighbouring height samples, and between mesh vertices. */
+/** Distance between neighbouring height samples, and between full-detail vertices. */
 export const GRID_SPACING = 4;
 /** The grid runs this far from the middle of the map in every direction. */
 export const GRID_HALF_EXTENT = 1536;
-/** One terrain mesh covers this square, so Babylon can skip the ones behind you. */
-export const CHUNK_METRES = 128;
 
 /** Deepest water a player can walk through. Past this it stops them. */
 export const MAX_WADE_DEPTH = 1.2;

@@ -1,4 +1,5 @@
 import { EMPTY_STATS, type GameStats, type OverlayCommand } from "./bridgeMessages";
+import type { WorldMapPicture } from "../world/map/paintWorldMap";
 
 export type { GameStats, OverlayCommand } from "./bridgeMessages";
 
@@ -56,6 +57,20 @@ export function setMiniMapCanvas(canvas: HTMLCanvasElement | null): void {
 
 export function readMiniMapCanvas(): HTMLCanvasElement | null {
   return miniMapCanvas;
+}
+
+/**
+ * The world map picture, painted by the game on the first "open-map" command.
+ * A raw element, like the mini-map canvas: in React state it would be copied.
+ */
+let worldMap: WorldMapPicture | null = null;
+
+export function setWorldMap(picture: WorldMapPicture): void {
+  worldMap = picture;
+}
+
+export function readWorldMap(): WorldMapPicture | null {
+  return worldMap;
 }
 
 /** Compared before publishing, or React re-renders at frame rate to say the

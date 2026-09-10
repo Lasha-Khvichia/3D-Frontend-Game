@@ -4,24 +4,26 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { AMBIENT_LIGHT_NAME } from "../scenes/createEmptyScene";
-import { publishStats } from "../ui/bridge";
 import { TimeOfDay } from "./TimeOfDay";
+import { CalendarReport } from "./calendar/CalendarReport";
 import { createTimeOfDayLighting, sampleTimeOfDay } from "./timeOfDayPalette";
 import { SunAndMoon } from "./SunAndMoon";
 import { applyAmbientLight } from "./ambientLight";
 import { setFogColour } from "./distanceFog";
+import { greyForOvercast } from "./overcastSky";
+import type { TimeOfDayLighting } from "./timeOfDayPalette";
 import type { ShadowQuality } from "../settings/gameSettings";
 
 export type DayNightCycleOptions = {
-  /** Hour the game starts at, 0 to 24. Defaults to 8. */
-  startHour?: number;
-  /** Real seconds for one full in-game day. Defaults to 300. */
+  /** Hours since the calendar began, when the game opens. Defaults to 10:00 on 1 March. */
+  startHours?: number;
+  /** Real seconds for one full in-game day. Defaults to 1200. */
   realSecondsPerGameDay?: number;
 };
 
 /**
  * Drives the void colour, the ambient fill, and the sun and moon from the
- * in-game clock.
+ * in-game clock and calendar.
  *
  * Advance it from the fixed simulation step, never from the render frame, or
  * the cycle runs faster on a 144Hz monitor than on a 60Hz one.
@@ -29,11 +31,16 @@ export type DayNightCycleOptions = {
 export class DayNightCycle {
   private readonly scene: Scene;
   private readonly ambientLight: Light;
-  private readonly sunAndMoon: SunAndMoon;
+  /** The sun and moon themselves: their directions, lights, discs and halos. */
+  readonly sunAndMoon: SunAndMoon;
   private readonly clock: TimeOfDay;
   private readonly lighting = createTimeOfDayLighting();
-  private lastPublishedMinute = -1;
+  private readonly report = new CalendarReport();
+  /** Where the player is, for the air temperature the overlay shows. */
+  private focus: Vector3 | null = null;
   private clockFrozen = false;
+  /** How much of the sky is cloud, 0 to 1. Greys the sky and the fog. */
+  private overcast = 0;
 
   constructor(scene: Scene, options: DayNightCycleOptions = {}) {
     const ambientLight = scene.getLightByName(AMBIENT_LIGHT_NAME);
@@ -44,7 +51,7 @@ export class DayNightCycle {
     this.scene = scene;
     this.ambientLight = ambientLight;
     this.sunAndMoon = new SunAndMoon(scene);
-    this.clock = new TimeOfDay(options.startHour, options.realSecondsPerGameDay);
+    this.clock = new TimeOfDay(options.startHours, options.realSecondsPerGameDay);
     this.apply();
   }
 
@@ -52,7 +59,12 @@ export class DayNightCycle {
     return this.clock.currentHour;
   }
 
-  /** Whole days since the game started. */
+  /** Hours since the calendar began, for the date and anything that turns with the sky. */
+  get totalHours(): number {
+    return this.clock.totalHours;
+  }
+
+  /** Whole days since the calendar began. */
   get dayNumber(): number {
     return this.clock.dayNumber;
   }
@@ -74,6 +86,7 @@ export class DayNightCycle {
 
   /** Keeps the shadow frustum centred on this point as it moves. */
   setShadowFocus(point: Vector3): void {
+    this.focus = point;
     this.sunAndMoon.setShadowFocus(point);
   }
 
@@ -101,9 +114,18 @@ export class DayNightCycle {
     return this.sunAndMoon.moonBearing;
   }
 
-  /** Skip whole days forward to watch the moon drift away from the sun. */
-  skipDays(days: number): void {
-    this.clock.skipDays(days);
+  /** The sky's colours and the sun's light this step, overcast included. Read only. */
+  get palette(): TimeOfDayLighting {
+    return this.lighting;
+  }
+
+  setOvercast(share: number): void {
+    this.overcast = share;
+  }
+
+  /** Jump to a day of this year, 0 for 1 January to 364, keeping the hour. */
+  setDayOfYear(day: number): void {
+    this.clock.setDayOfYear(day);
     this.apply();
   }
 
@@ -132,26 +154,22 @@ export class DayNightCycle {
   }
 
   private apply(): void {
-    sampleTimeOfDay(this.clock.currentHour, this.lighting);
+    const hours = this.clock.totalHours;
+    this.sunAndMoon.place(hours);
+    sampleTimeOfDay(hours, this.sunAndMoon.sunHeight, this.lighting);
+    greyForOvercast(this.lighting.background, this.overcast);
+    greyForOvercast(this.lighting.zenith, this.overcast);
     this.scene.clearColor.copyFrom(this.lighting.background);
     // The haze has to be the colour of the sky it fades into, or the world
     // sits in grey smoke at midnight.
     setFogColour(this.scene, this.lighting.background);
-    this.sunAndMoon.update(this.clock.currentHour, this.clock.totalHours, this.lighting);
+    this.sunAndMoon.shine(this.lighting);
     applyAmbientLight(
       this.ambientLight,
       this.lighting,
       this.sunAndMoon.sunAboveHorizon,
       this.sunAndMoon.moonAboveHorizon,
     );
-    this.publishClock();
-  }
-
-  /** Publishes only when the displayed minute changes, so React re-renders rarely. */
-  private publishClock(): void {
-    const minute = Math.floor(this.clock.currentHour * 60);
-    if (minute === this.lastPublishedMinute) return;
-    this.lastPublishedMinute = minute;
-    publishStats({ timeOfDayHours: this.clock.currentHour });
+    this.report.publish(hours, this.focus?.y ?? 0);
   }
 }

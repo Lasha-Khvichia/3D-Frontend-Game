@@ -22,11 +22,12 @@ const HILL_LIFT = 0.18;
  * gets. All placed in the gaps between settlements, at least 450 m from any
  * of them, so no village sits at the foot of a cliff.
  */
-const RANGES: readonly { x: number; z: number; radius: number; height: number }[] = [
-  { x: 40, z: 690, radius: 380, height: 270 },
-  { x: 90, z: -700, radius: 270, height: 180 },
-  { x: 860, z: -160, radius: 230, height: 150 },
-];
+export const MOUNTAIN_RANGES: readonly { x: number; z: number; radius: number; height: number }[] =
+  [
+    { x: 40, z: 690, radius: 380, height: 270 },
+    { x: 90, z: -700, radius: 270, height: 180 },
+    { x: 860, z: -160, radius: 230, height: 150 },
+  ];
 const RIDGE_WAVELENGTH = 270;
 /**
  * Four layers of ridge detail, not five. The fifth has a wavelength of 17 m,
@@ -52,7 +53,7 @@ export function hillsAt(x: number, z: number): number {
 /** Mountains, deliberately too steep to walk up except along the odd ridge. */
 export function mountainsAt(x: number, z: number): number {
   let total = 0;
-  for (const range of RANGES) {
+  for (const range of MOUNTAIN_RANGES) {
     const away = Math.hypot(x - range.x, z - range.z) / range.radius;
     if (away >= 1) continue;
     const fall = (1 - away * away) ** 2;

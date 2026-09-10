@@ -30,8 +30,14 @@ To verify game behaviour without a GPU, build a throwaway harness with
 `vite build --ssr` and run it in Node against Babylon's `NullEngine`. Two traps:
 output the bundle **inside the project directory** or Vite externalises
 `@babylonjs/core` and Node cannot resolve it, and NullEngine has no `_gl`, no
-`OffscreenCanvas`, and hard-codes `getHardwareScalingLevel()` to 1. Delete the
-harness afterwards.
+`OffscreenCanvas`, no 3D textures, and hard-codes `getHardwareScalingLevel()`
+to 1. Delete the harness afterwards.
+
+Pictures come from headless Chrome. WebGPU there needs
+`--enable-unsafe-webgpu --enable-features=Vulkan --use-angle=vulkan
+--use-vulkan=swiftshader --use-webgpu-adapter=swiftshader --no-sandbox`, and
+**real time** — under `--virtual-time-budget` it draws a frame or two and stops,
+which looks exactly like a broken shader.
 
 ## How the app is put together
 
@@ -44,8 +50,20 @@ per-step update is called from that one closure. New system means a new line the
 often as the browser allows. **All gameplay logic belongs in the simulation step**,
 never in `runRenderLoop` and never tied to frame time.
 
+`GameRuntime.setFrameUpdate` is the one exception, and it is presentation only:
+once per drawn frame, after the steps, it places the camera between the last
+two steps (`SmoothedEye`) and turns it by the mouse. Anything new the player
+watches move smoothly at speed — a carried item, a mount — needs the same: record
+its last two steps and draw between them, or it judders on any screen that is
+not exactly 60 Hz.
+
+The frame budget is **60 frames a second, 16.7 ms**. `AutoResolution` lowers the
+resolution to as little as 70% while frames run slow; README "Frame rate" has
+the measured costs of every pass.
+
 Pause is pointer lock: the game is paused whenever the browser does not have the
-mouse. Pausing freezes the simulation, keeps rendering, and resets the loop
+mouse. The world map (`M`) uses the same rule — it lets go of the mouse to
+pause, and hides the pause menu while it is open. Pausing freezes the simulation, keeps rendering, and resets the loop
 accumulator so menu time does not replay as a burst of steps.
 
 ## Rules that fail silently if broken
@@ -58,12 +76,13 @@ keep it that way.
 the API is simply absent or does nothing, with no error and no warning. The four
 in use:
 
-| Import                                                         | Enables                                     |
-| -------------------------------------------------------------- | ------------------------------------------- |
-| `@babylonjs/core/Collisions/collisionCoordinator`              | `moveWithCollisions`                        |
-| `@babylonjs/core/Meshes/thinInstanceMesh`                      | every `mesh.thinInstance*`                  |
-| `@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent` | shadow maps rendering at all                |
-| `@babylonjs/core/Culling/ray`                                  | `scene.pickWithRay`, which otherwise throws |
+| Import                                                            | Enables                                               |
+| ----------------------------------------------------------------- | ----------------------------------------------------- |
+| `@babylonjs/core/Collisions/collisionCoordinator`                 | `moveWithCollisions`                                  |
+| `@babylonjs/core/Meshes/thinInstanceMesh`                         | every `mesh.thinInstance*`                            |
+| `@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent`    | shadow maps rendering at all                          |
+| `@babylonjs/core/Culling/ray`                                     | `scene.pickWithRay`, which otherwise throws           |
+| `@babylonjs/core/Shaders/postprocess.vertex` (and `ShadersWGSL/`) | the vertex shader an `EffectWrapper` looks up by name |
 
 **A material's effect and the effect a mesh is drawn with are different
 objects.** `material.getEffect()` returns whatever was last bound, which is often
@@ -74,9 +93,28 @@ working shader plugin as missing.
 **Picking needs a predicate here, always.** Everything solid in this game is
 invisible, unpickable or both, and Babylon's default pick filter wants enabled,
 visible _and_ pickable — only the ground passes. Pass
-`(mesh) => mesh.checkCollisions` and picking matches the world the player
-collides with. A scratch scene also needs `StandardMaterial` imported or picking
+`(mesh) => mesh.checkCollisions && mesh.isEnabled()` and picking matches the
+world the player collides with. **Given a predicate, Babylon stops checking
+`isEnabled` itself**, while collision still does — leave it out and a house
+hidden by distance stops a ray the player would walk straight through. A scratch scene also needs `StandardMaterial` imported or picking
 degrades to bounding boxes: hits come back with `faceId -1` and no `pickedPoint`.
+
+**Never send a whole instance buffer when part of it changed, and never one run
+from the lowest changed index to the highest.** On a torus-shaped buffer that
+run becomes the whole buffer whenever the change crosses the wrap-around: the
+grass sent 12.8 MB a step that way, 846 MB a second at a sprint, and it was the
+game's worst stutter. Store by blocks and send each changed block
+(`grassSlots.ts`).
+
+**A render target culls nothing.** A `RenderTargetTexture` with no mesh list
+draws every enabled mesh on its camera's layers, however far outside its view.
+Give it `renderListPredicate` with a frustum test (`ViewBoxFilter`).
+
+**Detaching `VolumetricLightScatteringPostProcess` does not stop its occlusion
+pass**, which lives in `camera.customRenderTargets`; take it off that list too.
+And **an effect layer's `camera` option does not stop it being merged onto
+every camera's picture**: switch `isEnabled` before each camera draws. Both
+passes redraw the whole world, silently, for nothing on screen.
 
 **`thinInstanceGetWorldMatrices()` caches its answer.** Reading it before and
 after a change returns the first snapshot twice and reports that nothing
@@ -92,6 +130,18 @@ same outline as a solid one and reads as solid by eye — every loose stone was
 drawn inside out for two rounds after a winding was "fixed" by looking. Put a
 red, unlit ball inside the shape and render it: the ball shows through only
 when the winding is wrong.
+
+**Every custom shader is written twice, GLSL and WGSL.** The engine picks
+WebGPU wherever the browser has it. Babylon can translate GLSL for WebGPU, but
+only by downloading two compilers from its servers at run time — so the sky's
+shaders exist in both languages, line for line alike, and a change to one is a
+change to both. A material plugin must also say it speaks WGSL
+(`isCompatible`), or on WebGPU it **silently does not attach**; the tree wind
+is GLSL-only and is off on WebGPU for exactly that reason.
+
+**`RegisterMaterialPlugin` only reaches materials created after it.** The cloud
+shadows are registered at the top of `main.ts`, before the terrain; register
+later and everything already built has no shadows, with no error.
 
 **A single sheet of geometry has no back.** A wall is a solid box so its inside
 face renders normally, but a roof is one surface: without
@@ -165,10 +215,16 @@ small patch ends in a hard edge with bare ground beyond it.
 
 **Grass** (`src/world/GrassField.ts`) is 200,704 thin instances of one 5-vertex
 mesh in one draw call. Never rewrite all transforms in a frame — the patch is a
-torus, so moving it rewrites only the rows and columns that entered it, uploaded
-with `thinInstancePartialBufferUpdate`. The breeze animates the **shared blade
-mesh**, so all instances move for free; per-blade wind would need a vertex shader.
-Grass only bends for meshes registered with `addPusher()`.
+torus, so moving it rewrites only the blocks that entered it, and blades are
+stored block by block so every change goes to the GPU as a few short runs
+(`grassSlots.ts`). The breeze animates the **shared blade mesh**, so all
+instances move for free; per-blade wind would need a vertex shader. Grass only
+bends for meshes registered with `addPusher()`.
+
+**The mini-map is not a camera on the list.** It draws into its own texture 20
+times a second (`MiniMapPicture`) and that picture is laid into the corner of
+every frame. `scene.activeCameras` holds only the view, and the code that
+means "the view" reads `activeCameras[0]`.
 
 **The scene is at its light budget: 4.** Ambient, sun, moon, and the single
 firelight that moves to whichever hearth the player is nearest. A standard
@@ -186,6 +242,15 @@ player's feet, the grass, the trees and the stones all read `HeightGrid`, which
 splits each cell along the same diagonal the mesh does. Read the function
 instead and feet sink into hillsides or hover over them.
 
+**The drawn ground is not the grid.** It is a tree of patches
+(`terrain/patches/`), full detail near the player and coarser further off,
+built and thrown away as they move. A coarse patch can stand metres off the
+true ground, so nothing may read heights from a ground mesh, and nothing may
+hold one: ask `HeightGrid`. A patch is only ever swapped for its quarters, or
+they for it, once the replacement is built — change that and holes open. Edges
+between levels are covered by skirts hung from every patch; a patch built
+without them shows the sky through the seam.
+
 **The ground is not a collision mesh.** The player is lifted onto the grid after
 every move (`src/player/terrainFooting.ts`), and the slope limit, wading and
 deep-water stop are rules on the grid (`fitMoveToGround.ts`). Putting the ground
@@ -199,9 +264,22 @@ how `findLedge` falls back to `ground.heightAt`.
 round. Every house was built assuming a floor at zero; the terrain flattens each
 settlement's ground to zero and eases relief away around it. Each settlement is
 also unioned into the coastline, because the coast is noise. The ground's size,
-fog and far plane interact: fog is linear and finishes inside the 1400 m far
-plane, and the sun and moon are placed relative to the **player**, with
-`fogEnabled = false`, or walking a kilometre swings them across the sky.
+fog and far plane interact: fog is linear and finishes at the render distance,
+never past 1200 m, inside the fixed 1400 m far plane; and the sun and moon are
+placed 1,390 m out relative to the **player**, with `fogEnabled = false`, or
+walking a kilometre swings them across the sky. Do not tie the far plane to the
+render distance — it would cut the sun off.
+
+**Render distance decides what exists** (`WorldStreaming`). Babylon's fog is
+radial, so past the render distance nothing can be seen in any direction, and
+nothing is kept there: no ground, no stones, trees and houses switched off.
+Stones exist only within 250 m and are rebuilt identical from their shapes;
+house trim is hidden past 150 m. **What holds state is disabled, never
+disposed** — a door left open must still be open when the player walks back.
+Anything built and disposed as the player moves must come off the god-ray skip
+list (`SunGodRays.forgetExcluded`), which is searched for every mesh, every
+frame. A new teleport must call `WorldStreaming.prime` or it lands the player
+among stones not built yet.
 
 **Rivers are cut into the grid before any mesh is built**
 (`src/world/terrain/rivers/`), and only ever lower it. Three rules hold the
@@ -221,6 +299,30 @@ up in a trench.
 near plane, the depth buffer cannot separate land from the sea 2.5 m below it
 and the sea bleeds through as blue patches. That is the camera, not flooding —
 check heights numerically before "fixing" the terrain.
+
+**The sky is three spheres round the eye, at fixed distances**
+(`src/world/sky/`): the sky at 1,398 m, the sun and moon at 1,390 m, and the
+veil the clouds are laid in at 1,300 m, all inside the 1,400 m far plane. That
+order is what puts a cloud in front of the sun and behind a mountain; move any
+one of them and a cloud goes behind the sun or in front of the land. The domes
+must stay out of the glow layer and the god-ray pass, or they black the sun
+out of both — and the halo, being added after the picture is finished, is
+dimmed by hand (`CelestialGlow`) or it shines through overcast.
+
+**Clouds are traced at reduced resolution into a target, then laid in.** The
+march (`CloudPass`) runs before the scene is drawn, for the first active
+camera, and blends into the last frame by camera rotation alone — valid only
+because clouds are kilometres away. Their shadows are a plugin on every
+standard material that dims directional lights only. **The shadow shader and
+`cloudShadeAt` are one formula in two places**: if they disagree, the halo
+dims where no shadow falls. Weather runs on **real seconds**; a game day is
+twenty minutes.
+
+**The sky is painted in the simulation step, and the step does not run while
+paused** — which is whenever the menu is open, and from the moment the game
+loads until the first click. `Sky` paints once when built; anything that moves
+the clock from the menu must call `sky.repaint()`, or the sun and the light
+move and the sky's colour, halo and stars stay behind until the player resumes.
 
 **Every inhabited place is in `settlements.ts`**: the village on its street and
 five hamlets of three cottages. Hamlet houses are not cheaper copies — same
@@ -249,14 +351,18 @@ forward motion, so a 6 cm lip stops a sprint dead. `stepOver.ts` retries a
 blocked move from 0.4 m up, and that retry must only land somewhere
 `isStandable` agrees with, or it becomes a way to stair-step up a rock face.
 
-**Every rock is two meshes**: a smooth one to look at, with no collision, and
-an invisible upright prism to bump into (`createRockCollider.ts`) — plumb sides,
-level top, no material. A smooth rock made a bad solid: the solver slides the
+**Every rock is two meshes**, built only near the player: a smooth one to look
+at, with no collision, and an invisible upright prism to bump into
+(`createRockCollider.ts`) — plumb sides, level top, no material. A smooth rock made a bad solid: the solver slides the
 player along a curved face, downward, and with the ground out of the solver
 nothing caught them, so they sank under the stone's edge and were trapped.
 Stones are grown up from the ground under each vertex, so their rim is buried on
-every side of a slope and no gap shows under them. Grass is kept off the stone's
-body only; its low skirt carries no collision, so grass may cover it.
+every side of a slope and no gap shows under them.
+
+**Grass keeps out of objects by their real shape, never by a rectangle**
+(`GrassBlocker`): a stone's outline where it leaves the ground, a trunk's
+circle, a house's walls, each fading grass back in over 35 cm. Anything new
+that stands on grass needs a blocker, or blades grow up through it.
 
 **Nothing pushes the player sideways unless the player asked.** The solver has
 no friction, so gravity on a slope slides you. `PlayerController` restores x and
@@ -271,9 +377,20 @@ bars a door from inside or bolts a window. Phase 3 (done) is fireplaces, chimney
 and smoke, in `src/world/fire/`. Each phase builds on `houseShapes.ts` and
 `houseBlueprint.ts` rather than replacing them.
 
-**Sun and moon are real astronomy** (`celestialPath.ts`), on separate clocks.
-Colours are a keyframe table in `timeOfDayKeyframes.ts` — edit the table, not the
-code that reads it.
+**Time is one number.** `TimeOfDay` holds the hours since midnight on 1 January,
+Year 1, and never wraps. The date, the season, the sun's yearly path, the moon's
+phase and the stars are all worked out from it (`src/world/calendar/`). Never
+keep a second count of days or seasons: it will drift. The calendar is the real
+one — real months and lengths, 365 days, no leap years, seasons as whole months
+(spring is March to May). A game day is 20 real minutes; the game opens at 10:00
+on 1 March.
+
+**Sun and moon are real astronomy** (`celestialPath.ts`, `calendar/solarYear.ts`):
+latitude 45 degrees, the sun highest at 13:00 all year, day length following the
+date. Sky colours are two keyframe tables in `timeOfDayKeyframes.ts`, keyed by
+**the sun's height, not the hour** — a winter sunset is at 17:17 — and blended
+from the morning table to the evening one across the day. Edit the tables, not
+the code that reads them.
 
 **Settings are one-way**: the menu writes `settingsStore`, `SettingsBinder` pushes
 into the running game, nothing writes back. Bump `STORAGE_KEY` when a default
@@ -286,6 +403,9 @@ src/core/      engine, fixed-step loop, stats, inspector
 src/scenes/    scene factories
 src/world/     grass, clock, day/night, sun and moon, shadows, the world's edge
 src/world/terrain/  the island's height grid, sea, and rivers/
+src/world/terrain/patches/  the drawn ground's levels of detail
+src/world/sky/      the sky, the clouds, their weather and their shadows
+src/world/calendar/ the calendar, the sun's path through the year, the climate
 src/world/rocks/    loose stones
 src/player/    the bean, its camera, controls, collisions, footing, head bob
 src/minimap/   the second camera and its overlay decorations

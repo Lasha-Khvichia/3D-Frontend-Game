@@ -4,6 +4,7 @@ import { useGameStats } from "./useGameStats";
 import { ComfortSettings } from "./ComfortSettings";
 import { GraphicsSettings } from "./GraphicsSettings";
 import { WorldSettings } from "./WorldSettings";
+import { useMapOpen } from "./worldMapOpen";
 
 /**
  * Shown whenever the browser does not have the mouse, which is what Escape
@@ -12,7 +13,9 @@ import { WorldSettings } from "./WorldSettings";
  */
 export function PauseMenu() {
   const { paused } = useGameStats();
-  if (!paused) return null;
+  // The world map pauses the game too, and it is what should show.
+  const mapOpen = useMapOpen();
+  if (!paused || mapOpen) return null;
 
   return (
     <div className="menu">

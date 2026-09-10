@@ -1,4 +1,5 @@
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { Node } from "@babylonjs/core/node";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { isOutsideOf, type PlacedOpening } from "../houses/placeOpenings";
 import type { DoorBar } from "./DoorBar";
@@ -40,6 +41,11 @@ export class Door {
 
   get panel(): Mesh {
     return this.leaf.panel;
+  }
+
+  /** The leaf, which is seen from afar, and the bar inside, which is not. */
+  get nodes(): { readonly leaf: Node; readonly bar: readonly Node[] } {
+    return { leaf: this.leaf.hinge, bar: this.bar.meshes };
   }
 
   canBarFrom(player: Vector3): boolean {

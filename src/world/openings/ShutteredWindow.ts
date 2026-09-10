@@ -1,4 +1,5 @@
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import type { Node } from "@babylonjs/core/node";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { PlacedOpening } from "../houses/placeOpenings";
 import type { HingedLeaf } from "./createHingedLeaf";
@@ -46,6 +47,16 @@ export class ShutteredWindow {
 
   get panels(): Mesh[] {
     return this.leaves.map((leaf) => leaf.panel);
+  }
+
+  /** Both shutters on their hinges: part of the house's face from afar. */
+  get shutters(): Node[] {
+    return this.leaves.map((leaf) => leaf.hinge);
+  }
+
+  /** The bolt and its keeper, a few centimetres across: gone in a pixel past 40 m. */
+  get fittings(): readonly Node[] {
+    return this.latch.meshes;
   }
 
   isInReach(player: Vector3): boolean {

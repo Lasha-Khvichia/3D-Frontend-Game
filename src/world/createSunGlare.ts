@@ -1,4 +1,5 @@
 import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder";
+import { CELESTIAL_DISTANCE } from "./createCelestialDisc";
 import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
@@ -7,8 +8,8 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 
-/** Across the sky, in world units at the celestial distance. */
-export const GLARE_DIAMETER = 260;
+/** Across the sky, as a share of the celestial distance: about 18 degrees. */
+export const GLARE_DIAMETER = CELESTIAL_DISTANCE * 0.325;
 const TEXTURE_SIZE = 512;
 
 /** Four long spikes and four short ones, the way a lens splits a point of light. */

@@ -12,7 +12,8 @@ const PRESETS: readonly { value: QualityPreset; label: string }[] = [
   { value: "custom", label: "Custom" },
 ];
 
-const SHADOWS: readonly { value: ShadowQuality; label: string }[] = [
+/** Off, low and high: the same three steps for shadows and for clouds. */
+const LEVELS: readonly { value: ShadowQuality; label: string }[] = [
   { value: "off", label: "Off" },
   { value: "low", label: "Low" },
   { value: "high", label: "High" },
@@ -38,6 +39,11 @@ export function GraphicsSettings() {
         onChange={(renderScale) => updateSettings({ renderScale })}
       />
       <ToggleRow
+        label="Auto resolution"
+        value={settings.autoResolution}
+        onChange={(autoResolution) => updateSettings({ autoResolution })}
+      />
+      <ToggleRow
         label="Sun rays and glare"
         value={settings.sunEffects}
         onChange={(sunEffects) => updateSettings({ sunEffects })}
@@ -45,8 +51,14 @@ export function GraphicsSettings() {
       <ChoiceRow
         label="Shadows"
         value={settings.shadowQuality}
-        choices={SHADOWS}
+        choices={LEVELS}
         onChange={(shadowQuality) => updateSettings({ shadowQuality })}
+      />
+      <ChoiceRow
+        label="Clouds"
+        value={settings.clouds}
+        choices={LEVELS}
+        onChange={(clouds) => updateSettings({ clouds })}
       />
     </section>
   );

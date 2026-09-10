@@ -11,7 +11,8 @@ and never touches the render loop.
 | `W` `A` `S` `D` or arrows | Walk                                                |
 | Mouse                     | Turn the body, tilt the view                        |
 | `C`                       | Swap between the player's eyes and the orbit camera |
-| `Esc`                     | Release the mouse                                   |
+| `M`                       | Open or close the world map                         |
+| `Esc`                     | Release the mouse, or close the world map           |
 
 ## Pause and settings
 
@@ -27,17 +28,22 @@ in the menu would replay as a burst of steps on resume.
 There is no pause in the orbit view (`C`), because the mouse is free there by
 design.
 
-| Setting              | Effect                                                   |
-| -------------------- | -------------------------------------------------------- |
-| Field of view        | 55 to 100 degrees, vertical                              |
-| Mouse sensitivity    | 0.25x to 3x                                              |
-| Head bob             | 0 to 100 percent of the bounce                           |
-| Invert vertical look | flips the mouse                                          |
-| Time of day          | jump the clock, or freeze it                             |
-| Quality              | low / medium / high, sets the three below                |
-| Render resolution    | 50 to 100 percent. **50% draws a quarter of the pixels** |
-| Sun rays and glare   | the most expensive thing on screen                       |
-| Shadows              | off / low / high                                         |
+| Setting              | Effect                                                                      |
+| -------------------- | --------------------------------------------------------------------------- |
+| Field of view        | 55 to 100 degrees, vertical                                                 |
+| Mouse sensitivity    | 0.25x to 3x                                                                 |
+| Head bob             | 0 to 100 percent of the bounce                                              |
+| Invert vertical look | flips the mouse                                                             |
+| Date                 | jump to any day of the year; the hour stays                                 |
+| Time of day          | jump the clock, or freeze it                                                |
+| Travel speed         | 1x to 8x walking and running                                                |
+| Render distance      | 300 m to 1200 m: where the fog closes in, and past which nothing is built   |
+| Quality              | low / medium / high, sets the four below                                    |
+| Render resolution    | 50 to 100 percent. **50% draws a quarter of the pixels**                    |
+| Auto resolution      | on: drops to as low as 70% of that while frames run slower than 60 a second |
+| Sun rays and glare   | the most expensive thing on screen                                          |
+| Shadows              | off / low / high                                                            |
+| Clouds               | off / low / high: real 3D clouds, traced at a quarter or half resolution    |
 
 Settings persist in `localStorage` and are merged onto the defaults on load, so
 a save from an older build still works. Changing any graphics value by hand
@@ -72,44 +78,106 @@ Never tie logic to frame rate.
 
 ## Day and night
 
-The void colour and the key light are driven by an in-game clock. A full day
-takes 300 real seconds by default.
+The sky colour and the key light are driven by an in-game clock. **A full day
+takes 20 real minutes**, so a season is about 30 hours of play and a year about 122. The game opens at 10:00 on 1 March, Year 1.
 
 ```ts
 const dayNight = new DayNightCycle(scene, {
-  startHour: 10, // 0 to 24
-  realSecondsPerGameDay: 300, // longer = slower cycle
+  startHours: 59 * 24 + 10, // hours since midnight on 1 January, Year 1
+  realSecondsPerGameDay: 1200, // longer = slower cycle
 });
 
-dayNight.setTimeOfDay(22); // jump straight to night
+dayNight.setTimeOfDay(22); // jump straight to night, same date
+dayNight.setDayOfYear(354); // 21 December, same hour
 dayNight.currentHour; // read it back
 ```
 
-Colours live in `src/world/timeOfDayKeyframes.ts` as a keyframe table. Edit that
-table to change how day or night looks; nothing else needs to change.
+Colours live in `src/world/timeOfDayKeyframes.ts`, keyed by **how high the sun
+stands**, not by the hour. The clock no longer says where the sun is — a winter
+sunset comes at 17:17 and a summer one at 20:41 — and each must look like a
+sunset. So a winter noon, with the sun 22 degrees up, gets the paler sky and
+weaker light of a summer mid-morning.
+
+There are two tables, morning and evening, because the same height reads a
+little differently either side of noon: dawn cool and clear, the evening
+golden. The sky slides from one to the other across the day, half and half at
+noon, where the two agree. Edit the tables to change how day or night looks;
+nothing else needs to change. Sampled at every game minute of a year, the sky
+never changes by more than 0.006 in one minute, so there is no seam at noon,
+at midnight, or between days.
+
+**The sky dome is painted in the simulation step, which does not run while the
+game is paused.** Anything that moves the clock from the menu must call
+`sky.repaint()`, or the sun moves and the sky's colours stay behind until
+the player resumes. `SettingsBinder` does this for the Date and Time sliders.
+
+## Calendar and seasons
+
+The calendar is the real one: January to December, their real lengths, 365
+days, **no leap years**. The year turns over on 1 January. Seasons are whole
+months, the way weather services count them:
+
+| Season | Months                | Days |
+| ------ | --------------------- | ---- |
+| Spring | March to May          | 92   |
+| Summer | June to August        | 92   |
+| Autumn | September to November | 91   |
+| Winter | December to February  | 90   |
+
+Everything runs off one number: the hours since midnight at the start of
+1 January, Year 1 (`src/world/calendar/calendar.ts`). The date, the season,
+the sun's path, the moon's phase and the stars are all worked out from it, so
+none of them can drift apart.
+
+The stats panel shows the season with a coloured dot, the date, the time and
+the air temperature where the player stands. The menu's **Date** slider jumps
+to any day and keeps the hour.
+
+### Climate
+
+`src/world/calendar/climate.ts` gives the air temperature an ordinary day
+brings, before any weather. It is modelled on an inland climate with four
+strong seasons, like Kyiv's:
+
+|                         |                                                   |
+| ----------------------- | ------------------------------------------------- |
+| Warmest month, July     | 20 °C on average, 25 °C on the hottest afternoons |
+| Coldest month, January  | −4 °C on average, −6.5 °C on the coldest dawns    |
+| Coldest hour of the day | sunrise                                           |
+| Warmest hour of the day | 15:30, two and a half hours after the sun's peak  |
+| Height                  | 6.5 °C colder for every kilometre up              |
+
+The warmest weeks come a month after midsummer, around 23 July, and the
+coldest around 22 January: land takes that long to catch up with the sun. The
+dawn-to-afternoon rise is 10 °C in summer and 5 °C in winter. Weather will push
+the temperature up and down from here, and a later health system will read it.
 
 ## Sun and moon
 
-Both are real astronomy: a latitude and a declination fed through the standard
-horizontal-coordinate conversion. The arc is tilted, so the sun sweeps from the
-north-east, across the south, to the north-west.
+Both are real astronomy: a latitude of 45 degrees and the sun's place on its
+yearly path, fed through the standard horizontal-coordinate conversion. **The
+sun is highest at 13:00 all year**, as across most of Europe, and the day grows
+and shrinks evenly around that hour:
 
-|         |                                            |
-| ------- | ------------------------------------------ |
-| Sunrise | 06:00, bearing 60 deg (north-east)         |
-| Highest | 13:30, 66 deg above the horizon, due south |
-| Sunset  | 21:00, bearing 300 deg (north-west)        |
+| Date               | Sunrise                       | Sunset | Daylight | Sun at noon |
+| ------------------ | ----------------------------- | ------ | -------- | ----------- |
+| 1 March, the start | 07:30, a little south of east | 18:30  | 11.0 h   | 37°         |
+| 20 March           | 07:00, due east               | 19:00  | 12.0 h   | 45°         |
+| 21 June            | 05:17, north-east             | 20:41  | 15.4 h   | 68°         |
+| 21 December        | 08:43, south-east             | 17:17  | 8.6 h    | 22°         |
 
-Latitude 45 deg and declination 20.95 deg were solved from the 15 hour day you
-asked for. They are a real place on a real date: mid-northern latitude in high
-summer.
+The yearly path is the standard low-precision solar formula: the world's axis
+tilted 23.44 degrees, and an orbit slightly oval, closest to the sun on
+3 January. The oval is why the summer half of the year is a week longer than
+the winter half. Its one tuned number puts the equinoxes and solstices on 20
+March, 21 June, 22 September and 21 December, within hours of where they fall
+in 2026. The maths is in `src/world/calendar/solarYear.ts`.
 
-**The moon runs on its own clock.** A lunar day is 24 h 50.5 min, not 24 h, so
-the moon falls about 50 minutes behind the sun every day and works all the way
-around in 29.5 days. It is high at midnight on night one, still up at 21:00 for
-the first three evenings, then late enough to miss the evening entirely. Its
-declination also swings over a 27.32 day month, so its arc rides higher some
-nights than others.
+**The moon falls about 50 minutes behind the sun every day** and works all the
+way round in 29.5 days: 13 full moons in the first year. It is full on the
+first night. It keeps close to the sun's yearly path, so a full moon, opposite
+the sun, rides as high as the sun will six months later: 68 degrees on a
+December night, 24 on a June one.
 
 Neither body is ever hidden. Below the horizon they keep orbiting under the
 platform, so the cycle is one unbroken circle.
@@ -117,8 +185,8 @@ platform, so the cycle is one unbroken circle.
 ```ts
 dayNight.sunHeight; // -1 under the platform, 1 overhead
 dayNight.moonHeight;
-dayNight.dayNumber;
-dayNight.skipDays(3); // jump forward to watch the moon drift
+dayNight.dayNumber; // whole days since 1 January, Year 1
+dayNight.setDayOfYear(354); // 21 December, to see the winter moon ride high
 ```
 
 The maths lives in `src/world/celestialPath.ts`. Brightness and disc colours
@@ -146,13 +214,170 @@ Earth**. It is a pinpoint on purpose. Two effects carry the drama instead:
   and the player genuinely cut the shafts. That occlusion is what separates it
   from a painted effect.
 
-The god rays are **detached from the camera whenever the sun is below the
-horizon**, removing the pass rather than running it for nothing. They are
-attached to the player camera only, so the orbit view and the mini-map never
-pay for them.
+The god rays are **detached whenever the sun is below the horizon or more than
+25 degrees off the screen's edge**, and so is the halo pass whenever neither
+the sun nor the moon is up and near the screen (15 degrees). Each of those
+passes redraws the world into its own texture — about 130 and 150 draw calls —
+for an effect centred on something out of sight. The halo pass runs for the
+view camera only, never the mini-map.
+
+Two Babylon traps, both silent:
+
+- **Detaching `VolumetricLightScatteringPostProcess` leaves its occlusion pass
+  running.** Babylon puts that render target in `camera.customRenderTargets`,
+  and detaching only takes the post-process off. It drew the world in black all
+  night, and with sun rays switched off in the menu. `SunGodRays` takes the
+  target off the camera too.
+- **An effect layer's `camera` option is not enough.** It stops the layer's
+  texture being drawn for other cameras, but the layer is still merged onto
+  every camera's picture. The halo is switched with `isEnabled` before each
+  camera draws instead (`CelestialGlow`).
 
 Tuning lives in `createSunGlare.ts` (spike count, reach, width) and
 `SunGodRays.ts` (exposure, decay, weight, density, samples).
+
+## Sky and clouds
+
+The sky fades from deep blue overhead to pale at the horizon, with a halo round
+the sun and a warm band along the horizon under a low sun. The clouds in it are
+**real 3D volumes**, built the way Guerrilla built Horizon Zero Dawn's (Nubis)
+and lit the way Frostbite lights its clouds (Hillaire 2016). They drift with
+the wind, change shape as they go, are lit by the time of day, come and go with
+the weather, cast shadows on the island, and dim the sun when they cross it.
+
+### Three spheres round the eye
+
+| Sphere     | Distance | Why there                                                    |
+| ---------- | -------- | ------------------------------------------------------------ |
+| Sky        | 1,398 m  | behind everything; inside the 1,400 m far plane              |
+| Sun, moon  | 1,390 m  | in front of the sky                                          |
+| Cloud veil | 1,300 m  | in front of the sun and moon — the moon's near face included |
+
+Clouds are drawn into the veil, which is depth-tested like anything else: land
+in front of it hides the clouds behind it, and a cloud in front of the sun
+hides the sun. The land between 1,300 m and 1,400 m is behind the veil too,
+which is harmless — the fog has fully hidden it by 1,200 m.
+
+### How a cloud is drawn
+
+1. **Noise, built once.** A 64³ volume of Perlin-Worley lumps, a 32³ volume of
+   finer Worley that eats the edges into wisps, and a 256² map of where clouds
+   grow and how tall. 671 ms of arithmetic, done in a **Web Worker** so the game
+   keeps drawing; the sky is clear for that moment.
+2. **The march.** Every frame, a ray per pixel of a smaller target — half the
+   screen's width and height on High, a quarter on Low — steps through the
+   layer from 1,400 m to 3,600 m up: 72 steps on High, 40 on Low. The layer is
+   a shell round a real-sized Earth, so clouds sink to the horizon instead of
+   running flat to infinity.
+3. **The light.** At each step inside cloud, a second short march toward the
+   sun finds how much light gets there. Three octaves of ever-weaker absorption
+   stand in for light bouncing many times inside, which is why thick cloud
+   glows grey rather than going black; a forward-leaning phase function gives
+   the silver lining when you look toward the sun.
+4. **Blending frames.** Each frame starts every ray at a different offset and
+   keeps 86% of the last frame, turned to follow the camera. Clouds are far
+   enough away that turning is all that moves them on screen, so there is no
+   motion to track: a few dozen steps a frame add up to a smooth picture.
+5. **The veil** turns each pixel's direction back into the position the march
+   drew it at, and lays it into the scene.
+
+The numbers that decide the look are one table, `shaders/cloudLook.ts`.
+
+### Light through the day
+
+- **Day:** the sun's colour and strength from the time-of-day table.
+- **Sunset:** clouds keep the sun after the ground has lost it — from 1.4 km
+  up the horizon is several degrees lower — so they light up orange from
+  below while the island is already in shadow.
+- **Night:** the moon, faintly, once the clouds have lost the sun too.
+- **Overcast** is bright grey, not dark blue: sunlight that has bounced many
+  times comes out of every side of a cloud, thinning with the cloud above,
+  which is what gives an overcast its lighter and darker patches.
+
+### Weather
+
+Cover rises and falls on two slow waves, seven and three minutes long, which
+never line up the same way twice: clear spells, broken skies, and every few
+minutes an overcast that thins out again. The wind blows at 9 to 19 m/s and
+slowly veers. **All of it runs on real seconds, not game hours** — a game day
+is twenty minutes, and on the game clock clouds would race across the sky.
+
+As cover rises, the sky and the fog turn grey with it, which is what an
+overcast day does to the distance. Weather is left as one number — cover — for
+a later weather system to drive.
+
+### Shadows, and the sun going in
+
+Every standard material — ground, grass, houses, trees, stones, water — gets a
+material plugin that dims **only the directional lights**, the sun and the
+moon, by the cloud between them and the pixel. The sky's light and the fire
+indoors are untouched. Because the light is dimmed rather than the pixel
+darkened, a tree's shadow fades under a cloud the way a real one does.
+
+The cloud is sampled once, low in the layer where cumulus are widest, with the
+same weather, cover and shape noise the clouds are drawn from — so each shadow
+is the shape of its cloud and moves with it. A CPU copy of that formula tells
+the halo, the glare and the god rays when the sun is behind a cloud.
+
+| Measured over 16 km, midsummer or March | Share of sunlight reaching the ground |
+| --------------------------------------- | ------------------------------------- |
+| No cloud                                | 100%                                  |
+| Broken sky                              | 66% on average                        |
+| Overcast                                | 22% on average                        |
+
+Over a small area the share depends on which clouds happen to lie toward the
+sun. A low sun looks up at cloud kilometres away: over 2 km round the village,
+a broken sky let through 80% at midsummer noon and 38% at noon on 1 March,
+because the March sun was looking through a cloudier patch 2.7 km south.
+
+### Stars
+
+At night the sky is full of stars, crowding along the Milky Way, and turning.
+
+- **About 10,000 stars, 5,000 above the horizon at once** — worked out from the
+  shader's own formula, and close to the real naked-eye sky. Brightness
+  follows a steep curve, so most are faint and a handful are bright, and each
+  has a colour from blue-white to orange-red.
+- **Nothing is stored.** The sky is cut into the six faces of a cube, 150
+  cells a side; each cell holds a star or not by a hash of where it is. Cells
+  near a cube corner cover less sky, so fewer of them hold one, or the corners
+  would be crowded.
+- **The Milky Way** lies along the real galactic plane, brightest toward the
+  galactic centre and split by dark dust lanes, with extra faint stars crowded
+  into it.
+- **The sky turns** about the celestial pole, 45 degrees up in the north, once
+  every 23 hours 56 minutes — four minutes faster than the sun, as in reality.
+  That is one extra turn a year, so each date has its own night sky, the same
+  every year: the Milky Way's bright core stands due south at midnight in late
+  June, and in December it is below the horizon all night.
+- **Twilight and moonlight brighten the sky itself.** The faint stars stay
+  under it and come out as it darkens; under a full moon only the brightest
+  are left, and the Milky Way is gone.
+- **They twinkle**, more near the horizon, where their light crosses more air
+  and fades to nothing at the horizon itself.
+- **A shooting star** crosses every 25 to 90 seconds on a clear night.
+
+Two traps. **A star's distance from the pixel is taken from the difference of
+two directions, never from 1 − dot**: near 1 a float has too few steps left, and
+every star came out square. And **no star sits in the row of cells along a cube
+edge**: the next face never looks at them, and one there was drawn cut in half.
+
+### Written twice
+
+The game runs on WebGPU where the browser has it. Babylon can translate WebGL
+shaders for WebGPU, but only by downloading two compilers from its own servers
+the first time, which would make the sky depend on someone else's network. So
+every new shader exists in **GLSL and WGSL, line for line alike**: the march,
+the sky, the veil and the shadow plugin. Both were checked rendering the same
+picture.
+
+### Cost
+
+Three draw calls: the sky, the veil and the march. The march is the expensive
+part and scales with pixels × steps: at 1080p, High traces 518,400 rays of 72
+steps and Low 129,600 of 40, about a seventh of the work. **Its real cost on a
+GPU has not been measured** — the test machine renders in software. The frame
+time in the stats panel is the number to watch.
 
 ## Night lighting
 
@@ -174,14 +399,15 @@ The coast is not a square and not a circle: five sine waves round the compass
 give it its large shape, and a domain warp — moving each point before asking
 the island about it — bends that into bays and headlands.
 
-|               |                                               |
-| ------------- | --------------------------------------------- |
-| Coast         | 840 m to 1248 m from the middle               |
-| Tallest peak  | about 214 m, snow above 95 m                  |
-| Settlements   | all on level ground at exactly y = 0          |
-| Sea level     | 2.5 m below the settlements                   |
-| Height grid   | 769 x 769 samples, 4 m apart, built in 175 ms |
-| View distance | 1400 m, haze from 420 m to 1204 m             |
+|               |                                                           |
+| ------------- | --------------------------------------------------------- |
+| Coast         | 840 m to 1248 m from the middle                           |
+| Tallest peak  | about 214 m, snow above 95 m                              |
+| Settlements   | all on level ground at exactly y = 0                      |
+| Sea level     | 2.5 m below the settlements                               |
+| Height grid   | 769 x 769 samples, 4 m apart, built in 175 ms             |
+| View distance | the render distance, 300 m to 1200 m; haze from 35% of it |
+| Far plane     | 1400 m, whatever the render distance                      |
 
 **Every settlement sits at exactly zero**, and that is why the sea is below it
 rather than at it. Every house, door and hearth was built assuming a floor at
@@ -200,23 +426,31 @@ line, and a house 900 m away is a sharp little model sitting on the land.
 
 It is **linear** rather than exponential. Exponential fog thins out but never
 finishes, so geometry would still be faintly visible at the moment the far
-plane cut it in half. Linear fog reaches full sky colour at 1204 m, safely
-inside the 1400 m clip, so nothing is ever seen to pop.
+plane cut it in half. Linear fog reaches full sky colour at the render
+distance — 1200 m at most, safely inside the 1400 m clip — so nothing is ever
+seen to pop.
+
+Babylon measures it along the **straight line from the eye**, not the depth
+into the screen (`length(vFogDistance)` in its shader). So past the render
+distance everything is fully hidden in every direction, the corners of the
+screen included — which is what lets the world skip building anything there.
+See [Render distance and streaming](#render-distance-and-streaming).
 
 The colour is not a constant. `DayNightCycle` pushes the sky colour into it on
 every step, or the world would sit in grey smoke at midnight.
 
 ### The sky moves with you
 
-The sun and moon hang 800 m out, and they used to hang 800 m from the **world
-origin**. On a 200 m map that reads correctly, because the player is never far
-from the middle of it. On a 2 km map it is badly wrong: walk a kilometre and
-the sun swings across the sky, because you closed a real fraction of the
-distance to it.
+The sun and moon used to hang 800 m from the **world origin**. On a 200 m map
+that reads correctly, because the player is never far from the middle of it.
+On a 2 km map it is badly wrong: walk a kilometre and the sun swings across the
+sky, because you closed a real fraction of the distance to it.
 
-They are now placed relative to the player, which is what "far away" means.
-Their materials also set `fogEnabled = false` — they sit at 800 m, deep in the
-haze, and would otherwise fade into the sky they are supposed to light.
+They are now placed relative to the player, which is what "far away" means,
+and 1,390 m out rather than 800 m, so that clouds can pass in front of them —
+see [Sky and clouds](#sky-and-clouds). Their materials also set
+`fogEnabled = false`: they sit deep in the haze, and would otherwise fade into
+the sky they are supposed to light.
 
 ## Terrain
 
@@ -243,12 +477,71 @@ rock sitting on it — and finding no way out of the crease between them. With
 the ground out of the solver there is no crease to be caught in. Collision
 meshes are now only houses, trees, stones and bridges.
 
-|                     |                                                            |
-| ------------------- | ---------------------------------------------------------- |
-| Terrain             | 274 squares of 128 m, 2,048 triangles each                 |
-| Skipped             | squares lying wholly on the deep sea floor are never built |
-| Draw calls at spawn | 304, down from about 830 on the old flat map               |
-| Ground contact      | 0.03 ms per step, slopes and water included                |
+|                     |                                                                    |
+| ------------------- | ------------------------------------------------------------------ |
+| Ground              | patches of 32 x 32 cells: 128 m at 4 m up to 1024 m at 32 m        |
+| Built at spawn      | 172 patches in 76 ms; all 274 full-detail squares were before      |
+| Never built         | patches wholly on the deep sea floor, and past the render distance |
+| Draw calls at spawn | 1,259 in the browser, every pass counted; 1,552 before             |
+| Ground contact      | 0.03 ms per step, slopes and water included                        |
+
+### Detail falls away with distance
+
+The ground is a tree of **patches** (`src/world/terrain/patches/`). Every patch
+is a mesh 32 cells square, whatever its size: at level 0 that is 128 m with the
+grid's own 4 m cells, and each level up is twice as wide with cells twice as
+big. Nine level-3 patches of 1024 m cover the whole grid. Every patch costs the
+same to build (0.44 ms) and to draw (2,048 triangles).
+
+**Every patch knows how wrong it would look** before anything is built: its
+error is the furthest its mesh strays from the true ground, measured at every
+sample it skips. A parent's error includes its children's, so a patch never
+looks good enough while a quarter of it does not.
+
+A patch splits into its quarters when either is true:
+
+- **It strays by more than a pixel and a half** at its distance — error above
+  0.0015 of the distance, on a 1080-line screen at the default field of view.
+  Small enough that a patch changing level is not seen to move.
+- **It is inside the full-detail ring**: 160 m for level 1, doubling per level.
+  Height error alone would let flat ground go coarse under your feet, because
+  coarse is exact where the ground is flat. The colour would not be: the sand
+  line and the speckle are per vertex, and 32 m apart they smear.
+
+It merges again only when its need falls to three quarters of that, so a patch
+on the line does not swap back and forth as the player sways.
+
+| Level | Cells | Error: median | 90%    | worst  |
+| ----- | ----- | ------------- | ------ | ------ |
+| 1     | 8 m   | 0.58 m        | 2.78 m | 9.8 m  |
+| 2     | 16 m  | 2.77 m        | 7.70 m | 12.7 m |
+| 3     | 32 m  | 6.64 m        | 16.1 m | 24.4 m |
+
+So **meadows go coarse from about 400 m, and mountains, river channels and the
+coast never do** — they are exactly what you would see jump. At spawn that is
+131 patches at level 0, 38 at level 1 and 3 at level 2.
+
+**No hole, ever.** A drawn patch that wants more detail stays on screen until
+all four quarters are built, then is swapped for them in one step; four
+quarters that want less wait for their parent the same way. Walked across the
+island and back at 56 m/s: 3,997 steps, **0 holes and never two levels drawn at
+once**, 0.04 ms per step on average and 4.8 ms at worst. Building is capped at
+2.5 ms a step, nearest first, and at least one patch is always built.
+
+**Skirts close the seams.** Where a coarse patch meets a fine one, the coarse
+edge is a straight line between its vertices and the fine one follows every
+sample, and the slit between them would show the sky. Each edge hangs a strip
+straight down to cover it, twice as deep as the worst edge error at any level,
+plus half a metre — 25 m on the steepest mountain edges. The strip copies the
+colour and normal of the edge above it, so what shows through a slit looks like
+the ground beside it. Each edge picks its winding at run time from Babylon's
+rule; all 44,032 strip faces at spawn were checked to face outward.
+
+**Normals come from the patch's own spacing, colour from the fine grid.** A
+coarse patch lit by 4 m normals shows the tilt of ground it no longer draws,
+and distant hills come out blotched. Steepness decides where rock shows, and
+read from the fine grid it paints every vertex the same at every level, so a
+patch changing level does not change colour.
 
 ### Hills, mountains and snow
 
@@ -269,6 +562,135 @@ height, and rock wherever it is steeper than about 38 degrees. Snow thins on
 steep faces but does not vanish from them — seen from a valley a mountain is
 almost all steep face, and snow only on its ledges read as no snow at all.
 It is plain on purpose; weather will own it later.
+
+## Render distance and streaming
+
+**World → Render distance**, 300 m to 1200 m. The default, 1200 m, is exactly
+the view the island had before it was a setting. It moves the fog, and the fog
+is what hides everything past it — so past it, nothing is kept.
+
+The camera's far plane stays at 1400 m whatever the setting. Depth precision is
+decided by the ratio of far to near plane, and the sun and moon hang 1,390 m
+out; a far plane pulled in to 300 m would cut them off.
+
+`WorldStreaming` keeps it all in step, once per simulation step:
+
+| Thing  | Near the player         | Further off                                      | Past the render distance |
+| ------ | ----------------------- | ------------------------------------------------ | ------------------------ |
+| Ground | full detail             | coarser patches                                  | not built                |
+| Stones | built within 250 m      | thrown away past 280 m                           | —                        |
+| Trees  | canopy tiers, as before | thinned canopies                                 | switched off             |
+| Houses | everything              | bolts and bars hidden past 40 m, trim past 150 m | switched off             |
+
+**What remembers something is hidden, never thrown away.** A tree will one day
+lose a branch; a door can be left open or barred. Switched off, a house is not
+drawn, not in the shadow map and not collided with, but walk back and the door
+is still open — tested. **What remembers nothing is rebuilt**: ground and stones
+come back identical from the same numbers.
+
+| Measured, same scene and view    | Before  | After, 1200 m | After, 300 m |
+| -------------------------------- | ------- | ------------- | ------------ |
+| Meshes drawn, mountain facing S  | 861     | 195           | 27           |
+| Triangles, mountain facing S     | 335k    | 127k          | 29k          |
+| CPU per frame, mountain facing S | 11.9 ms | 2.2 ms        | 0.5 ms       |
+| Meshes drawn, spawn facing S     | 260     | 113           | 61           |
+| Meshes in the scene              | 2,150   | 1,298         | 1,156        |
+| Colliders switched on            | 806     | 329           | 269          |
+| Draw calls at spawn, in browser  | 1,552   | 1,259         | —            |
+
+CPU per frame is Babylon's own work before the GPU sees anything, measured
+headless. The stones were most of it: 247 separate draws from the mountain.
+
+**Stones are never late.** Driven through sixty stones at 60 m/s — faster than
+the top travel speed — over 54,163 steps, not once was a stone within reach of
+the player still unbuilt. Eight are built a step, nearest first, 0.15 ms each.
+
+Two traps this uncovered:
+
+- **Babylon's picking ignores `isEnabled` when you give it a filter.** Every
+  pick here has one, so a hidden house could still stop a ledge ray the player
+  would walk straight through. Both ray filters now check it too.
+- **The god-ray pass searches its skip list for every mesh, every frame.**
+  Stones are added as they are built and taken off as they are thrown away
+  (`forgetExcluded`); left on, the list would grow for as long as you played.
+
+## Frame rate
+
+The target is **60 frames a second: 16.7 ms a frame**. Faster screens still get
+more frames, smoothed as below.
+
+### Measured before and after
+
+Measured in headless Chrome with Babylon's own draw-call counter, pass by
+pass. The test machine draws in software, so it cannot say how fast a real GPU
+is; draw calls and bytes sent are the same on any machine.
+
+|                                              | Before  | After  |
+| -------------------------------------------- | ------- | ------ |
+| Draw calls, walking the same route, 10:00    | 1,008   | 461    |
+| Draw calls, the opening view behind the menu | 1,229   | 798    |
+| Grass sent to the GPU, 400 m at a sprint     | 42.3 GB | 694 MB |
+| Slowest grass step on the test machine       | 11 s    | 9.7 ms |
+
+After, by view: 639 draw calls looking at the sun with every effect running,
+574 looking away from it, 442 at night.
+
+JavaScript allocation stayed at about 0.2 MB a second, so garbage collection
+was never a stutter source.
+
+### Smooth between steps
+
+The world moves 60 times a second and the screen may draw 144. Drawn at the
+last step, the view stood still for some frames and jumped for others — judder
+that reads as an unsteady frame rate even at 60 Hz, whenever a frame arrives a
+millisecond early or late. `GameRuntime.setFrameUpdate` runs once per drawn
+frame, after the steps: the camera is placed between the last two steps by
+how far the clock has got to the next (`SmoothedEye`), and the mouse turns the
+view there, not in the step. The price is that the view is up to one step,
+17 ms, behind the world — the standard trade from Glenn Fiedler's "Fix Your
+Timestep!".
+
+### Auto resolution
+
+`AutoResolution` renders fewer pixels while frames run slow: it steps to 90, 80
+and 70% of the menu's Render resolution, never above it, judging a second's
+average at a time. Down after a second slower than 18 ms a frame; back up after
+three seconds faster than 13.5 ms. Each change resizes every screen-sized
+target and the clouds lose their blending, so the second after a change is not
+judged and changes are always 2 s apart.
+
+A slow frame is not always the GPU's. If a step down does not make frames at
+least 5% faster, the time is going on the CPU and fewer pixels only blur the
+picture: it steps back up and waits 15 s before trying again, doubling each
+time up to 5 minutes. The stats panel shows the share being drawn. Tested
+against three simulated machines: GPU-bound settles at 70%, CPU-bound ends at
+full size after 10 changes in 5 minutes, and a fast one never changes.
+
+### Passes that run only when they show something
+
+| Pass                | Draw calls | Runs                                          |
+| ------------------- | ---------- | --------------------------------------------- |
+| Main view           | about 390  | every frame                                   |
+| Sun shadow map      | 132        | while the sun is up                           |
+| Halo (glow layer)   | about 150  | view only, sun or moon up and near the screen |
+| God rays' occlusion | about 130  | sun up and near the screen                    |
+| Mini-map picture    | about 55   | 20 times a second                             |
+
+`scene.skipPointerMovePicking` is on: Babylon otherwise casts a ray into the
+scene on every mouse move, up to a thousand a second with a gaming mouse, and
+nothing here uses it.
+
+### Not done yet
+
+- **WebGPU's own speed-ups.** Babylon's WebGPU path spent more JavaScript per
+  frame than WebGL here (12.7 ms against 8.5 ms, before these cuts).
+  Non-compatibility mode and snapshot rendering can cut that, but snapshot
+  rendering needs a scene whose meshes do not change, and this one streams.
+- **Shutters as thin instances.** 78 of the main view's draws near the village
+  are shutter leaves, each its own mesh.
+- **Grass lean on the GPU.** Bent blades are still sent every step while
+  walking, about 14 MB a second; a shader could bend them from the player's
+  recent path with nothing sent at all.
 
 ## Water and the edge of the world
 
@@ -383,6 +805,10 @@ Stones are thrown at the whole map and kept only where the ground has room for
 them — dry, gentle, clear of houses and trees — so the scatter follows the
 island without knowing it.
 
+Only those within 250 m of the player exist at any moment — about 45 of them.
+The rest are shapes waiting to be built; see
+[Render distance and streaming](#render-distance-and-streaming).
+
 ### Two meshes per rock
 
 **The rock you see does not collide.** What you bump into is an invisible
@@ -429,10 +855,10 @@ over the downhill side and the gap under it shows the ground straight through.
 Grown per vertex, the rim is sunk 0.35 m everywhere: of 2,191 outer points, none
 stands above the ground.
 
-**Grass grows up to the stone's body and over its skirt.** It was once cleared
-from the whole reach, because the skirt was solid and solid rock hidden in grass
-is an invisible wall. The skirt has no collision now, and clearing the whole
-reach left a bare square round every stone.
+**Grass meets a stone exactly where it comes out of the ground**, and is short
+at its foot — see [Where grass meets things](#where-grass-meets-things). It was
+once cleared in a square, which left a bald patch at every corner of every
+round stone and still let blades up through its sides.
 
 ### Drawn inside out, and how that was caught
 
@@ -536,6 +962,11 @@ left out of two passes:
   pass cannot change the silhouette.
 
 Together those took the frame from 249 draw calls back to 189.
+
+Past 150 m it is not drawn at all, and nor are the shutters — a 20 cm timber
+is a pixel there, and every house carries a dozen draws of it. Window bolts,
+their keepers and door bars go sooner, past 40 m: a bolt is a 1 by 4 pixel mark
+there, and the 94 windows carry two each, which were drawn at any distance.
 
 ## Doors and shutters
 
@@ -789,8 +1220,7 @@ field rustles rather than tilting as one slab.
 
 Every blade is a **thin instance** of one 3-triangle mesh, so the whole field is
 **one draw call**. Their transforms live in a single `Float32Array`; only the
-blades that actually moved are re-uploaded, with
-`thinInstancePartialBufferUpdate`.
+blades that changed are sent to the GPU, with `thinInstancePartialBufferUpdate`.
 
 Blades lean away from anything registered with `grass.addPusher(node)`, and
 stand back up over 0.5 s. **Pushers are opt-in.** The ground and the walls are
@@ -801,9 +1231,23 @@ stands in, not from its slot in the buffer. Walk away and back and every blade
 is exactly where it was.
 
 **The patch is a torus.** A blade's slot is its world cell modulo the patch
-width, so sliding the patch rewrites only the rows and columns that genuinely
-entered it: 8,448 blades instead of 123,904. Rebuilding all of them cost 6.7 ms,
-which is a dropped frame every metre you walk.
+width, so sliding the patch rewrites only the blocks that genuinely entered it.
+Rebuilding all of it cost 6.7 ms, which is a dropped frame every metre you walk.
+
+**Blades are stored block by block** (`grassSlots.ts`), in squares one recentre
+step wide, and every change is sent as a few short runs. This was the worst
+stutter in the game. Row by row, a slide sent the whole buffer — 12.8 MB for the
+near patch — and bent blades were sent as one run from the first to the last,
+which near the patch's wrap-around line, every 40 m, was also the whole buffer,
+every step. Measured over 400 m at a sprint:
+
+|                | Sent to the GPU | Per second |
+| -------------- | --------------- | ---------- |
+| Row by row     | 42.3 GB         | 846 MB     |
+| Block by block | 694 MB          | 14 MB      |
+
+A test replays every upload onto a copy of the buffer and checks the copy
+matches the CPU's exactly after the walk, so no changed blade is ever missed.
 
 Cost measured while running, breeze included: **0.17 ms per step on average,
 1.06 ms at worst**, against a 16.7 ms step. Standing still it is 0.07 ms.
@@ -821,6 +1265,30 @@ Two traps here:
 
 Blades receive shadows but never cast them. 9,000 blades in the shadow map
 would cost a second render of the whole field and blur the player's own shadow.
+
+### Where grass meets things
+
+Stones, trunks and walls each keep grass out with **their own shape**, and let
+it grow back over 35 cm: none inside, 30% of full height right at the edge,
+full height past the fade — the way grass really thins into the foot of a
+stone. It used to be cleared in axis-aligned rectangles, so every round stone
+and every trunk sat in a square bald patch, and blades grew up through the
+stones' sides wherever the square was too small.
+
+| Object | Shape                                                          |
+| ------ | -------------------------------------------------------------- |
+| Stone  | the line it comes out of the ground, measured in 64 directions |
+| Trunk  | a circle the size of the trunk at the ground                   |
+| House  | its walls and a 20 cm margin                                   |
+
+A stone's outline comes from the same surface its mesh is built from, sunk rim
+included. With 32 directions, 92 spots between them still let a blade through
+the stone; with 64, none of the 420 stones does, checked at 64 directions and
+every 2 cm out.
+
+Blockers are sorted into a 4 m grid, so each blade asks the one or two near it.
+Asking all 489 for every blade was a hundred million checks each time the grass
+was laid out; the whole field is now laid out in about 75 ms.
 
 ## Trees
 
@@ -1178,13 +1646,46 @@ dark the shadow gets. The shadow box is a **fixed 48 m** centred on the player,
 not auto-fitted: refitting resizes it as casters come and go, and sharpness pops
 as it does.
 
+## World map
+
+**`M` opens a painted map of the whole island**, with an arrow for where you
+stand and which way you face; `M` or `Esc` closes it. Scroll to zoom, drag to
+move. It opens centred on you and zoomed in, and zooms out to the whole island.
+
+The game is **paused** while it is open. Opening it lets go of the mouse — the
+same thing that pauses the game on `Esc` — and closing it takes the mouse back
+inside the key press, which is the only moment the browser allows it. The
+pause menu keeps out of the way while the map is up.
+
+It is a flat map on old paper, painted from the island itself the first time
+you open it — about half a second, once:
+
+- the sea in a blue-green wash, with ripples ruled round the shore at every
+  3 m of depth, and the coast as a thin ink line
+- hills and mountains shaded in sepia as if lit from the north-west, drawn
+  steeper than they are so gentle ground still reads, with snow caps left pale
+- rivers inked in blue, every house as a little roofed block, every tree as a
+  crown, every bridge as a plank
+- a double ruled frame, a compass rose and a 500 m scale
+
+The coast is drawn from depth over steepness — the distance to the waterline —
+so it is a couple of pixels wide everywhere. Drawn from depth alone, the gently
+sloping beaches made it a brown band 25 m wide.
+
+**Names are text over the picture, not painted into it**, so they stay sharp
+and the same size at any zoom: the village and the five hamlets, the three
+rivers half way along their courses, and the mountains. The mountains have no
+names anywhere else in the game; the map's are in `mapLabels.ts`.
+
 ## Mini-map
 
 Bottom-left, 180 px square, **first person only**. Pressing `C` for the orbit
 camera removes it entirely.
 
 It is a real second camera, not a drawing, so it shows real geometry and real
-lighting. It has **two poses**:
+lighting — but it draws **into its own texture, 20 times a second**, and that
+picture is laid into the corner of every frame in one draw (`MiniMapPicture`).
+It has **two poses**:
 
 | Pose     | Where                                   | Shows                          |
 | -------- | --------------------------------------- | ------------------------------ |
@@ -1227,8 +1728,17 @@ The compass ring squashes by `sin(pitch)`. A tilted camera foreshortens the
 ground into an ellipse, and a flat circle of letters would not line up with it.
 Overhead the squash is 1 and the ring is round.
 
-**Cost: one extra scene render per frame.** Fine now, worth revisiting once the
-world is full. The map's pixel size lives in `MINI_MAP_SIZE_CSS` and must match
+**Cost: about 55 draw calls, 20 times a second** — a third of a frame's worth at
+60 frames a second. As a camera on the list it redrew itself, and its own copy
+of the halo pass, every frame. The compass canvas is repainted with each new
+picture, so the two always agree.
+
+**A render target culls nothing.** Given no mesh list, Babylon's
+`RenderTargetTexture` draws every enabled mesh on its camera's layers, however
+far outside the view: the first version drew 144 to 263 draw calls per picture.
+`ViewBoxFilter` hands it only the meshes inside the map camera's box.
+
+The map's pixel size lives in `MINI_MAP_SIZE_CSS` and must match
 `.overlay__minimap` in `overlay.css`.
 
 ## Assets and where they came from
@@ -1256,6 +1766,8 @@ src/core/      engine, fixed-step loop, stats, inspector
 src/scenes/    scene factories
 src/world/     grass, clock, day/night cycle, sun and moon, the world's edge
 src/world/terrain/   the island, its height grid, the sea, and rivers/
+src/world/terrain/patches/  the ground's levels of detail, built round the player
+src/world/sky/       the sky, the clouds, their weather and their shadows
 src/world/rocks/     loose stones
 src/player/    the bean, its camera, controls, collisions, footing on the ground
 src/minimap/   the top-down camera and its overlay decorations

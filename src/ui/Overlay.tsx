@@ -3,6 +3,7 @@ import { InteractionPrompt } from "./InteractionPrompt";
 import { WorldNotice } from "./WorldNotice";
 import { MiniMap } from "./MiniMap";
 import { PauseMenu } from "./PauseMenu";
+import { WorldMap } from "./WorldMap";
 import { sendCommand } from "./bridge";
 import "./overlay.css";
 
@@ -33,6 +34,7 @@ export function Overlay() {
       <WorldNotice />
       <MiniMap />
       <PauseMenu />
+      <WorldMap />
     </div>
   );
 }

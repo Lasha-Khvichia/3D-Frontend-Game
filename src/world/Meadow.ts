@@ -4,7 +4,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { WorldEntity } from "../core/WorldEntity";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { FINE_DETAIL_LAYER } from "./fineDetailLayer";
-import type { Footprint } from "./footprint";
+import type { GrassBlockerGrid } from "./GrassBlockerGrid";
 import { swayGrassBlade } from "./createGrassBlade";
 import { GrassField, type GrassSoil } from "./GrassField";
 import { FAR_GRASS, NEAR_GRASS } from "./grassLayout";
@@ -56,9 +56,9 @@ export class Meadow extends WorldEntity {
   }
 
   /** Ground where no grass grows, such as under a house or out of a trunk. */
-  setExclusions(footprints: readonly Footprint[]): void {
-    this.near.setExclusions(footprints);
-    this.far.setExclusions(footprints);
+  setBlockers(blockers: GrassBlockerGrid): void {
+    this.near.setBlockers(blockers);
+    this.far.setBlockers(blockers);
   }
 
   update(seconds: number, focus: Vector3): void {

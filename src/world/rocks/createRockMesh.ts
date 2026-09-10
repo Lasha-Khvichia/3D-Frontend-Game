@@ -11,8 +11,8 @@ import type { RockShape } from "./rockShape";
  * Only the outer skirt moves, so the stone above ground keeps its shape and no
  * edge of it stands proud of the grass.
  */
-const BURY = 0.35;
-const BURY_TAPER = 4;
+export const ROCK_BURY = 0.35;
+export const ROCK_BURY_TAPER = 4;
 
 /** Rings and spokes, from the size of the rock. A boulder needs neither many. */
 const spokes = (reach: number): number => Math.min(34, Math.max(10, Math.round(9 + reach)));
@@ -52,7 +52,7 @@ export function createRockMesh(
       const angle = (side / sides) * Math.PI * 2;
       const offsetX = Math.sin(angle) * radius;
       const offsetZ = Math.cos(angle) * radius;
-      const sink = BURY * (ring / steps) ** BURY_TAPER;
+      const sink = ROCK_BURY * (ring / steps) ** ROCK_BURY_TAPER;
       // Grown up from the ground under each point, not from one height for the
       // whole stone: on a slope a stone set at one height hangs over the
       // downhill side, and the gap under it shows the ground straight through.

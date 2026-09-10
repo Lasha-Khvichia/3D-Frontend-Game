@@ -1,7 +1,7 @@
 import type { Scene } from "@babylonjs/core/scene";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { WorldEntity } from "../../core/WorldEntity";
-import type { Footprint } from "../footprint";
+import type { GrassBlocker } from "../grassBlockers";
 import { Tree } from "./Tree";
 import { createTreeMaterials } from "./treeMaterials";
 import type { TreeWind } from "./TreeWind";
@@ -87,8 +87,8 @@ export class Woodland extends WorldEntity {
   }
 
   /** Passed to the grass, so none grows out of a trunk. */
-  get footprints(): Footprint[] {
-    return this.trees.map((tree) => tree.footprint);
+  get grassBlockers(): GrassBlocker[] {
+    return this.trees.map((tree) => tree.grassBlocker);
   }
 
   override dispose(): void {

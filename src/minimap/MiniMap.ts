@@ -1,20 +1,20 @@
-import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import type { TargetCamera } from "@babylonjs/core/Cameras/targetCamera";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 import { createMiniMapCamera } from "./createMiniMapCamera";
-import { fitMiniMapViewport } from "./fitMiniMapViewport";
+import { MiniMapPicture } from "./MiniMapPicture";
 import { blendPose, createPose, POSE_TRANSITION_SECONDS } from "./miniMapPoses";
 import { drawMiniMapDecor, type MiniMapDecor } from "./drawMiniMapDecor";
 import { readMiniMapCanvas } from "../ui/bridge";
 import type { DayNightCycle } from "../world/DayNightCycle";
 
-export { MINI_MAP_SIZE_CSS } from "./fitMiniMapViewport";
+export { MINI_MAP_SIZE_CSS } from "./miniMapCorner";
 
 /**
- * A second camera that follows the player, drawn into the bottom left corner,
- * with a small 2D canvas on top carrying the frame, compass letters and sky
- * markers.
+ * A second camera that follows the player, its picture laid into the bottom
+ * left corner 20 times a second (`MiniMapPicture`), with a small 2D canvas on
+ * top carrying the frame, compass letters and sky markers. The canvas is
+ * repainted with each new picture, so the two always agree.
  *
  * It has two poses. By default it sits over your shoulder looking at your back,
  * which reads as a 3D map. Holding the key slides it overhead into a flat map,
@@ -25,8 +25,7 @@ export { MINI_MAP_SIZE_CSS } from "./fitMiniMapViewport";
 export class MiniMap {
   readonly camera: TargetCamera;
 
-  private readonly engine: AbstractEngine;
-  private readonly stopWatchingResize: ReturnType<AbstractEngine["onResizeObservable"]["add"]>;
+  private readonly picture: MiniMapPicture;
   private readonly pose = createPose();
   private blend = 0;
   private readonly decor: MiniMapDecor = {
@@ -41,19 +40,16 @@ export class MiniMap {
 
   constructor(scene: Scene) {
     this.camera = createMiniMapCamera(scene);
-    this.engine = scene.getEngine();
-    // Immediately, not on the first step: the game starts paused and no step
-    // runs until the player clicks in, and a camera without its own viewport
-    // covers the whole screen.
-    fitMiniMapViewport(this.camera, this.engine);
-    this.stopWatchingResize = this.engine.onResizeObservable.add(() =>
-      fitMiniMapViewport(this.camera, this.engine),
-    );
+    this.picture = new MiniMapPicture(scene, this.camera);
+    this.picture.onRedraw = () => drawMiniMapDecor(readMiniMapCanvas(), this.decor);
   }
 
-  dispose(): void {
-    this.engine.onResizeObservable.remove(this.stopWatchingResize);
+  /** The orbit view has no mini-map. */
+  setShown(shown: boolean): void {
+    this.picture.setShown(shown);
   }
+
+  dispose(): void {}
 
   /** 0 over the shoulder, 1 straight overhead. */
   get overheadBlend(): number {
@@ -68,7 +64,7 @@ export class MiniMap {
   ): void {
     this.advanceBlend(seconds, wantsOverhead);
     const pitch = this.placeCamera(player);
-    this.paintDecor(player.rotation.y, pitch, dayNight);
+    this.updateDecor(player.rotation.y, pitch, dayNight);
   }
 
   /** Runs on the fixed step, so the slide takes the same time at any frame rate. */
@@ -103,7 +99,8 @@ export class MiniMap {
     return pitch;
   }
 
-  private paintDecor(yaw: number, pitch: number, dayNight: DayNightCycle): void {
+  /** Updates what the canvas will show; it is painted when the next picture is ordered. */
+  private updateDecor(yaw: number, pitch: number, dayNight: DayNightCycle): void {
     this.decor.playerYaw = yaw;
     this.decor.sunBearing = dayNight.sunBearing;
     this.decor.moonBearing = dayNight.moonBearing;
@@ -111,6 +108,5 @@ export class MiniMap {
     this.decor.moonUp = dayNight.moonHeight > 0;
     this.decor.overheadBlend = this.blend;
     this.decor.groundSquash = Math.sin(pitch);
-    drawMiniMapDecor(readMiniMapCanvas(), this.decor);
   }
 }

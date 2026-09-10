@@ -4,7 +4,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { moonDirectionAt, sunDirectionAt } from "./celestialPath";
-import { createGlowLayer } from "./createGlowLayer";
+import { CelestialGlow } from "./CelestialGlow";
 import { createMoonTexture } from "./createMoonTexture";
 import { createSunGlare, type SunGlare } from "./createSunGlare";
 import { SunShadows } from "./SunShadows";
@@ -14,12 +14,12 @@ import type { ShadowQuality } from "../settings/gameSettings";
 import { clamp01, lerp, smoothStep } from "./blend";
 
 /**
- * 0.53 degrees across at the celestial distance, which is the sun's real
- * angular size from Earth. It is a pinpoint on purpose: the glare and the god
- * rays carry the effect, not the disc.
+ * 0.53 degrees across, which is the sun's real angular size from Earth. It is
+ * a pinpoint on purpose: the glare and the god rays carry the effect, not the
+ * disc. Both are sized as angles, so moving them further out changes nothing.
  */
-const SUN_DIAMETER = 7.4;
-const MOON_DIAMETER = 78;
+const SUN_DIAMETER = CELESTIAL_DISTANCE * 0.00925;
+const MOON_DIAMETER = CELESTIAL_DISTANCE * 0.0975;
 
 /** Multiplies the palette intensity to get the sun's directional strength. */
 const SUN_SHARE = 1.1;
@@ -45,8 +45,9 @@ const MOON_LIGHT_COLOUR: readonly [number, number, number] = [0.55, 0.65, 0.95];
  * Both orbit continuously and are never hidden. Below the horizon they keep
  * travelling under the platform, so the cycle reads as one unbroken orbit.
  *
- * The moon runs on a 24 h 50 min lunar day against the sun's 24 h, so it slips
- * later every night and drifts through the whole cycle in 29.5 days.
+ * The sun's arc follows the date: high and long in summer, low and short in
+ * winter. The moon runs on a 24 h 50 min lunar day against the sun's 24 h, so
+ * it slips later every night and drifts through the whole cycle in 29.5 days.
  */
 export class SunAndMoon {
   private readonly sunLight: DirectionalLight;
@@ -59,12 +60,12 @@ export class SunAndMoon {
   private readonly towardMoon = new Vector3(0, 1, 0);
   private sunUp = 0;
   private moonUp = 0;
+  /** The halos, dimmed by cloud. */
+  readonly glow: CelestialGlow;
   /** Where the player is. The sky is drawn around them, not around the origin. */
   private focus: Vector3 | null = null;
 
   constructor(scene: Scene) {
-    createGlowLayer(scene);
-
     this.sunLight = new DirectionalLight("sun-light", new Vector3(0, -1, 0), scene);
     this.sunLight.specular = Color3.Black();
 
@@ -84,11 +85,28 @@ export class SunAndMoon {
     surface.level = MOON_TEXTURE_LEVEL;
     this.moonDisc.material.emissiveTexture = surface;
 
-    // The sky is not in the haze. Fog is depth-based, and these sit 800 m out,
-    // so without this the sun fades to sky colour and disappears.
+    // The sky is not in the haze. Fog is depth-based, and these sit 1,390 m
+    // out, so without this the sun fades to sky colour and disappears.
     this.sunDisc.material.fogEnabled = false;
     this.sunGlare.material.fogEnabled = false;
     this.moonDisc.material.fogEnabled = false;
+    this.glow = new CelestialGlow(scene, this.sunDisc.mesh, this.moonDisc.mesh);
+    // Under the clouds, not over them: drawn before the cloud veil.
+    this.sunGlare.mesh.alphaIndex = -1;
+  }
+
+  /** Dims each halo, and the glare, by the cloud in front of the body. */
+  setCloudCover(sun: number, moon: number): void {
+    this.glow.setCloudCover(sun, moon);
+    this.sunGlare.material.alpha = sun;
+  }
+
+  get sunDirection(): Vector3 {
+    return this.towardSun;
+  }
+
+  get moonDirection(): Vector3 {
+    return this.towardMoon;
   }
 
   /** Height of the sun, -1 below the platform and 1 overhead. */
@@ -159,13 +177,16 @@ export class SunAndMoon {
     return this.moonUp;
   }
 
-  update(hourOfDay: number, totalHours: number, lighting: TimeOfDayLighting): void {
-    sunDirectionAt(hourOfDay, this.towardSun);
+  /** Puts both bodies where they stand at this moment of the calendar. */
+  place(totalHours: number): void {
+    sunDirectionAt(totalHours, this.towardSun);
     moonDirectionAt(totalHours, this.towardMoon);
-
     this.sunUp = smoothStep(HORIZON_FADE_START, HORIZON_FADE_END, this.towardSun.y);
     this.moonUp = smoothStep(HORIZON_FADE_START, HORIZON_FADE_END, this.towardMoon.y);
+  }
 
+  /** Lights the world from where `place` put them, in this step's colours. */
+  shine(lighting: TimeOfDayLighting): void {
     // A directional light points the way light travels, which is from the body
     // toward the world. That is the opposite of where the body sits.
     this.sunLight.direction.copyFrom(this.towardSun).scaleInPlace(-1);

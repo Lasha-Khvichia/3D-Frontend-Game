@@ -22,6 +22,10 @@ export const ORBIT_CAMERA_NAME = "orbit-camera";
 export function createEmptyScene(engine: AbstractEngine): Scene {
   const scene = new Scene(engine);
   scene.collisionsEnabled = true;
+  // Babylon otherwise casts a ray into the scene on every mouse move, to know
+  // what is under the pointer — up to a thousand times a second with a gaming
+  // mouse. Nothing here asks: the pointer is locked, and picking is by ray.
+  scene.skipPointerMovePicking = true;
   scene.clearColor = new Color4(0.05, 0.06, 0.09, 1);
   applyDistanceFog(scene);
 

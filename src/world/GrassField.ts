@@ -7,8 +7,9 @@ import type { Scene } from "@babylonjs/core/scene";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 
 import { BLADE_HEIGHT, createGrassBlade } from "./createGrassBlade";
-import type { Footprint } from "./footprint";
+import type { GrassBlockerGrid } from "./GrassBlockerGrid";
 import { createBladeShape, shapeForCell, type GrassLayout } from "./grassLayout";
+import { GrassSlots } from "./grassSlots";
 
 /**
  * The ground the grass grows in: how high it is, and whether anything grows
@@ -41,14 +42,14 @@ const FLOATS_PER_MATRIX = 16;
 /**
  * A patch of grass that follows the player.
  *
- * All 123,904 blades are thin instances of one mesh, so the field is a single
- * draw call. Their transforms live in one Float32Array; only the blades that
- * actually moved are re-uploaded each frame.
+ * Every blade is a thin instance of one mesh, so the field is a single draw
+ * call. Their transforms live in one Float32Array, and only the blades that
+ * changed are sent to the GPU, in short runs (`GrassSlots`).
  *
- * The patch is a torus. A blade's slot in the buffer is its world cell modulo
- * the patch width, so sliding the patch only rewrites the rows and columns that
- * genuinely entered it. Rebuilding the whole field instead cost 6.7 ms at half
- * this density, which is a dropped frame every time you move a metre.
+ * The patch is a torus. A blade's slot is its world cell modulo the patch
+ * width, so sliding the patch only rewrites the blocks that genuinely entered
+ * it. Rebuilding the whole field instead cost 6.7 ms at half this density,
+ * which is a dropped frame every time you move a metre.
  *
  * Blades lean away from anything registered as a pusher. The ground is not one,
  * and nothing becomes one by accident: it has to be added by name.
@@ -56,6 +57,7 @@ const FLOATS_PER_MATRIX = 16;
 export class GrassField {
   readonly mesh: Mesh;
 
+  private readonly slots: GrassSlots;
   private readonly matrices: Float32Array;
   private readonly lean: Float32Array;
   private readonly leanX: Float32Array;
@@ -64,7 +66,7 @@ export class GrassField {
   private readonly moving = new Set<number>();
   private readonly pushers: Pusher[] = [];
   /** Rectangles where no grass grows, such as the ground under a house. */
-  private exclusions: readonly Footprint[] = [];
+  private blockers: GrassBlockerGrid | null = null;
 
   private originCellX = 0;
   private originCellZ = 0;
@@ -84,6 +86,7 @@ export class GrassField {
     private readonly soil: GrassSoil,
   ) {
     this.mesh = createGrassBlade(scene);
+    this.slots = new GrassSlots(grass.patchCells, grass.recentreStepCells);
     this.matrices = new Float32Array(grass.bladeCount * FLOATS_PER_MATRIX);
     this.lean = new Float32Array(grass.bladeCount);
     this.leanX = new Float32Array(grass.bladeCount);
@@ -103,15 +106,15 @@ export class GrassField {
   }
 
   /**
-   * Stops grass growing inside these rectangles. Blades there are scaled to
-   * nothing, which costs no draw call and no branch in the shader.
+   * Keeps grass out of stones, trunks and walls, and shortens it beside them.
+   * Blades with nothing left are scaled to nothing, which costs no draw call
+   * and no branch in the shader.
    *
-   * Takes the whole list at once because applying one rewrites all 200,000
-   * blades, and doing that ten times over would be ten times the work for the
-   * same result.
+   * Takes every blocker at once because applying them rewrites all 200,000
+   * blades, and doing that per object would be that work many times over.
    */
-  setExclusions(footprints: readonly Footprint[]): void {
-    this.exclusions = footprints;
+  setBlockers(blockers: GrassBlockerGrid): void {
+    this.blockers = blockers;
     for (let index = 0; index < this.grass.bladeCount; index += 1) this.writeBlade(index);
     this.mesh.thinInstanceBufferUpdated("matrix");
   }
@@ -119,8 +122,16 @@ export class GrassField {
   update(seconds: number, focus: Vector3): void {
     this.followFocus(focus);
     this.applyPushers();
-    this.relaxAndUpload(seconds);
+    this.relax(seconds);
+    this.slots.flush(this.sendChanged);
   }
+
+  /** Sends one run of changed blades to the GPU. */
+  private readonly sendChanged = (firstSlot: number, count: number): void => {
+    const from = firstSlot * FLOATS_PER_MATRIX;
+    const run = this.matrices.subarray(from, from + count * FLOATS_PER_MATRIX);
+    this.mesh.thinInstancePartialBufferUpdate("matrix", run, from);
+  };
 
   /** Slides the patch along with the player, in whole steps of several cells. */
   private followFocus(focus: Vector3): void {
@@ -131,7 +142,6 @@ export class GrassField {
     if (wantedX === this.originCellX && wantedZ === this.originCellZ) return;
 
     this.slideTo(wantedX, wantedZ);
-    this.mesh.thinInstanceBufferUpdated("matrix");
   }
 
   /** Rewrites only the slots whose world cell changed. */
@@ -153,15 +163,15 @@ export class GrassField {
     for (let step = 0; step < Math.abs(shiftX); step += 1) {
       const column = wrapSlot(firstColumn + step, this.grass.patchCells);
       for (let row = 0; row < this.grass.patchCells; row += 1) {
-        this.refreshSlot(row * this.grass.patchCells + column);
+        this.refreshSlot(this.slots.slotOf(column, row));
       }
     }
 
     const firstRow = shiftZ > 0 ? previousZ : nextZ;
     for (let step = 0; step < Math.abs(shiftZ); step += 1) {
-      const rowStart = wrapSlot(firstRow + step, this.grass.patchCells) * this.grass.patchCells;
+      const row = wrapSlot(firstRow + step, this.grass.patchCells);
       for (let column = 0; column < this.grass.patchCells; column += 1) {
-        this.refreshSlot(rowStart + column);
+        this.refreshSlot(this.slots.slotOf(column, row));
       }
     }
   }
@@ -171,6 +181,7 @@ export class GrassField {
     this.lean[index] = 0;
     this.moving.delete(index);
     this.writeBlade(index);
+    this.slots.markChanged(index);
   }
 
   private applyPushers(): void {
@@ -189,11 +200,12 @@ export class GrassField {
 
       for (let cellZ = centreCellZ - reach; cellZ <= centreCellZ + reach; cellZ += 1) {
         if (cellZ < this.originCellZ || cellZ >= this.originCellZ + this.grass.patchCells) continue;
-        const rowStart = wrapSlot(cellZ, this.grass.patchCells) * this.grass.patchCells;
+        const row = wrapSlot(cellZ, this.grass.patchCells);
         for (let cellX = centreCellX - reach; cellX <= centreCellX + reach; cellX += 1) {
           if (cellX < this.originCellX || cellX >= this.originCellX + this.grass.patchCells)
             continue;
-          this.pushBlade(rowStart + wrapSlot(cellX, this.grass.patchCells), centre, groundedShare);
+          const column = wrapSlot(cellX, this.grass.patchCells);
+          this.pushBlade(this.slots.slotOf(column, row), centre, groundedShare);
         }
       }
     }
@@ -218,40 +230,21 @@ export class GrassField {
     this.moving.add(index);
   }
 
-  /** Stands bent blades back up and re-uploads only the span that changed. */
-  private relaxAndUpload(seconds: number): void {
-    if (this.moving.size === 0) return;
-
+  /** Stands bent blades back up a little, and marks them to be sent. */
+  private relax(seconds: number): void {
     const recovery = seconds / RECOVER_SECONDS;
-    let lowest = this.grass.bladeCount;
-    let highest = -1;
-
     for (const index of this.moving) {
       const next = Math.max(0, (this.lean[index] ?? 0) - recovery);
       this.lean[index] = next;
       this.writeBlade(index);
-      if (index < lowest) lowest = index;
-      if (index > highest) highest = index;
+      this.slots.markChanged(index);
       if (next <= 0) this.moving.delete(index);
     }
-
-    const span = this.matrices.subarray(
-      lowest * FLOATS_PER_MATRIX,
-      (highest + 1) * FLOATS_PER_MATRIX,
-    );
-    this.mesh.thinInstancePartialBufferUpdate("matrix", span, lowest * FLOATS_PER_MATRIX);
-  }
-
-  private isExcluded(x: number, z: number): boolean {
-    for (const area of this.exclusions) {
-      if (x >= area.minX && x <= area.maxX && z >= area.minZ && z <= area.maxZ) return true;
-    }
-    return false;
   }
 
   private writeBlade(index: number): void {
-    const column = index % this.grass.patchCells;
-    const row = (index - column) / this.grass.patchCells;
+    const column = this.slots.columnOf(index);
+    const row = this.slots.rowOf(index);
     // The one world cell inside the patch whose slot is this one.
     const cellX = this.originCellX + wrapSlot(column - this.originCellX, this.grass.patchCells);
     const cellZ = this.originCellZ + wrapSlot(row - this.originCellZ, this.grass.patchCells);
@@ -260,8 +253,10 @@ export class GrassField {
     const x = cellX * this.grass.cellSize + this.shape.offsetX;
     const z = cellZ * this.grass.cellSize + this.shape.offsetZ;
     this.scratchPosition.set(x, this.soil.heightAt(x, z), z);
-    const buried = !this.soil.growsAt(x, z) || this.isExcluded(x, z);
-    this.scratchScale.set(buried ? 0 : 1, buried ? 0 : this.shape.height, buried ? 0 : 1);
+    const left = this.soil.growsAt(x, z) ? (this.blockers?.grassLeftAt(x, z) ?? 1) : 0;
+    // A stub a few centimetres tall reads as a speck, not grass: gone instead.
+    const shown = left >= 0.15 ? 1 : 0;
+    this.scratchScale.set(shown, shown * this.shape.height * left, shown);
 
     const push = this.lean[index] ?? 0;
     const lean = push * MAX_LEAN;

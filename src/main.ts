@@ -19,6 +19,14 @@ import { Terrain } from "./world/terrain/Terrain";
 import { terrainSoil } from "./world/terrain/terrainSoil";
 import { Boulders } from "./world/rocks/Boulders";
 import { WorldEdge } from "./world/WorldEdge";
+import { WorldStreaming } from "./world/WorldStreaming";
+import { houseDistanceGroups } from "./world/houses/houseDistanceGroups";
+import { treeDistanceGroup } from "./world/trees/treeDistanceGroup";
+import { registerCloudShadows } from "./world/sky/CloudShadowPlugin";
+import { Sky } from "./world/sky/Sky";
+import { serveWorldMap } from "./world/map/serveWorldMap";
+import { GrassBlockerGrid } from "./world/GrassBlockerGrid";
+import { rectangleBlocker } from "./world/grassBlockers";
 
 const canvas = document.getElementById("render-canvas");
 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -35,12 +43,16 @@ mountOverlay(overlayRoot);
 const runtime = await GameRuntime.create(canvas);
 const scene = runtime.loadScene(createMainScene);
 
+// Before any material exists: Babylon only gives a registered plugin to
+// materials made after it, and every standard material gets cloud shadows.
+registerCloudShadows();
+
 // The island first: everything after it stands on it.
 const terrain = new Terrain(scene);
 const dayNight = new DayNightCycle(scene);
 const miniMap = new MiniMap(scene);
 const grass = new Meadow(scene, terrainSoil(terrain));
-const player = attachPlayer(scene, canvas, miniMap.camera, terrain);
+const player = attachPlayer(scene, canvas, miniMap, terrain);
 dayNight.addShadowCaster(player.controller.bean);
 dayNight.setShadowFocus(player.controller.bean.position);
 // Only what is registered flattens the grass. The ground never does.
@@ -52,6 +64,11 @@ for (const mesh of grass.meshes) godRays.excludeFromOcclusion(mesh);
 for (const mesh of terrain.waterMeshes) godRays.excludeFromOcclusion(mesh);
 for (const bridge of terrain.rivers.bridges) dayNight.addShadowCaster(bridge);
 for (const rock of terrain.rivers.springs) dayNight.addShadowCaster(rock);
+
+// The sky's colour, and the clouds, their weather and their shadows.
+const sky = new Sky(scene, dayNight);
+// Both domes would black out the sun in the shafts' occlusion pass.
+for (const mesh of sky.meshes) godRays.excludeFromOcclusion(mesh);
 
 const houses = buildSettlements(scene);
 for (const house of houses) {
@@ -72,26 +89,45 @@ for (const mesh of fires.shadowCasters) dayNight.addShadowCaster(mesh);
 const wind = new TreeWind(scene.getEngine());
 const woodland = new Woodland(scene, wind, dayNight, terrain);
 
-// Loose stones. Nothing to update: a stone never moves.
-const boulders = new Boulders(scene, terrain);
-for (const stone of boulders.meshes) godRays.excludeFromOcclusion(stone);
+// Loose stones, built only near the player; the god rays are told as they come and go.
+const boulders = new Boulders(scene, terrain, godRays);
+
+// What is built, drawn and hidden, by how far away it is. See WorldStreaming.
+const streaming = new WorldStreaming(scene, {
+  terrain,
+  boulders,
+  trees: woodland.trees.map(treeDistanceGroup),
+  houses: houseDistanceGroups(houses, openings.doors, openings.windows, fires.hearths),
+});
+
+// M opens the painted world map; it is drawn the first time, then kept.
+serveWorldMap(terrain, player.controller.bean, player.controller.camera);
 
 // Wade too far out to sea and you are put back on the beach.
 const worldEdge = new WorldEdge(terrain);
 
-grass.setExclusions([
-  ...houses.map((house) => house.footprint),
-  ...woodland.footprints,
-  ...boulders.footprints,
-]);
+// Grass keeps out of every stone, trunk and wall, and shortens beside them.
+grass.setBlockers(
+  new GrassBlockerGrid([
+    ...houses.map((house) => rectangleBlocker(house.footprint)),
+    ...woodland.grassBlockers,
+    ...boulders.grassBlockers,
+  ]),
+);
 
 const settings = new SettingsBinder({
-  engine: scene.getEngine(),
+  resolution: runtime.resolution,
   camera: player.controller.camera,
   controller: player.controller,
   dayNight,
   godRays,
+  streaming,
+  sky,
 });
+
+// After the settings, which carry the render distance: the first frame opens
+// on a finished world rather than one filling in around the player.
+streaming.prime(player.controller.bean.position);
 
 // setSimulationStep takes one function, so every system is composed here.
 runtime.setSimulationStep((fixedDeltaSeconds) => {
@@ -102,13 +138,19 @@ runtime.setSimulationStep((fixedDeltaSeconds) => {
   );
   player.update(fixedDeltaSeconds);
   worldEdge.update(fixedDeltaSeconds, player.controller);
+  streaming.update(player.controller.bean.position);
+  sky.update(fixedDeltaSeconds, player.controller.bean.position);
+  godRays.setCloudCover(sky.sunlightThrough);
   miniMap.update(fixedDeltaSeconds, player.controller.bean, player.wantsOverheadMap(), dayNight);
-  godRays.update(dayNight.sunHeight);
+  godRays.update(dayNight.sunAndMoon.sunDirection);
   fires.update(fixedDeltaSeconds, player.controller.bean.position);
   wind.update(fixedDeltaSeconds);
   woodland.update(player.controller.bean.position);
   grass.update(fixedDeltaSeconds, player.controller.bean.position);
 });
+
+// Every drawn frame, between the steps: the view glides and the mouse turns it.
+runtime.setFrameUpdate((progress) => player.present(progress));
 
 runtime.start();
 

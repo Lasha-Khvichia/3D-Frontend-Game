@@ -70,7 +70,11 @@ export class PlayerInput {
 
   /** Must be called inside a real click, or the browser refuses the lock. */
   requestPointerLock(): void {
-    if (this.pointerLockWanted) void this.canvas.requestPointerLock();
+    if (!this.pointerLockWanted) return;
+    // Refused if asked too soon after Escape, or with no key or click behind
+    // it. Harmless: the pause menu stays up and the next click asks again.
+    const asked = this.canvas.requestPointerLock() as Promise<void> | undefined;
+    asked?.catch(() => undefined);
   }
 
   /** 1 forward, -1 back. */

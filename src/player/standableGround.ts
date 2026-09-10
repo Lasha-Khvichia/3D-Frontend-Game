@@ -32,7 +32,10 @@ const down = new Vector3(0, -1, 0);
  * How far the surface leans is the same question either way round.
  */
 export function isStandable(scene: Scene, bean: AbstractMesh): boolean {
-  const solid = (mesh: AbstractMesh): boolean => mesh.checkCollisions && mesh !== bean;
+  // Enabled too: given a filter, Babylon stops checking it, and a house hidden
+  // by distance must not stop a ray the player would walk straight through.
+  const solid = (mesh: AbstractMesh): boolean =>
+    mesh.checkCollisions && mesh.isEnabled() && mesh !== bean;
   const from = new Vector3(bean.position.x, bean.position.y, bean.position.z);
   const hit = scene.pickWithRay(new Ray(from, down, PLAYER_HEIGHT / 2 + PROBE), solid);
   if (!hit?.hit) return true;

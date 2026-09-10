@@ -1,9 +1,8 @@
 import type { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
-import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Scene } from "@babylonjs/core/scene";
 import { ORBIT_CAMERA_NAME } from "../scenes/createEmptyScene";
 import { publishPaused, subscribeToCommands } from "../ui/bridge";
-import { CameraSwitcher } from "./CameraSwitcher";
+import { CameraSwitcher, type MiniMapView } from "./CameraSwitcher";
 import { PlayerController } from "./PlayerController";
 import { PlayerInput } from "./PlayerInput";
 import type { Ground } from "../world/terrain/Ground";
@@ -29,6 +28,8 @@ export type Player = {
    */
   takeOpeningKeys(): { readonly open: boolean; readonly lock: boolean };
   update(fixedDeltaSeconds: number): void;
+  /** Once per drawn frame: smooths the view between steps. See `PlayerController.present`. */
+  present(progress: number): void;
   dispose(): void;
 };
 
@@ -39,7 +40,7 @@ export type Player = {
 export function attachPlayer(
   scene: Scene,
   canvas: HTMLCanvasElement,
-  miniMapCamera: Camera,
+  miniMap: MiniMapView,
   ground: Ground,
 ): Player {
   const orbitCamera = scene.getCameraByName(ORBIT_CAMERA_NAME);
@@ -53,7 +54,7 @@ export function attachPlayer(
     scene,
     controller.camera,
     orbitCamera as ArcRotateCamera,
-    miniMapCamera,
+    miniMap,
   );
 
   // Paused whenever the browser does not have the mouse, which is exactly what
@@ -87,6 +88,9 @@ export function attachPlayer(
       // Walking while looking through the orbit camera would be disorienting.
       if (switcher.isFirstPerson) controller.update(fixedDeltaSeconds);
       input.endStep();
+    },
+    present(progress: number): void {
+      if (switcher.isFirstPerson) controller.present(progress);
     },
     dispose(): void {
       unsubscribeCommands();

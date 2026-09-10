@@ -14,6 +14,7 @@ import { fitMoveToGround } from "./fitMoveToGround";
 import { settleOnGround, slideDownhill } from "./terrainFooting";
 import type { Ground } from "../world/terrain/Ground";
 import { HeadBob } from "./HeadBob";
+import { SmoothedEye } from "./SmoothedEye";
 
 const WALK_SPEED = 4.5;
 /** Holding Shift. About 1.8x walking, roughly a real sprint. */
@@ -69,6 +70,9 @@ export class PlayerController {
   /** Horizontal speed, kept between steps so a jump carries its run with it. */
   private readonly velocity = new Vector3();
   private readonly headBob = new HeadBob();
+  /** The eye at the last two steps, for drawing between them. */
+  private readonly eye = new SmoothedEye();
+  private readonly eyeCentre = new Vector3();
   private sensitivityScale = 1;
   private invertLook = false;
   /** Set while hauling over a ledge. Nothing else moves the player meanwhile. */
@@ -95,6 +99,7 @@ export class PlayerController {
     // horizon over. Deriving it from the rotation every frame is exact.
     this.camera.updateUpVectorFromRotation = true;
     this.syncCamera();
+    this.eye.settle();
   }
 
   /** Multiplies the base look speed. 1 is the built-in feel. */
@@ -119,6 +124,7 @@ export class PlayerController {
     this.groundedTimer = COYOTE_SECONDS;
     this.grounded = true;
     this.syncCamera();
+    this.eye.settle();
   }
 
   setInvertLook(invert: boolean): void {
@@ -137,12 +143,20 @@ export class PlayerController {
     return this.climb !== null;
   }
 
-  update(fixedDeltaSeconds: number): void {
-    // Looking around stays free during a climb. Taking the mouse away to play a
-    // cinematic fights the player's hand, which is worse than any camera move
-    // is worth.
+  /**
+   * Once per drawn frame, after the steps: turns the view by the mouse and
+   * places the camera `progress` of the way between the last two steps.
+   *
+   * The mouse is read here, not in the step, so turning is as smooth as the
+   * screen. Looking around stays free during a climb too: taking the mouse
+   * away to play a cinematic fights the player's hand.
+   */
+  present(progress: number): void {
     this.applyLook();
+    this.eye.place(this.camera, progress, this.yaw, this.pitch);
+  }
 
+  update(fixedDeltaSeconds: number): void {
     if (this.climb) {
       this.advanceClimb(fixedDeltaSeconds);
       this.syncCamera();
@@ -326,14 +340,12 @@ export class PlayerController {
     this.headBob.advance(seconds, Math.hypot(coveredX, coveredZ), this.grounded);
   }
 
+  /** Records this step's eye, and puts the camera there for anything reading it before the draw. */
   private syncCamera(): void {
-    // Sway is sideways in the body's own frame, so it rides the right vector.
-    const sway = this.headBob.lateralOffset;
-    this.camera.position.set(
-      this.bean.position.x + Math.cos(this.yaw) * sway,
-      this.bean.position.y + EYE_OFFSET + this.headBob.verticalOffset,
-      this.bean.position.z - Math.sin(this.yaw) * sway,
-    );
-    this.camera.rotation.set(this.pitch, this.yaw, this.headBob.roll);
+    const bob = this.headBob;
+    this.eyeCentre.copyFrom(this.bean.position);
+    this.eyeCentre.y += EYE_OFFSET + bob.verticalOffset;
+    this.eye.record(this.eyeCentre, bob.lateralOffset, bob.roll);
+    this.eye.place(this.camera, 1, this.yaw, this.pitch);
   }
 }

@@ -1,8 +1,9 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import type { Scene } from "@babylonjs/core/scene";
 import { createEngine, type RenderBackend } from "./createEngine";
-import { FixedStepLoop, type SimulationStep } from "./FixedStepLoop";
+import { FixedStepLoop, type RenderFrame, type SimulationStep } from "./FixedStepLoop";
 import { StatsReporter } from "./StatsReporter";
+import { AutoResolution } from "./AutoResolution";
 import { toggleInspector } from "./toggleInspector";
 import { publishStats, readPaused, subscribeToCommands, type OverlayCommand } from "../ui/bridge";
 
@@ -12,8 +13,11 @@ export type SceneFactory = (engine: AbstractEngine) => Scene;
 export class GameRuntime {
   private activeScene: Scene | null = null;
   private simulationStep: SimulationStep = () => {};
+  private frameUpdate: RenderFrame = () => {};
   private readonly loop = new FixedStepLoop(60, 5);
   private readonly stats: StatsReporter;
+  /** Lowers the resolution while frames run slow; the menu's setting is its ceiling. */
+  readonly resolution: AutoResolution;
   private unsubscribeCommands: (() => void) | null = null;
 
   private readonly handleResize = (): void => {
@@ -31,6 +35,7 @@ export class GameRuntime {
     readonly backend: RenderBackend,
   ) {
     this.stats = new StatsReporter(engine);
+    this.resolution = new AutoResolution(engine);
   }
 
   static async create(canvas: HTMLCanvasElement): Promise<GameRuntime> {
@@ -56,6 +61,16 @@ export class GameRuntime {
   /** Where gameplay systems will run, at a fixed 60 steps per second. */
   setSimulationStep(step: SimulationStep): void {
     this.simulationStep = step;
+  }
+
+  /**
+   * Runs once per drawn frame, after the steps and before the draw, with how
+   * far the clock has got towards the next step, 0 to 1. For presentation
+   * only — smoothing what the steps decided, reading the mouse — never for
+   * gameplay, which would then run faster on a faster screen.
+   */
+  setFrameUpdate(update: RenderFrame): void {
+    this.frameUpdate = update;
   }
 
   start(): void {
@@ -95,8 +110,12 @@ export class GameRuntime {
     this.loop.advance(
       frameSeconds,
       (fixedDeltaSeconds) => this.simulationStep(fixedDeltaSeconds),
-      () => scene.render(),
+      (progress) => {
+        this.frameUpdate(progress);
+        scene.render();
+      },
     );
+    this.resolution.frame(this.engine.getDeltaTime());
     this.stats.tick();
   }
 }

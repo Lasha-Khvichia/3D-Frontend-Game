@@ -3,7 +3,7 @@ import type { Material } from "@babylonjs/core/Materials/material";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { WorldEntity } from "../../core/WorldEntity";
-import type { Footprint } from "../footprint";
+import { circleBlocker, type GrassBlocker } from "../grassBlockers";
 import { createSeededRandom, seedFromText } from "../houses/seededRandom";
 import type { BranchSpec } from "./branchSpec";
 import { collideTree } from "./collideTree";
@@ -14,8 +14,8 @@ import { TreeBranches } from "./TreeBranches";
 import { LEAF_SHARE, LEAF_SIZE, type DetailTier } from "./treeDetail";
 import { TREE_SPECIES, type TreeSpeciesName } from "./treeSpecies";
 
-/** Grass is cleared this far past the trunk, so none grows out of the wood. */
-const CLEARING = 0.5;
+/** The trunk is a many-sided tube; this covers its corners, so no blade shows through the bark. */
+const BARK = 0.02;
 
 /**
  * One tree: its wood, its collision, and where it stands.
@@ -33,7 +33,7 @@ export class Tree extends WorldEntity {
   readonly canopy: TreeCanopy;
   readonly skeleton: readonly BranchSpec[];
   /** One invisible shell holding every branch. See collideTree. */
-  private readonly solid: Mesh | null;
+  readonly solid: Mesh | null;
   private tier: DetailTier = "near";
 
   constructor(
@@ -81,15 +81,9 @@ export class Tree extends WorldEntity {
     return true;
   }
 
-  /** The ground the tree stands on, for keeping grass out of the trunk. */
-  get footprint(): Footprint {
-    const reach = TREE_SPECIES[this.species].trunkRadius + CLEARING;
-    return {
-      minX: this.centreX - reach,
-      maxX: this.centreX + reach,
-      minZ: this.centreZ - reach,
-      maxZ: this.centreZ + reach,
-    };
+  /** The trunk, for the grass: none inside it, and short at its foot. */
+  get grassBlocker(): GrassBlocker {
+    return circleBlocker(this.centreX, this.centreZ, TREE_SPECIES[this.species].trunkRadius + BARK);
   }
 
   override dispose(): void {

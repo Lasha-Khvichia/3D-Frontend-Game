@@ -4,8 +4,14 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 
-/** How far the discs orbit from the origin. Well beyond the ground and camera. */
-export const CELESTIAL_DISTANCE = 800;
+/**
+ * How far from the player the sun and moon are drawn.
+ *
+ * Just inside the 1,400 m far plane, and behind the veil the clouds are laid
+ * in at 1,300 m — the moon's near face included — so a cloud passes in front
+ * of them. At 800 m, where they used to hang, clouds could only go behind.
+ */
+export const CELESTIAL_DISTANCE = 1390;
 
 export type CelestialDiscOptions = {
   readonly name: string;

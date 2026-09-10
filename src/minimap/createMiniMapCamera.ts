@@ -4,6 +4,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { createPose, pitchFor } from "./miniMapPoses";
 import { WITHOUT_FINE_DETAIL } from "../world/fineDetailLayer";
+import { SKY_LAYER } from "../world/sky/skyLayer";
 
 export const MINI_MAP_NAME = "minimap-camera";
 
@@ -57,7 +58,9 @@ export function createMiniMapCamera(scene: Scene): TargetCamera {
 
   // Stone and timber detail is smaller than a pixel at map scale: see
   // fineDetailLayer. Skipping it here is a draw call per house for nothing.
-  camera.layerMask = WITHOUT_FINE_DETAIL;
+  // No fine detail, and no sky: the domes follow whichever camera draws them,
+  // and the clouds in them were traced for the player's view, not this one.
+  camera.layerMask = WITHOUT_FINE_DETAIL & ~SKY_LAYER;
 
   return camera;
 }

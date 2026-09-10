@@ -12,30 +12,41 @@ import type { Color4 } from "@babylonjs/core/Maths/math.color";
 export const VIEW_DISTANCE_METRES = 1400;
 
 /**
- * Where haze starts. Half the view distance is the usual choice, and it is
- * what makes the far plane invisible: by the time geometry reaches the clip
- * it has already faded into the sky, so nothing is ever seen to pop out.
+ * The furthest the render distance goes. Fog must finish inside the far
+ * plane: by the time geometry reaches the clip it has already faded into the
+ * sky, so nothing is ever seen to be cut off.
  */
-const FOG_NEAR_METRES = VIEW_DISTANCE_METRES * 0.3;
-const FOG_FAR_METRES = VIEW_DISTANCE_METRES * 0.86;
+export const MAX_RENDER_DISTANCE = 1200;
 
 /**
- * Haze between here and the horizon.
+ * Where haze starts, as a share of where it ends. Starting a third of the way
+ * out keeps the middle distance clear and still gives the fade room to be
+ * gradual.
+ */
+const FOG_START_SHARE = 0.35;
+
+/**
+ * Haze from a third of the render distance out to all of it.
  *
  * Without it a two-kilometre ground plane is a flat sheet of one colour
  * meeting the sky at a hard line, and distant houses are sharp models sitting
  * on it. Fog is what turns that into a horizon.
  *
+ * It is also what makes streaming invisible. Babylon measures fog along the
+ * straight line from the eye, not the depth into the screen, so everything
+ * past the render distance is fully hidden in every direction, corners of the
+ * screen included — which is why nothing needs to be built there at all.
+ *
  * The colour is not set here. It has to follow the sky through the day, or
  * the world sits in grey haze at midnight — `DayNightCycle` pushes the sky
  * colour into it on every step.
  */
-export function applyDistanceFog(scene: Scene): void {
+export function applyDistanceFog(scene: Scene, renderDistance = MAX_RENDER_DISTANCE): void {
   // Linear rather than exponential. Exponential fog never fully hides
   // anything, so geometry would still be visible when the far plane cut it.
   scene.fogMode = Scene.FOGMODE_LINEAR;
-  scene.fogStart = FOG_NEAR_METRES;
-  scene.fogEnd = FOG_FAR_METRES;
+  scene.fogStart = renderDistance * FOG_START_SHARE;
+  scene.fogEnd = Math.min(renderDistance, MAX_RENDER_DISTANCE);
 }
 
 /** Keeps the haze the same colour as the sky it fades into. */

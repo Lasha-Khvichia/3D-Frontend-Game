@@ -1,10 +1,12 @@
+import type { ReactNode } from "react";
+
 type SliderRowProps = {
   label: string;
   value: number;
   min: number;
   max: number;
   step: number;
-  format: (value: number) => string;
+  format: (value: number) => ReactNode;
   onChange: (value: number) => void;
 };
 

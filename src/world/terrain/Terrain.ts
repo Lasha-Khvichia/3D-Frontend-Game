@@ -4,27 +4,30 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { WorldEntity } from "../../core/WorldEntity";
 import { createSea } from "./createSea";
-import { createTerrainChunk, isAllDeepSea } from "./createTerrainChunk";
 import type { Ground } from "./Ground";
 import { HeightGrid } from "./HeightGrid";
 import { smoothHighGround } from "./smoothHighGround";
 import { Rivers } from "./rivers/Rivers";
 import { coastDistance } from "./islandShape";
 import { terrainHeightAt } from "./terrainHeight";
-import { CHUNK_METRES, GRID_SPACING, SEA_LEVEL } from "./terrainConstants";
+import { SEA_LEVEL } from "./terrainConstants";
+import { createPatchMesh } from "./patches/createPatchMesh";
+import { TerrainDetail } from "./patches/TerrainDetail";
 
 /**
  * The island: the ground, the sea around it, and the answers to "how high is
  * the ground here" and "how deep is the water".
  *
- * The ground is cut into squares so Babylon can drop the ones behind you
- * before drawing. Squares lying wholly on the deep sea floor are never built
- * at all — they would be drawn under opaque-looking water and never seen.
+ * The answers come from the height grid, which always holds the whole island.
+ * The ground you see is built from it a patch at a time around the player —
+ * see `TerrainDetail` — so nothing that asks a height ever depends on what
+ * happens to be drawn.
  */
 export class Terrain extends WorldEntity implements Ground {
   readonly grid: HeightGrid;
-  readonly chunks: Mesh[] = [];
   readonly rivers: Rivers;
+  /** The drawn ground: built around the player, and refined as they move. */
+  readonly detail: TerrainDetail;
   private readonly sea: Mesh[];
 
   constructor(scene: Scene) {
@@ -39,23 +42,13 @@ export class Terrain extends WorldEntity implements Ground {
     material.diffuseColor = Color3.White();
     material.specularColor = Color3.Black();
 
-    const cells = CHUNK_METRES / GRID_SPACING;
-    const squares = (this.grid.size - 1) / cells;
-    for (let row = 0; row < squares; row += 1) {
-      for (let column = 0; column < squares; column += 1) {
-        if (isAllDeepSea(this.grid, column * cells, row * cells, cells)) continue;
-        const chunk = createTerrainChunk(
-          scene,
-          this.grid,
-          column * cells,
-          row * cells,
-          cells,
-          (c, r) => Math.max(SEA_LEVEL, this.rivers.water.atSample(c, r)),
-        );
-        chunk.material = material;
-        this.chunks.push(chunk);
-      }
-    }
+    const waterAt = (column: number, row: number): number =>
+      Math.max(SEA_LEVEL, this.rivers.water.atSample(column, row));
+    this.detail = new TerrainDetail(this.grid, (patch) => {
+      const mesh = createPatchMesh(scene, this.grid, patch, waterAt);
+      mesh.material = material;
+      return mesh;
+    });
     this.sea = createSea(scene);
   }
 
@@ -89,7 +82,7 @@ export class Terrain extends WorldEntity implements Ground {
   }
 
   override dispose(): void {
-    for (const mesh of [...this.chunks, ...this.sea]) mesh.dispose();
+    for (const mesh of [...this.detail.meshes, ...this.sea]) mesh.dispose();
     this.rivers.dispose();
   }
 }
