@@ -48,6 +48,7 @@ export class SettingsBinder {
     controller.setLookSensitivity(settings.mouseSensitivity);
     controller.setInvertLook(settings.invertLook);
     controller.setHeadBobStrength(settings.headBobStrength);
+    controller.setMoveSpeedScale(settings.travelSpeed);
 
     // Hardware scaling is the inverse of resolution, and it sits on top of the
     // device pixel ratio cap rather than replacing it.

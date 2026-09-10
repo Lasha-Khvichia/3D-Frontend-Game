@@ -11,6 +11,8 @@ export type GameSettings = {
   invertLook: boolean;
   /** Holds the sun and moon still without pausing the game. */
   clockFrozen: boolean;
+  /** Multiplies walking and running. The island is two kilometres across. */
+  travelSpeed: number;
 
   /** Fraction of the window actually rendered, then upscaled. */
   renderScale: number;
@@ -26,6 +28,7 @@ export const SETTINGS_LIMITS = {
   mouseSensitivity: { min: 0.25, max: 3, step: 0.05 },
   headBobStrength: { min: 0, max: 1, step: 0.05 },
   renderScale: { min: 0.5, max: 1, step: 0.05 },
+  travelSpeed: { min: 1, max: 8, step: 0.5 },
 } as const;
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -34,6 +37,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   headBobStrength: 1,
   invertLook: false,
   clockFrozen: false,
+  travelSpeed: 1,
   renderScale: 1,
   sunEffects: true,
   shadowQuality: "high",

@@ -9,6 +9,7 @@ import { TimeOfDay } from "./TimeOfDay";
 import { createTimeOfDayLighting, sampleTimeOfDay } from "./timeOfDayPalette";
 import { SunAndMoon } from "./SunAndMoon";
 import { applyAmbientLight } from "./ambientLight";
+import { setFogColour } from "./distanceFog";
 import type { ShadowQuality } from "../settings/gameSettings";
 
 export type DayNightCycleOptions = {
@@ -133,6 +134,9 @@ export class DayNightCycle {
   private apply(): void {
     sampleTimeOfDay(this.clock.currentHour, this.lighting);
     this.scene.clearColor.copyFrom(this.lighting.background);
+    // The haze has to be the colour of the sky it fades into, or the world
+    // sits in grey smoke at midnight.
+    setFogColour(this.scene, this.lighting.background);
     this.sunAndMoon.update(this.clock.currentHour, this.clock.totalHours, this.lighting);
     applyAmbientLight(
       this.ambientLight,

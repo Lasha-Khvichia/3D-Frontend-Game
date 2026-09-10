@@ -6,7 +6,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { FINE_DETAIL_LAYER } from "./fineDetailLayer";
 import type { Footprint } from "./footprint";
 import { swayGrassBlade } from "./createGrassBlade";
-import { GrassField } from "./GrassField";
+import { GrassField, type GrassSoil } from "./GrassField";
 import { FAR_GRASS, NEAR_GRASS } from "./grassLayout";
 
 /**
@@ -28,10 +28,10 @@ export class Meadow extends WorldEntity {
   private readonly near: GrassField;
   private readonly far: GrassField;
 
-  constructor(scene: Scene) {
+  constructor(scene: Scene, soil: GrassSoil) {
     super();
-    this.near = new GrassField(scene, NEAR_GRASS);
-    this.far = new GrassField(scene, FAR_GRASS);
+    this.near = new GrassField(scene, NEAR_GRASS, soil);
+    this.far = new GrassField(scene, FAR_GRASS, soil);
     // Kept off the mini-map. Together these two meshes are over a million
     // triangles, and the map was drawing every one of them into a 220 pixel
     // square, over a ground plane that is already green.

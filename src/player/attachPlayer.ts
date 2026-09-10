@@ -6,6 +6,7 @@ import { publishPaused, subscribeToCommands } from "../ui/bridge";
 import { CameraSwitcher } from "./CameraSwitcher";
 import { PlayerController } from "./PlayerController";
 import { PlayerInput } from "./PlayerInput";
+import type { Ground } from "../world/terrain/Ground";
 
 /** Key that pops out to the orbit camera and back. */
 const TOGGLE_VIEW_KEY = "KeyC";
@@ -39,6 +40,7 @@ export function attachPlayer(
   scene: Scene,
   canvas: HTMLCanvasElement,
   miniMapCamera: Camera,
+  ground: Ground,
 ): Player {
   const orbitCamera = scene.getCameraByName(ORBIT_CAMERA_NAME);
   if (!orbitCamera) {
@@ -46,7 +48,7 @@ export function attachPlayer(
   }
 
   const input = new PlayerInput(canvas);
-  const controller = new PlayerController(scene, input);
+  const controller = new PlayerController(scene, input, ground);
   const switcher = new CameraSwitcher(
     scene,
     controller.camera,

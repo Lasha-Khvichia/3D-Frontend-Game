@@ -64,6 +64,11 @@ export function publishPrompt(text: string): void {
   if (stats.interactionPrompt !== text) publishStats({ interactionPrompt: text });
 }
 
+/** Same rule as the prompt: only when the words change. */
+export function publishNotice(text: string): void {
+  if (stats.notice !== text) publishStats({ notice: text });
+}
+
 /** Out of GameStats because the loop reads it every frame; mirrored in for React. */
 let paused = true;
 

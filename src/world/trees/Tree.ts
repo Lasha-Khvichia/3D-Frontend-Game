@@ -42,6 +42,7 @@ export class Tree extends WorldEntity {
     readonly species: TreeSpeciesName,
     readonly centreX: number,
     readonly centreZ: number,
+    readonly baseY: number,
     bark: Material,
     leaf: Material,
   ) {
@@ -49,7 +50,7 @@ export class Tree extends WorldEntity {
     const shape = TREE_SPECIES[species];
     this.skeleton = growTreeSkeleton(shape, createSeededRandom(seedFromText(name)));
     this.branches = new TreeBranches(scene, name, this.skeleton, bark);
-    this.branches.mesh.position.set(centreX, 0, centreZ);
+    this.branches.mesh.position.set(centreX, baseY, centreZ);
 
     // One random stream for the wood and another for the leaves, so changing
     // how leaves scatter does not regrow every tree in the wood.
@@ -59,9 +60,9 @@ export class Tree extends WorldEntity {
       createSeededRandom(seedFromText(`${name}-leaves`)),
     );
     this.canopy = new TreeCanopy(scene, name, leaves, leaf);
-    this.canopy.mesh.position.set(centreX, 0, centreZ);
+    this.canopy.mesh.position.set(centreX, baseY, centreZ);
 
-    this.solid = collideTree(scene, name, this.skeleton, new Vector3(centreX, 0, centreZ));
+    this.solid = collideTree(scene, name, this.skeleton, new Vector3(centreX, baseY, centreZ));
   }
 
   get id(): string {

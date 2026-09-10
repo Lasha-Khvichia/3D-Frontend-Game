@@ -59,6 +59,8 @@ export class SunAndMoon {
   private readonly towardMoon = new Vector3(0, 1, 0);
   private sunUp = 0;
   private moonUp = 0;
+  /** Where the player is. The sky is drawn around them, not around the origin. */
+  private focus: Vector3 | null = null;
 
   constructor(scene: Scene) {
     createGlowLayer(scene);
@@ -81,6 +83,12 @@ export class SunAndMoon {
     const surface = createMoonTexture(scene);
     surface.level = MOON_TEXTURE_LEVEL;
     this.moonDisc.material.emissiveTexture = surface;
+
+    // The sky is not in the haze. Fog is depth-based, and these sit 800 m out,
+    // so without this the sun fades to sky colour and disappears.
+    this.sunDisc.material.fogEnabled = false;
+    this.sunGlare.material.fogEnabled = false;
+    this.moonDisc.material.fogEnabled = false;
   }
 
   /** Height of the sun, -1 below the platform and 1 overhead. */
@@ -107,8 +115,18 @@ export class SunAndMoon {
     return this.sunDisc.mesh;
   }
 
-  /** Keeps the shadow frustum centred on this point as it moves. */
+  /**
+   * Keeps the shadow frustum, and the sky itself, centred on this point.
+   *
+   * The discs used to hang 800 m from the world origin. That reads correctly
+   * on a 200 m map, where the player is never far from the middle of it, and
+   * wrongly on a 2 km one: walk a kilometre and the sun swings across the sky
+   * with you, because you closed a real fraction of the distance to it. Real
+   * bodies are far enough away that walking changes nothing, so the sky is
+   * carried along instead.
+   */
   setShadowFocus(point: Vector3): void {
+    this.focus = point;
     this.shadows.setFocus(point);
   }
 
@@ -161,8 +179,12 @@ export class SunAndMoon {
     this.shadows.update(this.sunUp);
 
     this.sunDisc.mesh.position.copyFrom(this.towardSun).scaleInPlace(CELESTIAL_DISTANCE);
-    this.sunGlare.mesh.position.copyFrom(this.sunDisc.mesh.position);
     this.moonDisc.mesh.position.copyFrom(this.towardMoon).scaleInPlace(CELESTIAL_DISTANCE);
+    if (this.focus) {
+      this.sunDisc.mesh.position.addInPlace(this.focus);
+      this.moonDisc.mesh.position.addInPlace(this.focus);
+    }
+    this.sunGlare.mesh.position.copyFrom(this.sunDisc.mesh.position);
     this.paintSunDisc();
   }
 

@@ -1,3 +1,4 @@
+import { SETTINGS_LIMITS } from "../settings/gameSettings";
 import { updateSettings } from "../settings/settingsStore";
 import { sendCommand } from "./bridge";
 import { useGameSettings } from "./useGameSettings";
@@ -33,6 +34,13 @@ export function WorldSettings() {
         onLabel="Frozen"
         offLabel="Running"
         onChange={(clockFrozen) => updateSettings({ clockFrozen })}
+      />
+      <SliderRow
+        label="Travel speed"
+        value={settings.travelSpeed}
+        {...SETTINGS_LIMITS.travelSpeed}
+        format={(value) => `${value.toFixed(1)}x`}
+        onChange={(travelSpeed) => updateSettings({ travelSpeed })}
       />
     </section>
   );

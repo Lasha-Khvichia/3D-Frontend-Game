@@ -14,6 +14,8 @@ export type GameStats = {
   paused: boolean;
   /** What the player can do with whatever they are standing next to. */
   interactionPrompt: string;
+  /** A message the world has for the player, shown large for a few seconds. */
+  notice: string;
 };
 
 /** Everything React asks the game to do. React -> game, one way. */
@@ -31,4 +33,5 @@ export const EMPTY_STATS: GameStats = {
   firstPerson: true,
   paused: true,
   interactionPrompt: "",
+  notice: "",
 };

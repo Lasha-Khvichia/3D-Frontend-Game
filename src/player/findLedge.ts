@@ -6,37 +6,19 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { PLAYER_HEIGHT, PLAYER_RADIUS } from "./createPlayerBean";
-
-/** How far past the player's own shoulders a wall counts as within reach. */
-const REACH = 0.55;
-/** The grabbable band, measured from the feet: knee to 20 cm over the head. */
-const MIN_RISE = 0.5;
-const MAX_RISE = PLAYER_HEIGHT + 0.2;
-/**
- * How high above the feet to look for the wall's face.
- *
- * Below the lowest grabbable ledge on purpose. Cast from the chest, the ray
- * sails clean over a knee-high wall and finds nothing to climb.
- */
-const FACE_HEIGHT = 0.3;
-/** How far past the wall face to look down for its top. */
-const TOP_PROBE = 0.25;
-/** How far past the face to look for somewhere to put your feet. */
-const LANDING_PROBE = 1.1;
-/** A top within this of the ledge is a platform; anything lower is a thin wall. */
-const PLATFORM_DROP = 0.35;
-/** To stand on a ledge the player needs room to stand. */
-const HEADROOM = PLAYER_HEIGHT + 0.05;
-/**
- * To go *over* something you only need room to pass, not to stand.
- *
- * This is what makes a window climbable. The wall under a window is a thin wall
- * with a gap above it, which is exactly the case the move is for; demanding
- * standing room there would refuse every window in the village.
- */
-const VAULT_CLEARANCE = 0.9;
-/** No landing found within this far below the ledge means nowhere to go. */
-const MAX_DROP = 6;
+import {
+  FACE_HEIGHT,
+  HEADROOM,
+  LANDING_PROBE,
+  MAX_DROP,
+  MAX_RISE,
+  MIN_RISE,
+  PLATFORM_DROP,
+  REACH,
+  TOP_PROBE,
+  VAULT_CLEARANCE,
+} from "./ledgeLimits";
+import type { Ground } from "../world/terrain/Ground";
 
 export type Ledge = {
   /** Where the player's middle ends up when the climb finishes. */
@@ -55,7 +37,12 @@ export type Ledge = {
  * or both, and Babylon's default filter wants a mesh to be enabled, visible and
  * pickable — of the eleven solid meshes in the game only the ground is all three.
  */
-export function findLedge(scene: Scene, bean: AbstractMesh, yaw: number): Ledge | null {
+export function findLedge(
+  scene: Scene,
+  bean: AbstractMesh,
+  yaw: number,
+  ground: Ground,
+): Ledge | null {
   const solid = (mesh: AbstractMesh): boolean => mesh.checkCollisions && mesh !== bean;
   const forward = new Vector3(Math.sin(yaw), 0, Math.cos(yaw));
   const down = new Vector3(0, -1, 0);
@@ -86,14 +73,18 @@ export function findLedge(scene: Scene, bean: AbstractMesh, yaw: number): Ledge 
 
   const landFrom = overTheEdge(LANDING_PROBE);
   landFrom.y = topY + 0.2;
+  // The ground is not a mesh, so no ray finds it. Whichever is higher — a mesh
+  // under the landing spot, or the ground itself — is where the feet go.
   const landing = scene.pickWithRay(new Ray(landFrom, down, MAX_DROP), solid);
-  if (!landing?.hit || !landing.pickedPoint) return null;
+  const meshFloor = landing?.hit && landing.pickedPoint ? landing.pickedPoint.y : -Infinity;
+  const floorY = Math.max(meshFloor, ground.heightAt(landFrom.x, landFrom.z));
+  if (topY - floorY > MAX_DROP) return null;
 
-  const isPlatform = topY - landing.pickedPoint.y < PLATFORM_DROP;
+  const isPlatform = topY - floorY < PLATFORM_DROP;
   if (clearance < (isPlatform ? HEADROOM : VAULT_CLEARANCE)) return null;
 
   return {
-    landing: new Vector3(landFrom.x, landing.pickedPoint.y + PLAYER_HEIGHT / 2, landFrom.z),
+    landing: new Vector3(landFrom.x, floorY + PLAYER_HEIGHT / 2, landFrom.z),
     topY,
     isPlatform,
   };

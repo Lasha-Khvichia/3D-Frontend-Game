@@ -167,6 +167,284 @@ Three numbers decide how dark night is. All are named constants:
 The ground's `diffuseColor` matters as much as any of them. A near-black ground
 reads as unlit no matter how strong the light is.
 
+## The island
+
+One island about two kilometres across, with sea to the horizon on every side.
+The coast is not a square and not a circle: five sine waves round the compass
+give it its large shape, and a domain warp — moving each point before asking
+the island about it — bends that into bays and headlands.
+
+|               |                                               |
+| ------------- | --------------------------------------------- |
+| Coast         | 840 m to 1248 m from the middle               |
+| Tallest peak  | about 214 m, snow above 95 m                  |
+| Settlements   | all on level ground at exactly y = 0          |
+| Sea level     | 2.5 m below the settlements                   |
+| Height grid   | 769 x 769 samples, 4 m apart, built in 175 ms |
+| View distance | 1400 m, haze from 420 m to 1204 m             |
+
+**Every settlement sits at exactly zero**, and that is why the sea is below it
+rather than at it. Every house, door and hearth was built assuming a floor at
+zero; the terrain flattens each settlement's ground to zero and eases the
+relief away around it, so none of that code had to change. People settle in
+the flat bits — scattering villages over finished terrain would put a door
+three metres up a hillside.
+
+Every settlement is also unioned into the coastline as a disc of land of its
+own. The coast is noise, and noise does not know where people live.
+
+### Fog is what makes a horizon
+
+Without it the sea is a sheet of one colour meeting the sky along a hard
+line, and a house 900 m away is a sharp little model sitting on the land.
+
+It is **linear** rather than exponential. Exponential fog thins out but never
+finishes, so geometry would still be faintly visible at the moment the far
+plane cut it in half. Linear fog reaches full sky colour at 1204 m, safely
+inside the 1400 m clip, so nothing is ever seen to pop.
+
+The colour is not a constant. `DayNightCycle` pushes the sky colour into it on
+every step, or the world would sit in grey smoke at midnight.
+
+### The sky moves with you
+
+The sun and moon hang 800 m out, and they used to hang 800 m from the **world
+origin**. On a 200 m map that reads correctly, because the player is never far
+from the middle of it. On a 2 km map it is badly wrong: walk a kilometre and
+the sun swings across the sky, because you closed a real fraction of the
+distance to it.
+
+They are now placed relative to the player, which is what "far away" means.
+Their materials also set `fogEnabled = false` — they sit at 800 m, deep in the
+haze, and would otherwise fade into the sky they are supposed to light.
+
+## Terrain
+
+**One height function makes the whole island** — sea floor, beach, shallow
+shelf, rolling hills, three mountain ranges, and level ground under every
+settlement — in `src/world/terrain/terrainHeight.ts`. It is sampled once into
+a grid, and nothing reads the function after that.
+
+**Everything reads the grid**: the mesh, the player's feet, the grass, the
+trees, the stones. Reading the function directly would give the player a
+different surface from the one drawn — the mesh is flat between its corners
+and the function is not — and the difference shows up as feet sinking into
+hillsides or hovering over them. `HeightGrid.heightAt` splits each cell along
+the same diagonal the mesh does, so they match exactly.
+
+### The ground is not a collision mesh
+
+The player stands on the grid, read directly, and is lifted onto it after
+every move. Babylon's collision solver never sees the ground at all.
+
+That is the fix for getting stuck and for invisible walls. Both came from the
+solver resolving the player against two surfaces at once — the ground and a
+rock sitting on it — and finding no way out of the crease between them. With
+the ground out of the solver there is no crease to be caught in. Collision
+meshes are now only houses, trees, stones and bridges.
+
+|                     |                                                            |
+| ------------------- | ---------------------------------------------------------- |
+| Terrain             | 274 squares of 128 m, 2,048 triangles each                 |
+| Skipped             | squares lying wholly on the deep sea floor are never built |
+| Draw calls at spawn | 304, down from about 830 on the old flat map               |
+| Ground contact      | 0.03 ms per step, slopes and water included                |
+
+### Hills, mountains and snow
+
+Hills are layered noise with each layer at 0.42 of the one before, not 0.5.
+At 0.5 every layer adds the same amount of slope as the last, because its
+height halves exactly as its wavelength does, and four layers would be too
+steep to walk up. Dips are flattened to under a metre: the first version let
+a third of their depth through and sank a third of the island under the sea.
+
+Mountains are ridged noise — `1 - |n|`, squared — which turns every zero
+crossing of smooth noise into a crest. **Four layers, not five**: the fifth has
+a wavelength of 17 m, which the 4 m grid samples four times, and four samples
+of a sharp crest is a row of spikes. One pass of smoothing over ground above
+40 m takes the last teeth off the ridgelines.
+
+Colour is per vertex on one material: seabed, sand, meadow, upland, snow by
+height, and rock wherever it is steeper than about 38 degrees. Snow thins on
+steep faces but does not vanish from them — seen from a valley a mountain is
+almost all steep face, and snow only on its ledges read as no snow at all.
+It is plain on purpose; weather will own it later.
+
+## Water and the edge of the world
+
+The sea is one see-through sheet to the horizon, with a dark floor under it.
+The floor has to exist: the terrain stops at the edge of its grid, and
+see-through water over nothing shows the sky.
+
+| Depth                   | What happens                                       |
+| ----------------------- | -------------------------------------------------- |
+| Up to 1.1 m             | you wade, down to 40% of walking speed             |
+| Over 1.2 m              | you cannot go deeper; wading back out always works |
+| 60 m out from the beach | you are put back on the beach, facing land         |
+
+**The shelf is shallow all the way out to the edge**, so the edge can be reached
+on foot — that was the point. Beyond it the seabed drops away. The turn-back
+fires 15 m short of that drop: a player stopped by deep water would be
+standing in the sea with nothing to tell them why.
+
+The edge is measured in distance from the coast, not from the middle of the
+map, so it follows the island's shape — the same distance out from every
+beach, bays and headlands included. Wading out takes about 22 seconds.
+
+## Rivers
+
+Three rivers, each coming out of a cave at the foot of a mountain and running
+to the sea. Their courses are drawn by hand, as a handful of points each, then
+curved through with Catmull-Rom and swung gently side to side. Rolling water
+downhill would find its own way — and might find it through a hamlet, or
+strand half the island.
+
+|                |                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------ |
+| Channel        | 8 m wide at the spring, 20 m at the mouth; 0.9 m deep at the spring, 2.3 m past 60 m |
+| Fords          | 0.6 m deep over 20 m of river; wade straight across                                  |
+| Bridges        | plank deck, railings, 0.7 m clear of the water                                       |
+| Crossings      | 5 fords and 3 bridges, plus the shallow water by each spring                         |
+| Steepest water | 7 degrees, on every river                                                            |
+
+### Where the water level comes from
+
+**Water cannot flow uphill.** A river's level is the lowest ground met so far
+on the way down from its spring. Where it meets a rise it cuts through at the
+level it already reached, which is how a gorge forms.
+
+**It is the lowest ground across the whole width of the water**, 5 m past each
+bank, not just under the middle. Measured down the centre line, a river
+crossing a slope stood higher than its own downhill bank, and the water sheet
+floated over the grass beside it.
+
+**The water may fall at most 7 degrees.** Working back up from the sea, the
+level can only climb so fast; where the ground rises faster the river stays
+low and cuts in, the way a stream wears a gully. Without it the southern river
+left its spring down a 43-degree sheet of water.
+
+Each river is cut into the grid before any mesh is built — channel, bank, and a
+valley either side — and **only ever lowers the ground**. A river that raised it
+would build a dyke across every dip it crossed.
+
+### The water's edge
+
+The grid is 4 m across, and the triangle joining a deep sample in the bed to a
+high one on the bank dips below the water just beyond the channel — up to
+70 cm, measured. A water sheet that ends at the channel edge hangs in the air
+there. So **each edge of the sheet steps outward until it meets ground above the
+water**, and tucks under a real bank. Checked on every vertex of every river:
+none hangs.
+
+**The water level between grid points is blended, not taken from the nearest
+one.** A river falls towards the sea, and stepping from one sample to the next
+raised the level by up to half a metre at once. Near a shallow spring that
+pushed "how deep is it here" over the wading limit for a single step, and
+stopped the player dead in the middle of the stream, 12 m short of the cave.
+
+### Springs
+
+A height map holds one height per point, and a cave is a roof over a floor —
+two heights at once — so the ground cannot make one. Each spring is built the
+way games do it: separate rock set into the hillside.
+
+- **A hill** is raised behind the spring, with a soft join to the slope so no
+  crease runs down its side. It only ever raises, so a spring already set into
+  a mountainside gets almost nothing.
+- **Two rock pillars, a slab across them, and stones at their feet.** Each is a
+  closed rock — a sphere pushed out to a rounded box and roughened with noise —
+  so nothing about it can be seen through. Each stands on the lowest ground
+  under it, not the ground under its middle, or it hangs over the slope.
+- **Darkness behind**: an unlit black block filling the channel, so the water
+  runs into it and is simply not seen again. It is solid, because walking in
+  would show the inside of a black box.
+- **The channel runs 8 m on into the hill**, level with the mouth, so the water
+  goes on into the dark instead of stopping at the arch in a hard edge.
+
+**A spring has to sit on level ground at the foot of its mountain.** High on a
+flank, its first hundred metres ran downhill as a tilted sheet; on ground that
+tilts across the stream, one bank rose beside the opening and the arch ended
+up at the bottom of a trench. Each course starts where the ground is level
+from bank to bank.
+
+Crossings are placed along each river **on land**, source to where it meets the
+sea. Measured along the whole drawn course, which runs on out past the beach,
+a ford "70% along" landed in the open sea.
+
+A bridge is boxes, like a house: level deck, plumb railing, nothing for the
+solver to slide anyone down. It is built along x at the origin and then
+turned — merged meshes come back with their world matrix frozen, so it is
+thawed to be placed and frozen again after, or the turn is silently ignored.
+
+## Rocks
+
+420 loose stones, 0.5 m to 1.7 m across, and the rocks framing each spring.
+Stones are thrown at the whole map and kept only where the ground has room for
+them — dry, gentle, clear of houses and trees — so the scatter follows the
+island without knowing it.
+
+### Two meshes per rock
+
+**The rock you see does not collide.** What you bump into is an invisible
+upright prism round the rock's outline: plumb sides, a level top, and no
+material. It took getting it wrong to learn why each of those matters.
+
+| Measured                                  | Before     | After    |
+| ----------------------------------------- | ---------- | -------- |
+| Walks into a stone that ended inside it   | 491 of 960 | 0 of 960 |
+| Walks that left the player unable to move | 82         | 0        |
+| Started inside a stone, could walk out    | —          | 60 of 60 |
+| Cave-mouth rocks that trapped anyone      | —          | 0 of 26  |
+
+- **Plumb sides.** Babylon's solver slides the player along whatever it hits,
+  and along a rounded stone that slide runs downward. The ground is not in the
+  solver, so nothing caught them: they sank below the ground, under the stone's
+  buried edge.
+- **No material.** `AbstractMesh` passes `!!subMesh.getMaterial()` to the
+  collider as "test back faces too". A player under a visible stone found a
+  wall in every direction and could not move — and saw the ground through it,
+  because the inside of a rock is back faces, which are not drawn. A collider
+  with no material is one-sided: from inside, every way is out.
+- **Level top**, at three quarters of the stone's height, so a big stone can be
+  stood on — stepped onto if it is low, climbed with Space if it is not.
+
+The prism follows the stone's **body**: where it stands at least 30% of its
+height. Out past that the stone is a skirt a few centimetres thick, half
+buried, and a collider there would stop the player in thin air.
+
+### Settling onto the ground
+
+The same bug had a second way in. The step that keeps the feet down walking
+downhill used to set the player's height straight onto the ground. Near its
+edge a stone rises only a centimetre or two out of the ground, so "straight onto
+the ground" was a centimetre inside the stone. Now every vertical move goes
+through `moveWithCollisions`, and if anything stops it short, the feet stay
+where it left them.
+
+### No gap under a stone
+
+Each stone is grown up from the ground under **each of its vertices**, not from
+one height for the whole stone. On a slope, a stone set at one height hangs
+over the downhill side and the gap under it shows the ground straight through.
+Grown per vertex, the rim is sunk 0.35 m everywhere: of 2,191 outer points, none
+stands above the ground.
+
+**Grass grows up to the stone's body and over its skirt.** It was once cleared
+from the whole reach, because the skirt was solid and solid rock hidden in grass
+is an invisible wall. The skirt has no collision now, and clearing the whole
+reach left a bare square round every stone.
+
+### Drawn inside out, and how that was caught
+
+For two rounds every loose stone was drawn inside out: the faces towards you
+were culled, and you saw the inside of the far wall. The winding had been
+"fixed" by looking at a screenshot, and **an inside-out convex shape has the
+same outline as a solid one** — the eye reads it as solid. It was caught by
+putting a red, unlit ball inside a stone: it showed through. The faces are now
+wound with their cross products pointing into the rock, Babylon's front face,
+and a red ball inside a stone, inside a cave rock and under the terrain are all
+hidden. Test winding that way, never by looking.
+
 ## Village
 
 Ten houses along one street, five a side, facing each other. Every one is built
@@ -397,6 +675,25 @@ windows on their own.
 `villageHouses.ts` puts them on the street. A house sits back from the middle of
 the street by half its own depth, and its door always faces the street.
 
+### The hamlets
+
+Five more settlements are scattered 400 m to 800 m out, three cottages each
+round a green rather than ten along a street, in `hamletLayout.ts`. Every door
+faces the middle of its own green.
+
+**They are not cheaper stand-ins.** They come out of the same `buildHouse`
+call as the village, so walking twenty minutes towards a roof on the horizon
+gets you a house with doors that open, shutters that work and a fire lit
+inside. Only the small shapes are used — the barn, the longhouse and the hall
+stay village property.
+
+`settlements.ts` is the list everything else reads. Each entry carries a
+`clearance`, which is how the terrain knows to lay level ground for it and the
+stone scatter knows to keep off it: a settlement has no other way to announce
+itself.
+
+Twenty-five houses in total, built in 178 ms.
+
 Each house is **two drawn meshes**: the four walls merged into one, and the
 roof. Twenty-odd boxes per house would otherwise be twenty-odd draw calls each.
 The merged wall mesh does the colliding itself — there is no hidden collider,
@@ -472,7 +769,7 @@ Cost together: **0.07 ms per step sprinting**, two draw calls.
 **The grass is drawn once per frame, not three times.** First person renders the
 world through three passes — the view, the mini-map, and the god-ray occlusion
 pass — and the grass was in all of them. It is now kept out of the last two: it
-is invisible at map scale over a ground plane that is already green, and it
+is invisible at map scale over ground that is already green, and it
 blocks nothing a shaft of sunlight would miss. That took first person from
 4.08 million triangles a frame to 1.97 million.
 
@@ -698,6 +995,48 @@ against the limit. That one detail is what makes it feel right:
 Momentum is never taken away in the air. Air braking belongs to the ground, and
 the ground takes it back the instant the feet land.
 
+### Travel speed
+
+**World → Travel speed** multiplies walking and running, 1x to 8x, for crossing
+a two-kilometre island. At 8x a sprint is 64 m/s, over a metre per step, and
+still stops 0.40 m short of a house wall — Babylon's collision is swept, so it
+does not step through a 0.35 m wall between one check and the next.
+
+### Slopes you cannot stand on
+
+**Babylon's solver has no idea what a slope is.** It pushes movement along
+whatever it hits, so a player can walk straight up a sixty-degree rock face at
+a metre a second. Anything leaning past about **48 degrees** is refused — on the
+ground by reading the grid's slope, on meshes by one ray down each step in
+`standableGround.ts`.
+
+On the ground, walking into a slope too steep to climb takes away the uphill
+part of the move and leaves the rest, so walking into a mountainside turns into
+walking along it instead of stopping dead. Walking downhill, the feet are glued
+to the ground as long as it falls away no faster than a walkable slope; without
+that the player walks off the brow of every hill into a tiny fall.
+
+Too steep is not treated as "blocked" but as **not ground at all**: it gives no
+footing, so it brakes nothing, the drift is not taken back, and gravity goes on
+building until the player is off it. House roofs are 37 degrees and stay
+walkable, which is the one existing surface this had to leave alone.
+
+### Stepping over things
+
+**The solver has no step either.** Sliding along the vertical face of a kerb
+removes every bit of the forward motion, so a **six-centimetre lip stops a
+sprint dead** — at a bridge end, or the edge of a stone.
+
+So a move that got less than 70% of what it asked for is tried again from
+0.4 m higher, and the player is dropped back onto whatever they cleared. Two
+rules keep it honest:
+
+- 0.4 m is under the 0.5 m where a climb starts, so a step and a Space-press
+  never argue about the same ledge.
+- **The step only happens if the place it lands can be stood on.** Without
+  that, a player facing a rock face could stair-step 40 cm at a time straight
+  up it and the slope limit would mean nothing.
+
 ### Standing still means standing still
 
 **Babylon's collision solver has no friction.** On a slope it answers the
@@ -915,8 +1254,10 @@ them and costs nothing to download.
 ```
 src/core/      engine, fixed-step loop, stats, inspector
 src/scenes/    scene factories
-src/world/     ground, grass, clock, day/night cycle, sun and moon
-src/player/    the bean, its camera, controls and collisions
+src/world/     grass, clock, day/night cycle, sun and moon, the world's edge
+src/world/terrain/   the island, its height grid, the sea, and rivers/
+src/world/rocks/     loose stones
+src/player/    the bean, its camera, controls, collisions, footing on the ground
 src/minimap/   the top-down camera and its overlay decorations
 src/systems/   gameplay systems (empty)
 src/ui/        React overlay + the bridge

@@ -1,4 +1,3 @@
-import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { WorldEntity } from "../../core/WorldEntity";
@@ -8,6 +7,8 @@ import { createTreeMaterials } from "./treeMaterials";
 import type { TreeWind } from "./TreeWind";
 import { SHADOW_RANGE, tierFor } from "./treeDetail";
 import { TREE_PLACEMENTS } from "./treeLayout";
+import type { Ground } from "../terrain/Ground";
+import type { ShadowRegistry } from "./ShadowRegistry";
 
 /**
  * Every tree in the world.
@@ -17,12 +18,6 @@ import { TREE_PLACEMENTS } from "./treeLayout";
  * own instance buffer, which is what lets a tree be culled when it is behind
  * you: a single buffer for the whole wood could never be.
  */
-/** What the woodland needs from whoever owns the sun. */
-export type ShadowRegistry = {
-  addShadowCaster(mesh: AbstractMesh): void;
-  removeShadowCaster(mesh: AbstractMesh): void;
-};
-
 export class Woodland extends WorldEntity {
   readonly trees: Tree[];
   /** Trees currently in the shadow map. */
@@ -32,6 +27,7 @@ export class Woodland extends WorldEntity {
     scene: Scene,
     wind: TreeWind,
     private readonly shadows: ShadowRegistry,
+    ground: Ground,
   ) {
     super();
     const materialsFor = createTreeMaterials(scene, wind);
@@ -44,6 +40,7 @@ export class Woodland extends WorldEntity {
         spot.species,
         spot.x,
         spot.z,
+        ground.heightAt(spot.x, spot.z),
         materials.bark,
         materials.leaf,
       );

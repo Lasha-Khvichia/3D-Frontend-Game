@@ -2,20 +2,23 @@ import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
 import { buildHouse, type House } from "./buildHouse";
-import { VILLAGE_HOUSES } from "./villageHouses";
+import { ALL_HOUSES } from "./settlements";
 
 /**
- * Builds the whole village from code. Nothing is downloaded.
+ * Builds every inhabited place in the world from code. Nothing is downloaded.
  *
- * Phase 0 built the shells. Phase 1 dresses them: a stone plinth along the
- * foot of every wall, single stones showing through the plaster above it,
- * dressed blocks up each corner, and timber over the openings and under the
- * eaves. Doors and fireplaces come later, off the same blueprints.
+ * That is the village on its street plus the five outlying hamlets, all from
+ * the same blueprints and the same `buildHouse`: a hamlet cottage is not a
+ * cheaper stand-in for a village one, so walking half an hour to a roof on the
+ * horizon gets you a house with doors that open and a fire lit inside.
+ *
+ * Materials are made once here and shared by all of them, so twenty-five
+ * houses cost four materials rather than a hundred.
  *
  * Shadows and grass are not touched here. The caller owns those systems, and
  * every house it needs is in what comes back.
  */
-export function buildVillage(scene: Scene): House[] {
+export function buildSettlements(scene: Scene): House[] {
   // Lime-plastered walls, weathered stone, dark oak, and a roof somewhere
   // between thatch and shingle. Four flat colours: Phase 1 is about shape and
   // material reading apart at a glance, not about texture.
@@ -26,7 +29,7 @@ export function buildVillage(scene: Scene): House[] {
     timber: createMaterial(scene, "timber", new Color3(0.25, 0.17, 0.11)),
   };
 
-  return VILLAGE_HOUSES.map(({ blueprint, centreX, centreZ }) =>
+  return ALL_HOUSES.map(({ blueprint, centreX, centreZ }) =>
     buildHouse(scene, blueprint, centreX, centreZ, materials),
   );
 }

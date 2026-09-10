@@ -3,10 +3,16 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { createPlayerBean, PLAYER_EYE_HEIGHT, PLAYER_HEIGHT } from "./createPlayerBean";
+import { VIEW_DISTANCE_METRES } from "../world/distanceFog";
 import { ClimbMove } from "./ClimbMove";
 import { findLedge } from "./findLedge";
 import type { PlayerInput } from "./PlayerInput";
+import { isStandable } from "./standableGround";
 import { steerInAir } from "./steerInAir";
+import { stepOver, wasBlocked } from "./stepOver";
+import { fitMoveToGround } from "./fitMoveToGround";
+import { settleOnGround, slideDownhill } from "./terrainFooting";
+import type { Ground } from "../world/terrain/Ground";
 import { HeadBob } from "./HeadBob";
 
 const WALK_SPEED = 4.5;
@@ -58,6 +64,8 @@ export class PlayerController {
   private groundedTimer = 0;
   private jumpBufferTimer = 0;
   private readonly displacement = new Vector3();
+  /** Where this step started, so a blocked move can be tried again from higher. */
+  private readonly wasAt = new Vector3();
   /** Horizontal speed, kept between steps so a jump carries its run with it. */
   private readonly velocity = new Vector3();
   private readonly headBob = new HeadBob();
@@ -65,15 +73,20 @@ export class PlayerController {
   private invertLook = false;
   /** Set while hauling over a ledge. Nothing else moves the player meanwhile. */
   private climb: ClimbMove | null = null;
+  /** Multiplies walking and running, from the settings. */
+  private moveSpeedScale = 1;
+  /** This step's horizontal move, bent to fit the ground before it is made. */
+  private readonly flatMove = { x: 0, z: 0 };
 
   constructor(
     private readonly scene: Scene,
     private readonly input: PlayerInput,
+    private readonly ground: Ground,
   ) {
     this.bean = createPlayerBean(scene);
     this.camera = new TargetCamera("player-camera", new Vector3(0, PLAYER_EYE_HEIGHT, 0), scene);
     this.camera.minZ = 0.1;
-    this.camera.maxZ = 2000;
+    this.camera.maxZ = VIEW_DISTANCE_METRES;
 
     // Required because the head bob writes rotation.z. Babylon only refreshes a
     // camera's up vector when rotation.z CHANGES, and it bakes the yaw and pitch
@@ -87,6 +100,25 @@ export class PlayerController {
   /** Multiplies the base look speed. 1 is the built-in feel. */
   setLookSensitivity(scale: number): void {
     this.sensitivityScale = Math.max(0.05, scale);
+  }
+
+  /** Multiplies walking and running speed, for crossing a big map quickly. */
+  setMoveSpeedScale(scale: number): void {
+    this.moveSpeedScale = Math.max(0.1, scale);
+  }
+
+  /** Puts the player somewhere else entirely, standing still and facing `yaw`. */
+  teleportTo(x: number, z: number, yaw: number): void {
+    this.climb = null;
+    this.velocity.set(0, 0, 0);
+    this.verticalSpeed = 0;
+    this.yaw = yaw;
+    this.bean.rotation.y = yaw;
+    this.bean.position.set(x, this.ground.heightAt(x, z) + PLAYER_HEIGHT / 2, z);
+    this.bean.computeWorldMatrix(true);
+    this.groundedTimer = COYOTE_SECONDS;
+    this.grounded = true;
+    this.syncCamera();
   }
 
   setInvertLook(invert: boolean): void {
@@ -155,7 +187,7 @@ export class PlayerController {
 
     // A ledge beats a jump, and works in mid-air too: jumping at a wall and
     // grabbing the top of it is the point of the move.
-    const ledge = findLedge(this.scene, this.bean, this.yaw);
+    const ledge = findLedge(this.scene, this.bean, this.yaw, this.ground);
     if (ledge) {
       this.climb = new ClimbMove(this.bean.position, ledge);
       this.jumpBufferTimer = 0;
@@ -201,7 +233,7 @@ export class PlayerController {
     // walking feel immediate. In the air there are no legs to push with, so the
     // speed carried off the ground is kept and only nudged.
     if (this.grounded) {
-      const groundSpeed = this.input.isRunning ? RUN_SPEED : WALK_SPEED;
+      const groundSpeed = (this.input.isRunning ? RUN_SPEED : WALK_SPEED) * this.moveSpeedScale;
       this.velocity.x = moveX * groundSpeed;
       this.velocity.z = moveZ * groundSpeed;
     } else {
@@ -210,17 +242,17 @@ export class PlayerController {
 
     this.verticalSpeed += GRAVITY * seconds;
 
-    this.displacement.set(
-      this.velocity.x * seconds,
-      this.verticalSpeed * seconds,
-      this.velocity.z * seconds,
-    );
+    this.flatMove.x = this.velocity.x * seconds;
+    this.flatMove.z = this.velocity.z * seconds;
+    fitMoveToGround(this.ground, this.bean, this.flatMove);
+    this.displacement.set(this.flatMove.x, this.verticalSpeed * seconds, this.flatMove.z);
 
     // moveWithCollisions starts from the world matrix, not from .position. The
     // simulation step runs before the render, so without this the matrix is a
     // frame stale and the collision solver works from the wrong place.
     this.bean.computeWorldMatrix(true);
 
+    this.wasAt.copyFrom(this.bean.position);
     const beforeX = this.bean.position.x;
     const beforeY = this.bean.position.y;
     const beforeZ = this.bean.position.z;
@@ -229,8 +261,43 @@ export class PlayerController {
     // Falling freely, the actual drop equals the intended one. Anything less
     // means the floor got in the way.
     const actualDrop = this.bean.position.y - beforeY;
-    const floorStoppedTheFall =
+    let floorStoppedTheFall =
       this.verticalSpeed < 0 && actualDrop > this.displacement.y + GROUND_EPSILON;
+
+    // Caught on something low. The solver has no step of its own, so a kerb a
+    // few centimetres high stops a sprint dead unless the move is retried from
+    // above it.
+    const gotThisFar = Math.hypot(this.bean.position.x - beforeX, this.bean.position.z - beforeZ);
+    if (this.grounded && wasBlocked(this.displacement, gotThisFar)) {
+      const stoppedAt = this.bean.position.clone();
+      // A step is only taken onto something that can be stood on. Without
+      // that, a player facing a rock face could stair-step 40 cm at a time
+      // straight up it, and the slope limit would mean nothing.
+      if (stepOver(this.bean, this.wasAt, this.displacement, gotThisFar)) {
+        if (isStandable(this.scene, this.bean)) floorStoppedTheFall = true;
+        else this.bean.position.copyFrom(stoppedAt);
+      }
+    }
+
+    // The ground is not a collision mesh; the feet are put on it here. Glued
+    // down only while nothing else is holding the player up, or crossing a
+    // bridge would pull them through the deck onto the riverbed below.
+    const travelled = Math.hypot(this.bean.position.x - beforeX, this.bean.position.z - beforeZ);
+    const glued = this.grounded && !floorStoppedTheFall && this.verticalSpeed <= 0;
+    const underfoot = settleOnGround(this.ground, this.bean, glued, travelled);
+    if (underfoot !== "above") {
+      floorStoppedTheFall = true;
+      this.verticalSpeed = 0;
+    }
+    if (underfoot === "steep") slideDownhill(this.ground, this.bean, this.velocity, seconds);
+
+    // Something stopping the fall is not the same as somewhere to stand. A
+    // slope steeper than a player could get purchase on gives no footing, so it
+    // brakes nothing and the player slides until they are off it.
+    const footing =
+      floorStoppedTheFall &&
+      (underfoot === "walkable" ||
+        ((underfoot === "above" || underfoot === "onMesh") && isStandable(this.scene, this.bean)));
 
     // Standing still has to mean standing still. Babylon's solver has no
     // friction: on a slope it answers the downward push of gravity by sliding
@@ -239,12 +306,12 @@ export class PlayerController {
     // it is given back. Walking up or down a slope is untouched, because that
     // movement was asked for.
     const askedToMove = this.displacement.x !== 0 || this.displacement.z !== 0;
-    if (floorStoppedTheFall && !askedToMove) {
+    if (footing && !askedToMove) {
       this.bean.position.x = beforeX;
       this.bean.position.z = beforeZ;
     }
 
-    if (floorStoppedTheFall) {
+    if (footing) {
       this.verticalSpeed = 0;
       this.groundedTimer = COYOTE_SECONDS;
     } else {

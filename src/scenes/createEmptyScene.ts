@@ -6,6 +6,7 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Color4 } from "@babylonjs/core/Maths/math.color";
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
+import { applyDistanceFog, VIEW_DISTANCE_METRES } from "../world/distanceFog";
 
 /** DayNightCycle looks the ambient fill light up by this name. */
 export const AMBIENT_LIGHT_NAME = "ambient-light";
@@ -22,6 +23,7 @@ export function createEmptyScene(engine: AbstractEngine): Scene {
   const scene = new Scene(engine);
   scene.collisionsEnabled = true;
   scene.clearColor = new Color4(0.05, 0.06, 0.09, 1);
+  applyDistanceFog(scene);
 
   const camera = new ArcRotateCamera(
     ORBIT_CAMERA_NAME,
@@ -35,8 +37,7 @@ export function createEmptyScene(engine: AbstractEngine): Scene {
   camera.upperRadiusLimit = 200;
   camera.wheelPrecision = 20;
   camera.minZ = 0.1;
-  // Far enough to include the sun disc, close enough to keep depth precision.
-  camera.maxZ = 2000;
+  camera.maxZ = VIEW_DISTANCE_METRES;
   camera.attachControl(true);
 
   const ambientLight = new HemisphericLight(AMBIENT_LIGHT_NAME, new Vector3(0, 1, 0), scene);

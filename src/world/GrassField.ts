@@ -10,6 +10,15 @@ import { BLADE_HEIGHT, createGrassBlade } from "./createGrassBlade";
 import type { Footprint } from "./footprint";
 import { createBladeShape, shapeForCell, type GrassLayout } from "./grassLayout";
 
+/**
+ * The ground the grass grows in: how high it is, and whether anything grows
+ * there at all. Asked once per blade whenever a blade lands on new ground.
+ */
+export type GrassSoil = {
+  heightAt(x: number, z: number): number;
+  growsAt(x: number, z: number): boolean;
+};
+
 type Pusher = {
   readonly node: TransformNode;
   /** Distance from the node's position down to its underside. */
@@ -72,6 +81,7 @@ export class GrassField {
   constructor(
     scene: Scene,
     private readonly grass: GrassLayout,
+    private readonly soil: GrassSoil,
   ) {
     this.mesh = createGrassBlade(scene);
     this.matrices = new Float32Array(grass.bladeCount * FLOATS_PER_MATRIX);
@@ -169,7 +179,7 @@ export class GrassField {
 
       // How much of the pusher is still down in the grass. Jump clear and it
       // stops touching anything, instead of dragging a flat circle with it.
-      const lift = centre.y - pusher.bottomOffset;
+      const lift = centre.y - pusher.bottomOffset - this.soil.heightAt(centre.x, centre.z);
       if (lift >= LIFT_CLEARANCE) continue;
       const groundedShare = 1 - Math.max(0, lift) / LIFT_CLEARANCE;
 
@@ -247,12 +257,10 @@ export class GrassField {
     const cellZ = this.originCellZ + wrapSlot(row - this.originCellZ, this.grass.patchCells);
     shapeForCell(cellX, cellZ, this.shape, this.grass);
 
-    this.scratchPosition.set(
-      cellX * this.grass.cellSize + this.shape.offsetX,
-      0,
-      cellZ * this.grass.cellSize + this.shape.offsetZ,
-    );
-    const buried = this.isExcluded(this.scratchPosition.x, this.scratchPosition.z);
+    const x = cellX * this.grass.cellSize + this.shape.offsetX;
+    const z = cellZ * this.grass.cellSize + this.shape.offsetZ;
+    this.scratchPosition.set(x, this.soil.heightAt(x, z), z);
+    const buried = !this.soil.growsAt(x, z) || this.isExcluded(x, z);
     this.scratchScale.set(buried ? 0 : 1, buried ? 0 : this.shape.height, buried ? 0 : 1);
 
     const push = this.lean[index] ?? 0;

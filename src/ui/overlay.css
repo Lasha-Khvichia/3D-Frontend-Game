@@ -213,3 +213,26 @@
   white-space: nowrap;
   text-shadow: 0 1px 2px rgb(0 0 0 / 60%);
 }
+
+.overlay__notice {
+  position: absolute;
+  top: 32%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 12px 26px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 45%);
+  color: rgb(255 255 255 / 94%);
+  font-size: 22px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  animation: overlay-notice-in 0.35s ease-out;
+}
+
+@keyframes overlay-notice-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+}

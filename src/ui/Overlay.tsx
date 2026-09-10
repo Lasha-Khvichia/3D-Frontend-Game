@@ -1,5 +1,6 @@
 import { StatsPanel } from "./StatsPanel";
 import { InteractionPrompt } from "./InteractionPrompt";
+import { WorldNotice } from "./WorldNotice";
 import { MiniMap } from "./MiniMap";
 import { PauseMenu } from "./PauseMenu";
 import { sendCommand } from "./bridge";
@@ -29,6 +30,7 @@ export function Overlay() {
         )}
       </div>
       <InteractionPrompt />
+      <WorldNotice />
       <MiniMap />
       <PauseMenu />
     </div>

@@ -87,6 +87,11 @@ rule.** Measured against `CreateBox`: on all twelve of its triangles the cross
 product of the wound edges points _into_ the box. Hand-built geometry wound the
 other way is invisible from the side you want and solid from the side you do
 not, with no error. If you write raw `VertexData`, check it against a box.
+**Never judge winding from a screenshot.** An inside-out convex shape has the
+same outline as a solid one and reads as solid by eye — every loose stone was
+drawn inside out for two rounds after a winding was "fixed" by looking. Put a
+red, unlit ball inside the shape and render it: the ball shows through only
+when the winding is wrong.
 
 **A single sheet of geometry has no back.** A wall is a solid box so its inside
 face renders normally, but a roof is one surface: without
@@ -98,6 +103,20 @@ shines up at a ceiling and the underside comes out pure black.
 publishes stats, React sends commands. React state must never be written at frame
 rate — the mini-map decoration canvas is deliberately passed through the bridge
 as a raw element and painted by the render loop for exactly that reason.
+
+**Babylon collides with both sides of every face on a mesh that has a
+material.** `AbstractMesh` passes `!!subMesh.getMaterial()` as "test back faces
+too", so a player who gets inside a visible mesh finds a wall in every direction
+and cannot move — and sees straight through it, because inside faces are not
+drawn. Colliders here are invisible and **carry no material**, which makes them
+one-sided: from inside, every way is out. Give a collider a material and that
+safety is gone, with no error.
+
+**Never set the player's height directly.** Anything that moves them up or down
+— the terrain lift, the downhill snap — goes through `moveWithCollisions`, and
+if something stops that move short, the feet stay where it left them. Setting
+`position.y` onto the ground drops the player through whatever lies in between;
+that is how half of all walks into a stone ended inside it.
 
 **`moveWithCollisions` reads the mesh's world matrix, not `mesh.position`.** The
 simulation step runs before the render, so call `computeWorldMatrix(true)` first
@@ -161,6 +180,54 @@ wrong for anything hung on a hinge: frozen means the parent can turn all it
 likes and the mesh will not follow, with no error. Call `unfreezeWorldMatrix()`
 after parenting a merged mesh to something that moves.
 
+**The island is one height function sampled once into a grid**
+(`src/world/terrain/`). Nothing reads the function after that: the mesh, the
+player's feet, the grass, the trees and the stones all read `HeightGrid`, which
+splits each cell along the same diagonal the mesh does. Read the function
+instead and feet sink into hillsides or hover over them.
+
+**The ground is not a collision mesh.** The player is lifted onto the grid after
+every move (`src/player/terrainFooting.ts`), and the slope limit, wading and
+deep-water stop are rules on the grid (`fitMoveToGround.ts`). Putting the ground
+back into Babylon's solver brings back getting stuck and invisible walls: the
+solver resolving the player against the ground and a rock at once finds no way
+out of the crease between them. Collision meshes are houses, trees, stones and
+bridges only. Anything that picks the floor with a ray will find nothing — see
+how `findLedge` falls back to `ground.heightAt`.
+
+**Settlements sit at exactly y = 0 and the sea is at -2.5**, not the other way
+round. Every house was built assuming a floor at zero; the terrain flattens each
+settlement's ground to zero and eases relief away around it. Each settlement is
+also unioned into the coastline, because the coast is noise. The ground's size,
+fog and far plane interact: fog is linear and finishes inside the 1400 m far
+plane, and the sun and moon are placed relative to the **player**, with
+`fogEnabled = false`, or walking a kilometre swings them across the sky.
+
+**Rivers are cut into the grid before any mesh is built**
+(`src/world/terrain/rivers/`), and only ever lower it. Three rules hold the
+water in its channel, and each was a visible bug without it: the level is the
+running minimum of the ground **across the whole width** (down the centre line,
+a river on a slope floats over its downhill bank); the water may fall **at most
+7 degrees** (or it leaves a spring as a tilted sheet); and each edge of the water
+sheet **steps out until it meets dry ground** (a 4 m grid dips below the water
+just past the channel). The river surface between grid points is **blended,
+never the nearest sample** — nearest jumped half a metre per step and tripped
+the wading limit in mid-stream. Crossings are a share of the river's length
+**on land**. Springs are separate rock plus an unlit black block, because a
+height map cannot hold a cave, and must start on level ground or the arch ends
+up in a trench.
+
+**The overview camera lies about the island.** From kilometres up with a 0.1 m
+near plane, the depth buffer cannot separate land from the sea 2.5 m below it
+and the sea bleeds through as blue patches. That is the camera, not flooding —
+check heights numerically before "fixing" the terrain.
+
+**Every inhabited place is in `settlements.ts`**: the village on its street and
+five hamlets of three cottages. Hamlet houses are not cheaper copies — same
+`buildHouse`, same doors and fires. Each settlement carries a `clearance`, and
+that is the only way the terrain knows to lay level ground for it and the stone
+scatter knows to keep off it.
+
 **Houses are built from code, not loaded** (`src/world/houses/`). A house is
 rows of solid boxes with the openings left out. That shape is deliberate: boxes
 are thick enough that a sprinting player cannot cross one between two steps, and
@@ -168,14 +235,28 @@ have no sloped face for the solver to slide the player up. Downloaded glTF
 houses failed on both counts, and that is why they were removed. Keep walls at
 least 0.2 m thick.
 
-**Collision is never put on a sloped face except one: the roof.** The roof mesh
-is a single sheet and stays uncollidable; `collideRoof.ts` puts an invisible
-solid wedge behind it — the loft, eight triangles. A staircase of upright boxes
-was tried there and is wrong: **the player's collision ellipsoid is 0.4 m in
-radius, so on centimetre steps it rests on corners rather than faces**, which
-slides it down the roof and wedges it between steps. A sloped collider is only
-safe because the wedge's lowest point is the wall top, 2.4 m up, out of reach of
-a 1.11 m jump and a 2.0 m climb. Anything reachable on foot must still be boxes.
+**Sloped collision meshes are safe because of the slope limit.** The roof is a
+solid wedge behind a sheet that carries none, and stones are one smooth mesh
+that is both what you see and what you hit. `standableGround.ts` casts one ray
+down and refuses anything past 48 degrees on meshes, as the grid slope does on
+the ground; too steep is _not ground_ rather than blocked. Roofs are 37 degrees
+and must stay under the limit. A staircase of small boxes is wrong for any
+slope: **the player's ellipsoid is 0.4 m in radius, so on centimetre steps it
+rests on corners rather than faces**, and slides and wedges between them.
+
+**Babylon's solver has no step.** Sliding along a vertical face removes all the
+forward motion, so a 6 cm lip stops a sprint dead. `stepOver.ts` retries a
+blocked move from 0.4 m up, and that retry must only land somewhere
+`isStandable` agrees with, or it becomes a way to stair-step up a rock face.
+
+**Every rock is two meshes**: a smooth one to look at, with no collision, and
+an invisible upright prism to bump into (`createRockCollider.ts`) — plumb sides,
+level top, no material. A smooth rock made a bad solid: the solver slides the
+player along a curved face, downward, and with the ground out of the solver
+nothing caught them, so they sank under the stone's edge and were trapped.
+Stones are grown up from the ground under each vertex, so their rim is buried on
+every side of a slope and no gap shows under them. Grass is kept off the stone's
+body only; its low skirt carries no collision, so grass may cover it.
 
 **Nothing pushes the player sideways unless the player asked.** The solver has
 no friction, so gravity on a slope slides you. `PlayerController` restores x and
@@ -203,8 +284,10 @@ changes in a way a saved file must not override.
 ```
 src/core/      engine, fixed-step loop, stats, inspector
 src/scenes/    scene factories
-src/world/     ground, grass, clock, day/night, sun and moon, shadows
-src/player/    the bean, its camera, controls, collisions, head bob
+src/world/     grass, clock, day/night, sun and moon, shadows, the world's edge
+src/world/terrain/  the island's height grid, sea, and rivers/
+src/world/rocks/    loose stones
+src/player/    the bean, its camera, controls, collisions, footing, head bob
 src/minimap/   the second camera and its overlay decorations
 src/ui/        React overlay + the bridge
 src/settings/  settings store and the binder into the game
