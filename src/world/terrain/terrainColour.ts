@@ -10,10 +10,7 @@ const WET_SAND: Rgb = [0.55, 0.52, 0.4];
 /** Shared with the flat sea floor beyond the grid, or the join shows as steps. */
 export const DEEP: Rgb = [0.16, 0.24, 0.25];
 const ROCK: Rgb = [0.47, 0.45, 0.42];
-const SNOW: Rgb = [0.93, 0.95, 0.98];
 
-/** Where snow starts lying. Deliberately plain — weather will own this later. */
-export const SNOW_LINE = 95;
 /** Rise per metre past which bare rock shows through, about 38 degrees. */
 const ROCK_FROM = 0.62;
 const ROCK_TO = 0.95;
@@ -23,7 +20,7 @@ const ROCK_TO = 0.95;
  *
  * `water` is the surface of the sea or river over this spot.
  *
- * Height decides the band — seabed, sand, meadow, upland, snow — and steepness
+ * Height decides the band — seabed, sand, meadow, upland — and steepness
  * overrides it with rock, which is how real hills look: grass holds on to
  * anything it can and loses the rest.
  *
@@ -53,12 +50,9 @@ export function terrainColour(
   const rock = smoothStep(ROCK_FROM, ROCK_TO, steepness);
   colour = blend(colour, ROCK, rock);
 
-  // Snow settles on what is level enough to hold it and thins on the steep,
-  // but does not vanish there: seen from the valley a mountain is almost all
-  // steep face, and snow only on its ledges read as no snow at all.
-  const snow =
-    smoothStep(SNOW_LINE + speckle * 10, SNOW_LINE + 14 + speckle * 10, height) * (1 - rock * 0.45);
-  colour = blend(colour, SNOW, snow);
+  // No snow here: `snowGroundGlsl.ts` lays it on in the shader, because the
+  // snow line comes down the slopes through the winter and these colours are
+  // baked into the ground when a patch is built.
 
   out.push(colour[0], colour[1], colour[2], 1);
 }

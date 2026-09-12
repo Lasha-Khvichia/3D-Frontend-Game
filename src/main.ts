@@ -23,6 +23,7 @@ import { WorldStreaming } from "./world/WorldStreaming";
 import { houseDistanceGroups } from "./world/houses/houseDistanceGroups";
 import { treeDistanceGroup } from "./world/trees/treeDistanceGroup";
 import { registerCloudShadows } from "./world/sky/CloudShadowPlugin";
+import { SnowGround } from "./world/weather/snow/SnowGround";
 import { WetGround } from "./world/weather/wet/WetGround";
 import { registerHeightMist } from "./world/weather/HeightMistPlugin";
 import { Sky } from "./world/sky/Sky";
@@ -133,6 +134,9 @@ const falling = attachPrecipitation(scene, { ground: terrain, houses, dayNight, 
 // And what the rain leaves behind: wet ground and puddles, dry under the roofs.
 const wet = new WetGround(player.controller.bean.position, weather, dayNight, falling.roofs);
 weather.addListener(wet);
+// Snow that never melts on the two high ranges, and the trail through it.
+const snow = new SnowGround(scene, player.controller.bean.position, terrain);
+weather.addListener(snow);
 
 const settings = new SettingsBinder({
   resolution: runtime.resolution,
@@ -144,6 +148,7 @@ const settings = new SettingsBinder({
   sky,
   weather,
   wet,
+  snow,
 });
 
 // After the settings, which carry the render distance: the first frame opens
@@ -153,6 +158,7 @@ falling.update(player.controller.bean.position);
 // And the opening weather, shown before any step runs: the game opens paused.
 weather.update(dayNight.totalHours);
 wet.update(dayNight.totalHours, 0);
+snow.update(dayNight.totalHours);
 dayNight.refresh();
 sky.repaint();
 
@@ -161,6 +167,7 @@ runtime.setSimulationStep((fixedDeltaSeconds) => {
   dayNight.advance(fixedDeltaSeconds);
   weather.update(dayNight.totalHours);
   wet.update(dayNight.totalHours, fixedDeltaSeconds);
+  snow.update(dayNight.totalHours);
   // Before the player's own update, which clears any key press nothing took.
   publishPrompt(
     openings.update(fixedDeltaSeconds, player.controller.bean.position, player.takeOpeningKeys()),

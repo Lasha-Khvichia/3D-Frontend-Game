@@ -5,6 +5,7 @@ import type { DayNightCycle } from "../world/DayNightCycle";
 import type { SunGodRays } from "../world/SunGodRays";
 import type { WorldStreaming } from "../world/WorldStreaming";
 import type { Sky } from "../world/sky/Sky";
+import type { SnowGround } from "../world/weather/snow/SnowGround";
 import type { WetGround } from "../world/weather/wet/WetGround";
 import type { Weather } from "../world/weather/Weather";
 import { MAX_PIXEL_RATIO } from "../core/createEngine";
@@ -22,6 +23,7 @@ export type SettingsTargets = {
   readonly sky: Sky;
   readonly weather: Weather;
   readonly wet: WetGround;
+  readonly snow: SnowGround;
 };
 
 /**
@@ -49,6 +51,7 @@ export class SettingsBinder {
       // follow now, not on resume.
       targets.weather.update(targets.dayNight.totalHours);
       targets.wet.update(targets.dayNight.totalHours, 0);
+      targets.snow.update(targets.dayNight.totalHours);
       targets.dayNight.refresh();
       targets.sky.repaint();
     });

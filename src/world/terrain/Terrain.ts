@@ -10,6 +10,7 @@ import { smoothHighGround } from "./smoothHighGround";
 import { Rivers } from "./rivers/Rivers";
 import { coastDistance } from "./islandShape";
 import { terrainHeightAt } from "./terrainHeight";
+import { snowSurface } from "../weather/snow/SnowGroundPlugin";
 import { wetSurface } from "../weather/wet/WetGroundPlugin";
 import { SEA_LEVEL } from "./terrainConstants";
 import { createPatchMesh } from "./patches/createPatchMesh";
@@ -39,8 +40,10 @@ export class Terrain extends WorldEntity implements Ground {
     this.rivers = new Rivers(scene, this.grid);
 
     const material = new StandardMaterial("terrain", scene);
-    // Rain darkens the ground and stands in puddles on the flat of it.
+    // Rain darkens the ground and stands in puddles on the flat of it, and
+    // snow lies over both up on the high ground. Snow must come second.
     wetSurface(material, true);
+    snowSurface(material);
     // White, because the colour is all in the vertices and this multiplies it.
     material.diffuseColor = Color3.White();
     material.specularColor = Color3.Black();

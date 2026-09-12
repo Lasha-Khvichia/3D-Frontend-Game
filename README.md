@@ -234,6 +234,7 @@ day's and rain cools warm air by up to 2 °C.
 - **Ground mist**, below.
 - **Rain, sleet, hail and snow** falling round the player, below.
 - **Wet ground and puddles**, which follow the rain of the last day, below.
+- **The snow line** on the high ground, which follows the season, below.
 - **Wind** in the trees (strength and direction; trees move on WebGL only),
   the grass and the chimney smoke — all the same way as the clouds.
 
@@ -360,13 +361,57 @@ its own place — a ring in every cell at once, all the same size, read as
 corrugated metal. The whole effect sits behind one test on a uniform, so dry
 weather costs a branch and nothing else.
 
+### Snow on the high ground
+
+The two biggest ranges keep their snow all year: the 270 m massif north of
+the island and the 180 m range to the south. The eastern hill, 150 m, stays
+bare rock — a deliberate choice, and it gives the east its own look.
+
+**The snow line follows the climate, not a calendar of its own.** It is the
+day's mean temperature at sea level, mapped from 95 m at 10 °C down to 45 m
+at −4 °C, so snow creeps down the slopes through autumn and lifts again in
+spring with nothing anywhere saying "winter". Measured over a year: never
+above 95 m, down to 45 m on 22 January, moving at most 0.74 m a day, and not
+bobbing at all between dawn and afternoon. Like the weather, it is a function
+of time and nothing is stored. It stops at 45 m on purpose: lowland snow
+needs a depth map that builds up and melts, which is the next phase.
+
+Snow is laid on **in the ground shader**, not in the vertex colours it used to
+be painted into, because a patch of ground is coloured once when it is built
+and the line has to move under it. It thins on a steep face but never leaves
+it: from the valley a mountain is almost all steep face, and snow only on its
+ledges reads as no snow at all. Where snow lies it takes over from the wet
+ground — rain does not pool on it.
+
+**Footprints.** The player's trail is the one thing here that is stored: no
+date can work out where somebody walked. A map 20 m round the player, at 5 cm
+a texel, holds **when** each spot was trodden and **how deeply**, and the
+shader ages the prints from one uniform — so nothing is ever redrawn as they
+fade. They fill in over about 3 game hours, and far faster while snow is
+falling or the wind is up: a blizzard wipes a trail in minutes.
+
+A step sends up only the 2.3 KB block round the print, never the whole 576 KB
+map. Walk more than 20 m away and the trail is forgotten: at this resolution
+a map of the island would be gigabytes.
+
+Two traps, both found by the pictures, both silent:
+
+- **A one-channel raw texture (`CreateRTexture`) sampled black.** The print
+  map holds one byte of use per texel and asked for a one-channel texture;
+  every sample came back 0, with no error anywhere. It is RGBA now, and the
+  spare room holds how deep each print is.
+- **WGSL will not let `textureSample` be called inside a branch** ("must only
+  be called from uniform control flow"). The snow reads its map inside its own
+  `if`, so it uses `textureSampleLevel`, as the rain's shaders already did.
+  WebGL never complained; WebGPU refused to compile the shader.
+
 ### Not yet
 
-Stone, timber and thatch do not darken in the rain yet; only the ground and
-the grass do. Snow lying on the ground, ice and footprints come next;
-lightning and thunder after that. The peaks are only about 300 m up, 2 °C
-colder than the valley, so snow on them for much of the year will need its own
-rule when snow settles.
+Stone, timber and thatch do not darken in the rain, and no snow settles on a
+roof or a branch; only the ground, the grass and the high ground know about
+the weather. Lowland snow that builds up and melts, ice on the rivers, and
+prints in mud rather than snow are the next phase; lightning and thunder
+after that.
 
 ## Sun and moon
 

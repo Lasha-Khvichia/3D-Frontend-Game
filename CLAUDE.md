@@ -146,6 +146,13 @@ change to both. A material plugin must also say it speaks WGSL
 (`isCompatible`), or on WebGPU it **silently does not attach**; the tree wind
 is GLSL-only and is off on WebGPU for exactly that reason.
 
+**A one-channel raw texture sampled black.** `RawTexture.CreateRTexture` for
+the footprint map gave 0 from every read, on WebGL, with no error from
+Babylon or the browser; the same data as RGBA worked at once. Use RGBA for
+raw data textures here. And **WGSL only allows `textureSample` from uniform
+control flow** — read a texture inside an `if` with `textureSampleLevel`, or
+WebGPU refuses to compile the shader while WebGL says nothing.
+
 **`RegisterMaterialPlugin` only reaches materials created after it.** The cloud
 shadows are registered at the top of `main.ts`, before the terrain; register
 later and everything already built has no shadows, with no error.
@@ -425,6 +432,17 @@ only those two show it, and the ground alone carries the puddles and the roof
 test that keeps a floor dry. A new material that should show the rain needs
 that call — there is nothing to notice if it is missing.
 
+**Snow on the high ground is painted by the ground shader, not into the
+ground** (`src/world/weather/snow/`): the line comes down the slopes through
+winter and lifts in spring, and a patch's vertex colours are baked when it is
+built. It lies on the two biggest ranges only (`SNOWY_RANGES`) and is a
+function of time, like the weather. `SnowGroundPlugin` must be attached
+**after** `WetGroundPlugin` on the ground material: it takes over that
+plugin's `wetAmount` and `wetPuddle` where snow lies, so rain does not pool on
+snow. Footprints are the one thing in the weather that is stored — no date can
+work out where the player walked — and only for 20 m round them
+(`FootprintMap`), which sends up just the block round each print.
+
 **Sun and moon are real astronomy** (`celestialPath.ts`, `calendar/solarYear.ts`):
 latitude 45 degrees, the sun highest at 13:00 all year, day length following the
 date. Sky colours are two keyframe tables in `timeOfDayKeyframes.ts`, keyed by
@@ -449,6 +467,7 @@ src/world/calendar/ the calendar, the sun's path through the year, the climate
 src/world/weather/  the weather: what each day brings, and what it does to the sky and air
 src/world/weather/precipitation/  rain, sleet, hail and snow falling, and the roofs that keep it off
 src/world/weather/wet/  what the rain leaves: wet ground, puddles and their rings
+src/world/weather/snow/  snow on the high ground, and the trail through it
 src/world/rocks/    loose stones
 src/player/    the bean, its camera, controls, collisions, footing, head bob
 src/minimap/   the second camera and its overlay decorations
