@@ -23,6 +23,7 @@ import { WorldStreaming } from "./world/WorldStreaming";
 import { houseDistanceGroups } from "./world/houses/houseDistanceGroups";
 import { treeDistanceGroup } from "./world/trees/treeDistanceGroup";
 import { registerCloudShadows } from "./world/sky/CloudShadowPlugin";
+import { WetGround } from "./world/weather/wet/WetGround";
 import { registerHeightMist } from "./world/weather/HeightMistPlugin";
 import { Sky } from "./world/sky/Sky";
 import { serveWorldMap } from "./world/map/serveWorldMap";
@@ -30,6 +31,7 @@ import { GrassBlockerGrid } from "./world/GrassBlockerGrid";
 import { rectangleBlocker } from "./world/grassBlockers";
 import { Weather } from "./world/weather/Weather";
 import { smokeWind } from "./world/fire/createSmokeParticles";
+import { attachPrecipitation } from "./world/weather/precipitation/attachPrecipitation";
 
 const canvas = document.getElementById("render-canvas");
 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -126,6 +128,12 @@ for (const listener of [dayNight, sky, streaming, wind, grass, smokeWind]) {
   weather.addListener(listener);
 }
 
+// Rain, sleet, hail and snow falling, and kept out from under every roof.
+const falling = attachPrecipitation(scene, { ground: terrain, houses, dayNight, godRays, weather });
+// And what the rain leaves behind: wet ground and puddles, dry under the roofs.
+const wet = new WetGround(player.controller.bean.position, weather, dayNight, falling.roofs);
+weather.addListener(wet);
+
 const settings = new SettingsBinder({
   resolution: runtime.resolution,
   camera: player.controller.camera,
@@ -135,13 +143,16 @@ const settings = new SettingsBinder({
   streaming,
   sky,
   weather,
+  wet,
 });
 
 // After the settings, which carry the render distance: the first frame opens
 // on a finished world rather than one filling in around the player.
 streaming.prime(player.controller.bean.position);
+falling.update(player.controller.bean.position);
 // And the opening weather, shown before any step runs: the game opens paused.
 weather.update(dayNight.totalHours);
+wet.update(dayNight.totalHours, 0);
 dayNight.refresh();
 sky.repaint();
 
@@ -149,6 +160,7 @@ sky.repaint();
 runtime.setSimulationStep((fixedDeltaSeconds) => {
   dayNight.advance(fixedDeltaSeconds);
   weather.update(dayNight.totalHours);
+  wet.update(dayNight.totalHours, fixedDeltaSeconds);
   // Before the player's own update, which clears any key press nothing took.
   publishPrompt(
     openings.update(fixedDeltaSeconds, player.controller.bean.position, player.takeOpeningKeys()),
@@ -156,6 +168,7 @@ runtime.setSimulationStep((fixedDeltaSeconds) => {
   player.update(fixedDeltaSeconds);
   worldEdge.update(fixedDeltaSeconds, player.controller);
   streaming.update(player.controller.bean.position);
+  falling.update(player.controller.bean.position);
   sky.update(fixedDeltaSeconds, player.controller.bean.position);
   godRays.setCloudCover(sky.sunlightThrough);
   miniMap.update(fixedDeltaSeconds, player.controller.bean, player.wantsOverheadMap(), dayNight);

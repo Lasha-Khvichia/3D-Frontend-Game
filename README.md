@@ -232,6 +232,8 @@ day's and rain cools warm air by up to 2 °C.
 - **The fog**: visibility pulls the haze in. The render distance still decides
   what is built, so a lifting fog shows a finished world.
 - **Ground mist**, below.
+- **Rain, sleet, hail and snow** falling round the player, below.
+- **Wet ground and puddles**, which follow the rain of the last day, below.
 - **Wind** in the trees (strength and direction; trees move on WebGL only),
   the grass and the chimney smoke — all the same way as the clouds.
 
@@ -255,12 +257,116 @@ regular expression after its includes are expanded. If a Babylon update
 rewrites that line, the mist silently stops: the shader still compiles and
 nothing matches.
 
+### Rain, sleet, hail and snow
+
+Everything that falls is drawn round the player in at most three draw calls
+(`src/world/weather/precipitation/`): streaks for rain, sleet and hail, flakes
+for snow and sleet's icy half, and rings where rain lands. Each is one mesh of
+small quads that never changes. The vertex shader places every drop from its
+own random numbers and how far the fall and the wind have carried it, and wraps
+it into a box round the eye, so the rain never runs out and nothing is sent to
+the GPU however hard it rains. Drops move on real seconds, like the clouds.
+
+| Falls as | Speed        | Looks like                                  | Wind carries it |
+| -------- | ------------ | ------------------------------------------- | --------------- |
+| Rain     | 3.5 to 9 m/s | streaks 1 to 1.5 cm wide, 1/30 s of fall    | 90%             |
+| Sleet    | 4 and 2 m/s  | thin streaks and small flakes together      | 80% and all     |
+| Hail     | 11 m/s       | short white streaks 2 cm wide               | 60%             |
+| Snow     | 1 to 1.3 m/s | flakes 3 to 5 cm, swaying 20 cm either side | all             |
+
+Speeds follow measured terminal velocities: drizzle about 2 m/s, a downpour's
+big drops 9, snow about 1. The weather's rate, 0 to 1, sets how many of the
+16,000 streaks or 24,000 flakes are shown and how heavy they are. Water takes
+the sky's colour and a little of the sun's; ice is white, as bright as the
+daylight. At night rain all but vanishes, as it does.
+
+Nothing is drawn thinner than a pixel and a half. A centimetre-wide streak ten
+metres off broke into dashes or vanished; it is widened instead and made
+fainter by the same share, so distant rain reads as a grey veil. Drops within a
+metre of the eye fade out: one passing the lens lay across half the screen as
+a bright bar.
+
+**Rain stays out of houses.** `Shelter` holds every roof as the exact gable
+`createGableRoof` builds, overhangs included. The eight nearest the player go
+to the shaders every step (`NearRoofs`), and a drop is hidden once its lowest
+point is under one. Measured over every spot in every settlement, no more than
+six roofs ever reach into the rain round the player. The ground, rivers and
+sea come from a 64 m map of heights round the player (`CatchMap`): 16-bit
+heights in two 8-bit channels, which every GPU can read in a vertex shader,
+rebuilt on the CPU after twelve metres of walking.
+
+Roofs were in that map first. At half a metre a texel a 37-degree roof is up to
+19 cm out, and it showed: splash rings on the ceiling of the room below, and
+drops falling through into it. A headless check now compares the shaders' roof
+test with the exact roof at 20 million points round every house: all match.
+
+**Splashes**: 600 rings within 9 m of the player, each lasting 0.35 s, none in
+snow. A ring is laid on the slope it lands on: a level ring on a roof dipped
+11 cm into it on its uphill side. Where the surface either side disagrees — a
+ridge, an eave, a roof's edge — the ring is not shown, rather than hang in the
+air. In grass they are mostly hidden, as real ones are.
+
+**Anything under a roof is dry.** Wind-driven rain does not reach under an eave
+or in at a door. `Shelter.covers` answers "is this point under cover", for the
+wet and the cold later.
+
+Costs: the map takes 1.1 ms to rebuild (1.8 ms at worst) once every twelve
+metres walked, and picking the nearest roofs 0.6 µs a step. Rain is 64,000
+vertices and snow 96,000, each testing eight roofs; nothing is drawn while
+nothing falls.
+
+### Wet ground and puddles
+
+What the rain leaves behind (`src/world/weather/wet/`). The ground and the
+grass darken and turn glossy, water stands in puddles on the flat, and the
+rain still falling rings them. Under a roof the ground stays dry.
+
+**How wet the ground is, is a function of time, like the weather itself.** It
+is the last day of weather replayed — rain soaking in, sun and wind carrying
+it off — and nothing is kept between steps that the date cannot rebuild. So a
+moment always looks the same, and jumping the clock from the menu gives the
+same wet ground as walking there. Measured: no difference at all over five
+days of comparisons. Walking forward, only the newest quarter-hour is worked
+out; the whole day is replayed only when the clock jumps, which costs 0.2 ms.
+
+|               |                                                                                 |
+| ------------- | ------------------------------------------------------------------------------- |
+| Soaks         | 0.4 hours of the heaviest rain, from dry to soaked                              |
+| Dries         | about 4 hours in sun and no wind; a still, overcast night is three times slower |
+| Puddles fill  | 1.6 hours of that rain, and only once the ground can take no more               |
+| Puddles drain | 7 hours, so they are the last water to go                                       |
+| Frozen        | below 0.5 °C it falls as snow and does not soak in; below 0 nothing dries       |
+
+Over a year the ground is damp a quarter of the time, with puddles worth
+seeing on 15% of it.
+
+**Where it shows.** The darkening is everywhere the grass and the ground are.
+Puddles need flat, open ground you can see: beaches, riverbanks, the bare
+upland, and tilled fields when farming arrives. In the meadow the grass hides
+most of them, which is also what real grass does.
+
+The shader is a material plugin (`WetGroundPlugin`), **attached by hand where
+the ground and the grass materials are made**, not registered for every
+standard material: only those two show it, and matching by material name would
+break silently the day one is renamed. The ground alone carries the puddles,
+the ripples and the roofs — the four nearest, the same shapes the rain is kept
+off by, so the floor inside a house stays exactly as dry as it was before the
+rain (checked pixel for pixel).
+
+Puddles are a noise field over world coordinates, cut at a level that rises
+with the standing water, and only where the surface faces up. Their rings are
+one ripple at a time in each 0.6 m cell, each starting at its own moment in
+its own place — a ring in every cell at once, all the same size, read as
+corrugated metal. The whole effect sits behind one test on a uniform, so dry
+weather costs a branch and nothing else.
+
 ### Not yet
 
-Rain and snow falling, and shelter from them, are the next phase; snow lying
-on the ground, ice and footprints the one after; lightning and thunder after
-that. The peaks are only about 300 m up, 2 °C colder than the valley, so
-snow on them for much of the year will need its own rule when snow settles.
+Stone, timber and thatch do not darken in the rain yet; only the ground and
+the grass do. Snow lying on the ground, ice and footprints come next;
+lightning and thunder after that. The peaks are only about 300 m up, 2 °C
+colder than the valley, so snow on them for much of the year will need its own
+rule when snow settles.
 
 ## Sun and moon
 
@@ -784,6 +890,7 @@ full size after 10 changes in 5 minutes, and a fast one never changes.
 | Halo (glow layer)   | about 150  | view only, sun or moon up and near the screen |
 | God rays' occlusion | about 130  | sun up and near the screen                    |
 | Mini-map picture    | about 55   | 20 times a second                             |
+| Rain and snow       | 1 to 3     | only while something falls                    |
 
 `scene.skipPointerMovePicking` is on: Babylon otherwise casts a ray into the
 scene on every mouse move, up to a thousand a second with a gaming mouse, and

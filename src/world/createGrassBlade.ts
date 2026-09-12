@@ -1,6 +1,7 @@
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
+import { wetSurface } from "./weather/wet/WetGroundPlugin";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
@@ -72,6 +73,8 @@ export function createGrassBlade(scene: Scene): Mesh {
   data.applyToMesh(mesh, true);
 
   const material = new StandardMaterial("grass-material", scene);
+  // Wet grass darkens too, though it sheds most of the rain and holds no puddles.
+  wetSurface(material, false);
   material.diffuseColor = Color3.White();
   material.specularColor = Color3.Black();
   material.emissiveColor = Color3.Black();

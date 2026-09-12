@@ -18,13 +18,13 @@ export type GableRoofSpec = {
 };
 
 /** How far the roof hangs past the wall on the two sloping sides. */
-const EAVE_OVERHANG = 0.4;
+export const EAVE_OVERHANG = 0.4;
 /**
  * How far it hangs past the two gable ends. Small, but it must not be zero:
  * at zero the gable triangle is exactly coplanar with the wall below it, and
  * two surfaces in the same plane flicker against each other as the camera moves.
  */
-const GABLE_OVERHANG = 0.06;
+export const GABLE_OVERHANG = 0.06;
 
 /**
  * A pitched roof: two sloping faces meeting at a ridge, closed at each end by

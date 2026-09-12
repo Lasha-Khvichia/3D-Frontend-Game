@@ -399,11 +399,31 @@ possible. Never keep weather state that the date cannot rebuild. `dayPlans.ts`
 decides each day from Kyiv's records (a wet/dry Markov chain, bright or grey
 skies, rain spells, fog and mist mornings, purple days); `Weather` blends the
 hours and hands its state to everything registered with `addListener` in
-`main.ts` — sky colour, clouds, fog, trees, grass, smoke. Anything new the
-weather should change implements `setWeather(state)` and is added there. After
-the menu moves the clock or holds a weather, `SettingsBinder` runs
-`weather.update`, `dayNight.refresh` and `sky.repaint`, because no step runs
-while paused.
+`main.ts` — sky colour, clouds, fog, trees, grass, smoke, rain and snow.
+Anything new the weather should change implements `setWeather(state)` and is
+added there. After the menu moves the clock or holds a weather,
+`SettingsBinder` runs `weather.update`, `dayNight.refresh` and `sky.repaint`,
+because no step runs while paused.
+
+**Rain and snow are placed by their shaders, round the eye**
+(`src/world/weather/precipitation/`): three meshes of quads that never change,
+wrapped each frame into a box round the player and moved on real seconds.
+**Nothing falls under a roof**: the eight nearest roofs go to the shaders as
+exact gables (`NearRoofs`), because a map of roof heights at half a metre a
+texel is 19 cm out on a 37-degree roof and rain showed on the ceilings. A new
+roof shape needs its equation in both `Shelter` and `caughtAtShaders.ts`, or
+rain falls straight through it. Ground, rivers and sea come from `CatchMap`,
+rebuilt on the CPU every 12 m.
+
+**What the rain leaves behind is worked out backwards from the clock**
+(`src/world/weather/wet/`): how wet the ground is comes from replaying the
+last day of weather (`SoakTrail`), never from anything stored, so the same
+date is always as wet and the menu's clock jump agrees with having walked
+there. `WetGroundPlugin` is attached **by hand** where the ground and grass
+materials are made (`wetSurface`), not registered for every standard material:
+only those two show it, and the ground alone carries the puddles and the roof
+test that keeps a floor dry. A new material that should show the rain needs
+that call — there is nothing to notice if it is missing.
 
 **Sun and moon are real astronomy** (`celestialPath.ts`, `calendar/solarYear.ts`):
 latitude 45 degrees, the sun highest at 13:00 all year, day length following the
@@ -427,6 +447,8 @@ src/world/terrain/patches/  the drawn ground's levels of detail
 src/world/sky/      the sky, the clouds, their weather and their shadows
 src/world/calendar/ the calendar, the sun's path through the year, the climate
 src/world/weather/  the weather: what each day brings, and what it does to the sky and air
+src/world/weather/precipitation/  rain, sleet, hail and snow falling, and the roofs that keep it off
+src/world/weather/wet/  what the rain leaves: wet ground, puddles and their rings
 src/world/rocks/    loose stones
 src/player/    the bean, its camera, controls, collisions, footing, head bob
 src/minimap/   the second camera and its overlay decorations

@@ -5,6 +5,7 @@ import type { DayNightCycle } from "../world/DayNightCycle";
 import type { SunGodRays } from "../world/SunGodRays";
 import type { WorldStreaming } from "../world/WorldStreaming";
 import type { Sky } from "../world/sky/Sky";
+import type { WetGround } from "../world/weather/wet/WetGround";
 import type { Weather } from "../world/weather/Weather";
 import { MAX_PIXEL_RATIO } from "../core/createEngine";
 import { publishStats, subscribeToCommands } from "../ui/bridge";
@@ -20,6 +21,7 @@ export type SettingsTargets = {
   readonly streaming: WorldStreaming;
   readonly sky: Sky;
   readonly weather: Weather;
+  readonly wet: WetGround;
 };
 
 /**
@@ -46,6 +48,7 @@ export class SettingsBinder {
       // The menu is open, so the game is paused: the weather and the sky must
       // follow now, not on resume.
       targets.weather.update(targets.dayNight.totalHours);
+      targets.wet.update(targets.dayNight.totalHours, 0);
       targets.dayNight.refresh();
       targets.sky.repaint();
     });
