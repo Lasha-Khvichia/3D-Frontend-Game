@@ -26,6 +26,8 @@ export type SkyPaint = {
   /** The warm band along the horizon under a low sun. */
   readonly duskGlow: Color3;
   readonly stars: StarSky;
+  /** How much of the clouds shows: 1, or less in fog thick enough to hide them. */
+  cloudsShown: number;
 };
 
 /**
@@ -42,7 +44,10 @@ export class SkyDome {
   private readonly skyMaterial: ShaderMaterial;
   private readonly veilMaterial: ShaderMaterial;
 
-  constructor(scene: Scene, paint: SkyPaint) {
+  constructor(
+    scene: Scene,
+    private readonly paint: SkyPaint,
+  ) {
     ({ mesh: this.sky, material: this.skyMaterial } = createDome(scene, {
       name: "sky",
       radius: SKY_RADIUS,
@@ -57,7 +62,7 @@ export class SkyDome {
       name: "cloud-veil",
       radius: VEIL_RADIUS,
       fragment: { glsl: VEIL_FRAGMENT_GLSL, wgsl: VEIL_FRAGMENT_WGSL },
-      uniforms: ["camRight", "camUp", "camForward", "tanHalf"],
+      uniforms: ["camRight", "camUp", "camForward", "tanHalf", "cloudFade"],
       samplers: ["cloudSampler"],
       blended: true,
     }));
@@ -78,6 +83,7 @@ export class SkyDome {
     this.veilMaterial.setVector3("camUp", view.up);
     this.veilMaterial.setVector3("camForward", view.forward);
     this.veilMaterial.setVector2("tanHalf", view.tanHalf);
+    this.veilMaterial.setFloat("cloudFade", this.paint.cloudsShown);
   }
 
   dispose(): void {

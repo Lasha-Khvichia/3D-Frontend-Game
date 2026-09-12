@@ -45,12 +45,13 @@ uniform camRight: vec3f;
 uniform camUp: vec3f;
 uniform camForward: vec3f;
 uniform tanHalf: vec2f;
+uniform cloudFade: f32;
 @fragment
 fn main(input: FragmentInputs) -> FragmentOutputs {
   let ray = normalize(input.vDirection);
   let ahead = dot(ray, uniforms.camForward);
   if (ahead <= 0.0) { discard; }
   let uv = vec2f(dot(ray, uniforms.camRight), dot(ray, uniforms.camUp)) / ahead / uniforms.tanHalf * 0.5 + 0.5;
-  fragmentOutputs.color = textureSampleLevel(cloudSampler, cloudSamplerSampler, uv, 0.0);
+  fragmentOutputs.color = textureSampleLevel(cloudSampler, cloudSamplerSampler, uv, 0.0) * uniforms.cloudFade;
 }
 `;

@@ -9,8 +9,14 @@ import { CalendarReport } from "./calendar/CalendarReport";
 import { createTimeOfDayLighting, sampleTimeOfDay } from "./timeOfDayPalette";
 import { SunAndMoon } from "./SunAndMoon";
 import { applyAmbientLight } from "./ambientLight";
-import { setFogColour } from "./distanceFog";
-import { greyForOvercast } from "./overcastSky";
+import {
+  applySkyWeather,
+  copySkyWeather,
+  createSkyWeather,
+  murkOf,
+  type SkyWeather,
+} from "./weather/weatherSky";
+import { paintAir } from "./weather/weatherAir";
 import type { TimeOfDayLighting } from "./timeOfDayPalette";
 import type { ShadowQuality } from "../settings/gameSettings";
 
@@ -36,11 +42,9 @@ export class DayNightCycle {
   private readonly clock: TimeOfDay;
   private readonly lighting = createTimeOfDayLighting();
   private readonly report = new CalendarReport();
-  /** Where the player is, for the air temperature the overlay shows. */
-  private focus: Vector3 | null = null;
   private clockFrozen = false;
-  /** How much of the sky is cloud, 0 to 1. Greys the sky and the fog. */
-  private overcast = 0;
+  /** What the weather does to the sky: grey, dark, purple, misty. */
+  private readonly weather: SkyWeather = createSkyWeather();
 
   constructor(scene: Scene, options: DayNightCycleOptions = {}) {
     const ambientLight = scene.getLightByName(AMBIENT_LIGHT_NAME);
@@ -86,7 +90,6 @@ export class DayNightCycle {
 
   /** Keeps the shadow frustum centred on this point as it moves. */
   setShadowFocus(point: Vector3): void {
-    this.focus = point;
     this.sunAndMoon.setShadowFocus(point);
   }
 
@@ -114,13 +117,24 @@ export class DayNightCycle {
     return this.sunAndMoon.moonBearing;
   }
 
-  /** The sky's colours and the sun's light this step, overcast included. Read only. */
+  /** The sky's colours and the sun's light this step, weather included. Read only. */
   get palette(): TimeOfDayLighting {
     return this.lighting;
   }
 
-  setOvercast(share: number): void {
-    this.overcast = share;
+  /** Taken on the next step; `refresh` to show it at once, as when paused. */
+  setWeather(weather: Readonly<SkyWeather>): void {
+    copySkyWeather(weather, this.weather);
+  }
+
+  /** How much fog or falling rain and snow hides the sky and its clouds, 0 to 1. */
+  get murk(): number {
+    return murkOf(this.weather);
+  }
+
+  /** Repaints from the clock and the weather now, without advancing. */
+  refresh(): void {
+    this.apply();
   }
 
   /** Jump to a day of this year, 0 for 1 January to 364, keeping the hour. */
@@ -157,12 +171,9 @@ export class DayNightCycle {
     const hours = this.clock.totalHours;
     this.sunAndMoon.place(hours);
     sampleTimeOfDay(hours, this.sunAndMoon.sunHeight, this.lighting);
-    greyForOvercast(this.lighting.background, this.overcast);
-    greyForOvercast(this.lighting.zenith, this.overcast);
+    applySkyWeather(this.lighting, this.weather);
     this.scene.clearColor.copyFrom(this.lighting.background);
-    // The haze has to be the colour of the sky it fades into, or the world
-    // sits in grey smoke at midnight.
-    setFogColour(this.scene, this.lighting.background);
+    paintAir(this.scene, this.lighting.background, this.weather.mist);
     this.sunAndMoon.shine(this.lighting);
     applyAmbientLight(
       this.ambientLight,
@@ -170,6 +181,6 @@ export class DayNightCycle {
       this.sunAndMoon.sunAboveHorizon,
       this.sunAndMoon.moonAboveHorizon,
     );
-    this.report.publish(hours, this.focus?.y ?? 0);
+    this.report.publish(hours);
   }
 }

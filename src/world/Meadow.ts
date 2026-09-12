@@ -27,6 +27,7 @@ import { FAR_GRASS, NEAR_GRASS } from "./grassLayout";
 export class Meadow extends WorldEntity {
   private readonly near: GrassField;
   private readonly far: GrassField;
+  private windStrength = 1;
 
   constructor(scene: Scene, soil: GrassSoil) {
     super();
@@ -67,7 +68,12 @@ export class Meadow extends WorldEntity {
     // The breeze lives in the shared blade mesh, not in the transforms: five
     // vertices move and every blade in both patches follows, on the GPU, for
     // nothing. Both meshes go in one call because the clock advances inside it.
-    swayGrassBlade([this.near.mesh, this.far.mesh], seconds);
+    swayGrassBlade([this.near.mesh, this.far.mesh], seconds, this.windStrength);
+  }
+
+  /** The weather's wind: 1 is the breeze the sway was tuned in, 4.5 m/s. */
+  setWeather(weather: Readonly<{ wind: number }>): void {
+    this.windStrength = Math.min(2.5, Math.max(0.25, weather.wind / 4.5));
   }
 
   override dispose(): void {

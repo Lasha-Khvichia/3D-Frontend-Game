@@ -4,15 +4,13 @@ import { cloudShadeAt } from "./cloudShadeAt";
 import type { CloudNoise } from "./noise/buildCloudNoise";
 
 /**
- * The sky's weather: how much of it is cloud, which way the wind blows it, and
- * how far it has blown.
+ * The clouds' side of the weather: how much of the sky is cloud, which way
+ * the wind blows it, and how far it has blown. Cover and wind are the
+ * weather's (`Weather`); this carries the clouds along.
  *
- * Runs on real seconds, not game hours. A game day is five minutes, and wind
- * on the game clock would race clouds across the sky like a time-lapse.
- *
- * Cover rises and falls on two slow waves of seven and three minutes, which
- * never line up the same way twice: clear spells, broken skies, and every few
- * minutes an overcast that thins out again.
+ * The drift runs on real seconds, not game hours. A game day is twenty
+ * minutes, and wind on the game clock would race clouds across the sky like
+ * a time-lapse.
  */
 export class CloudWeather {
   /** 0 is a clear sky, 1 overcast. */
@@ -21,7 +19,9 @@ export class CloudWeather {
   readonly drift = { x: 0, z: 0 };
   /** Metres the lumps inside each cloud have risen: how clouds change shape as they go. */
   rise = 0;
-  private seconds = 95;
+  /** Metres a second at cloud height, and the way it blows towards. */
+  private speed = 12;
+  private heading = Math.PI / 2;
   private noise: CloudNoise | null = null;
 
   /** The noise the clouds are made of, once the worker has built it. Until then there is no cloud. */
@@ -29,16 +29,19 @@ export class CloudWeather {
     this.noise = noise;
   }
 
+  /**
+   * Cover, and the wind at the ground. Wind a kilometre and more up blows
+   * about twice as hard, and never quite stops.
+   */
+  setWeather(cover: number, groundWind: number, heading: number): void {
+    this.cover = cover;
+    this.speed = 5 + 1.8 * groundWind;
+    this.heading = heading;
+  }
+
   advance(seconds: number): void {
-    this.seconds += seconds;
-    const t = this.seconds;
-    const wave =
-      Math.sin((t / 420) * Math.PI * 2) * 0.34 + Math.sin((t / 170) * Math.PI * 2 + 1.3) * 0.14;
-    this.cover = Math.min(0.92, Math.max(0.08, 0.46 + wave));
-    const heading = 0.7 + Math.sin((t / 600) * Math.PI * 2) * 0.6;
-    const speed = 14 + Math.sin((t / 300) * Math.PI * 2) * 5;
-    this.drift.x = (this.drift.x + Math.sin(heading) * speed * seconds) % WEATHER_TILE;
-    this.drift.z = (this.drift.z + Math.cos(heading) * speed * seconds) % WEATHER_TILE;
+    this.drift.x = (this.drift.x + Math.sin(this.heading) * this.speed * seconds) % WEATHER_TILE;
+    this.drift.z = (this.drift.z + Math.cos(this.heading) * this.speed * seconds) % WEATHER_TILE;
     this.rise = (this.rise + seconds * 1.6) % WEATHER_TILE;
   }
 

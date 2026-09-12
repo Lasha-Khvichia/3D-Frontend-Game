@@ -35,6 +35,7 @@ design.
 | Head bob             | 0 to 100 percent of the bounce                                              |
 | Invert vertical look | flips the mouse                                                             |
 | Date                 | jump to any day of the year; the hour stays                                 |
+| Weather              | for testing: Auto, or hold any kind of weather                              |
 | Time of day          | jump the clock, or freeze it                                                |
 | Travel speed         | 1x to 8x walking and running                                                |
 | Render distance      | 300 m to 1200 m: where the fog closes in, and past which nothing is built   |
@@ -149,8 +150,117 @@ strong seasons, like Kyiv's:
 
 The warmest weeks come a month after midsummer, around 23 July, and the
 coldest around 22 January: land takes that long to catch up with the sun. The
-dawn-to-afternoon rise is 10 °C in summer and 5 °C in winter. Weather will push
-the temperature up and down from here, and a later health system will read it.
+dawn-to-afternoon rise is 10 °C in summer and 5 °C in winter. The weather
+pushes it up and down from here (see [Weather](#weather)), and a later health
+system will read it.
+
+## Weather
+
+The weather is **worked out afresh every step from the date and hour**, never
+stored (`src/world/weather/`). The same moment always has the same weather:
+that is what will let a forecast be read ahead, and a saved game come back to
+the sky it left. Every random draw is a hash of one world seed and where in
+time it is (`weatherNoise.ts`).
+
+### How a day is decided
+
+`dayPlans.ts` is a weather generator of the kind climatologists use
+(Richardson's WGEN), fed Kyiv's records for 1991–2020, the climate the
+temperatures already follow:
+
+- **Wet or dry** is a Markov chain. A wet day follows a wet day 60% of the time,
+  and the chance after a dry day is worked back from each month's share of wet
+  days, so rain comes in spells and the year's count still comes out right.
+- **Bright or grey.** Cloud is mostly one or the other. Dry days are bright
+  often enough that each month's sunshine comes out as Kyiv's.
+- **Rain spells**, one or two on a wet day. Summer's are afternoon showers,
+  sometimes a thunderstorm; the rest of the year's are long, grey and steady.
+- **Fog mornings**, lifting by mid-morning, or in winter lasting all day; and
+  **mist mornings** after clear, calm nights.
+- **Purple days**: 8 or 9 a year, four in five in spring or summer, never two
+  running, and never the game's opening day.
+
+Measured over ten simulated years. The thunderstorm count is a target, not a
+Kyiv figure: no count for Kyiv turned up.
+
+|                                  | Game           | Kyiv            |
+| -------------------------------- | -------------- | --------------- |
+| Wet days a year                  | 158            | 164             |
+| Days with snow falling           | 62             | about 61        |
+| Thunderstorm days                | 25             | no figure found |
+| Sunny share, January and July    | 13% and 67%    | 15% and 60%     |
+| Mean temperature, January / July | −3.8 / 19.5 °C | −3.5 / 20.5 °C  |
+
+### What each kind does
+
+| Kind         | Cover | Darkness | Visibility | Falling | Wind    |
+| ------------ | ----- | -------- | ---------- | ------- | ------- |
+| Clear        | 4%    | —        | —          | —       | 3 m/s   |
+| Fair         | 32%   | —        | —          | —       | 4 m/s   |
+| Cloudy       | 58%   | 0.05     | —          | —       | 5 m/s   |
+| Overcast     | 90%   | 0.2      | 2.5 km     | —       | 4.5 m/s |
+| Fog          | 85%   | 0.1      | 140 m      | —       | 1 m/s   |
+| Drizzle      | 94%   | 0.3      | 1.6 km     | 0.15    | 4 m/s   |
+| Rain         | 96%   | 0.45     | 900 m      | 0.5     | 6 m/s   |
+| Downpour     | 98%   | 0.65     | 350 m      | 1       | 8 m/s   |
+| Thunderstorm | 100%  | 0.9      | 500 m      | 0.85    | 12 m/s  |
+| Purple       | 45%   | —        | —          | —       | 3 m/s   |
+
+What falls is decided by the temperature where the player stands: snow below
+0.5 °C, sleet up to 2.5 °C, rain above, and hail from one summer storm in five.
+The stats panel names it — "Light snow", "Blizzard" for heavy snow in a wind of
+10 m/s or more, "Thundersnow", "Hailstorm". Falling snow hides far more than
+rain: 300 m in heavy snow, 120 m in a blizzard.
+
+Wind swings slowly either side of the westerly, calmer or wilder from day to
+day. The look eases across four hour marks with a cubic B-spline, so nothing
+changes at once: a clear sky takes about two real minutes to cloud over.
+
+The weather also sets the temperature: warm and cold spells lasting days,
+five degrees either side in winter and three in summer — a winter spell above
+freezing is a thaw — while cloud flattens the day's rise to 40% of a clear
+day's and rain cools warm air by up to 2 °C.
+
+### What it changes
+
+- **The clouds**: their cover, and the wind that carries them.
+- **The sky**: greyed by cloud; darkened in a storm — dark grey air, black
+  clouds, weaker light; tinted on a purple day, keeping each colour's
+  brightness so a purple night is still night; and, in thick fog or heavy
+  rain, flattened to the fog's colour with the clouds faded out, because past
+  a few hundred metres there is no sky to see.
+- **The fog**: visibility pulls the haze in. The render distance still decides
+  what is built, so a lifting fog shows a finished world.
+- **Ground mist**, below.
+- **Wind** in the trees (strength and direction; trees move on WebGL only),
+  the grass and the chimney smoke — all the same way as the clouds.
+
+The menu's **Weather** slider holds any kind, for testing; the stats panel
+shows the weather and the air temperature.
+
+### Ground mist is height fog
+
+Babylon's fog knows only distance. Mist made of it turned the whole mountain
+into a flat grey cut-out under a clear dawn sky. `HeightMistPlugin` is the
+standard exponential height fog instead, on every standard material: dense at
+the lowland floor, thinning to a third every 15 m up, integrated along each
+line of sight (Íñigo Quílez's closed form). In a valley the fields go white at
+about 250 m and the peaks stand clear; from a hill you look down on a sea of
+mist. It is mixed in before Babylon's own fog, so the two work together.
+
+**It finds Babylon's fog line by its exact text** —
+`float fog=CalcFogFactor();` in GLSL, `var fog: f32=CalcFogFactor();` in WGSL —
+replacing it through a plugin key starting with `!`, which Babylon applies as a
+regular expression after its includes are expanded. If a Babylon update
+rewrites that line, the mist silently stops: the shader still compiles and
+nothing matches.
+
+### Not yet
+
+Rain and snow falling, and shelter from them, are the next phase; snow lying
+on the ground, ice and footprints the one after; lightning and thunder after
+that. The peaks are only about 300 m up, 2 °C colder than the valley, so
+snow on them for much of the year will need its own rule when snow settles.
 
 ## Sun and moon
 
@@ -296,15 +406,10 @@ The numbers that decide the look are one table, `shaders/cloudLook.ts`.
 
 ### Weather
 
-Cover rises and falls on two slow waves, seven and three minutes long, which
-never line up the same way twice: clear spells, broken skies, and every few
-minutes an overcast that thins out again. The wind blows at 9 to 19 m/s and
-slowly veers. **All of it runs on real seconds, not game hours** — a game day
-is twenty minutes, and on the game clock clouds would race across the sky.
-
-As cover rises, the sky and the fog turn grey with it, which is what an
-overcast day does to the distance. Weather is left as one number — cover — for
-a later weather system to drive.
+Cover and wind come from the weather (see [Weather](#weather)); the wind a
+kilometre and more up blows at 5 m/s plus 1.8 times the wind at the ground.
+**The drift runs on real seconds, not game hours** — a game day is twenty
+minutes, and on the game clock clouds would race across the sky.
 
 ### Shadows, and the sun going in
 
@@ -438,6 +543,10 @@ See [Render distance and streaming](#render-distance-and-streaming).
 
 The colour is not a constant. `DayNightCycle` pushes the sky colour into it on
 every step, or the world would sit in grey smoke at midnight.
+
+The weather can bring it closer: fog, a downpour or a blizzard shortens the
+visibility, and the haze then thickens from close by rather than from a third
+of the way out. It never pushes the fog further than the render distance.
 
 ### The sky moves with you
 

@@ -32,6 +32,8 @@ export type StreamedWorld = {
  */
 export class WorldStreaming {
   private renderDistance = MAX_RENDER_DISTANCE;
+  /** How far the weather lets one see; the fog comes in to meet it. */
+  private visibility = Infinity;
   private readonly trees: ShownByDistance;
   private readonly houses: ShownByDistance;
   private readonly houseDetail: ShownByDistance;
@@ -49,8 +51,15 @@ export class WorldStreaming {
 
   setRenderDistance(metres: number): void {
     this.renderDistance = Math.min(metres, MAX_RENDER_DISTANCE);
-    applyDistanceFog(this.scene, this.renderDistance);
+    applyDistanceFog(this.scene, this.renderDistance, this.visibility);
     this.world.terrain.detail.setReach(this.renderDistance);
+  }
+
+  /** Fog, rain and snow bring the haze in; nothing built changes, so a lifting fog shows a finished world. */
+  setWeather(weather: Readonly<{ visibility: number }>): void {
+    if (Math.abs(weather.visibility - this.visibility) < 1) return;
+    this.visibility = weather.visibility;
+    applyDistanceFog(this.scene, this.renderDistance, this.visibility);
   }
 
   /** Builds everything around a point at once. Before the first frame, so it opens complete. */

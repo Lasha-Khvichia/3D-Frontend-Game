@@ -17,11 +17,12 @@ export type WindStrength = {
   readonly flutter: number;
 };
 
-/** Where the wind blows from, and how fast the clock runs. */
+/** The wind every tree shares: its clock, the way it blows, and how hard (1 is a 5 m/s breeze). */
 export type WindField = {
   time: number;
-  readonly directionX: number;
-  readonly directionZ: number;
+  directionX: number;
+  directionZ: number;
+  strength: number;
 };
 
 /**
@@ -76,9 +77,9 @@ export class WindMaterialPlugin extends MaterialPluginBase {
     _subMesh: SubMesh,
   ): void {
     uniformBuffer.updateFloat("windTime", this.field.time);
-    uniformBuffer.updateFloat("windBend", this.strength.bend);
-    uniformBuffer.updateFloat("windSway", this.strength.sway);
-    uniformBuffer.updateFloat("windFlutter", this.strength.flutter);
+    uniformBuffer.updateFloat("windBend", this.strength.bend * this.field.strength);
+    uniformBuffer.updateFloat("windSway", this.strength.sway * this.field.strength);
+    uniformBuffer.updateFloat("windFlutter", this.strength.flutter * this.field.strength);
     uniformBuffer.updateFloat2("windDirection", this.field.directionX, this.field.directionZ);
   }
 

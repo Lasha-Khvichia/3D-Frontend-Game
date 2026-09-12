@@ -16,6 +16,8 @@ export function StatsPanel() {
       <dd>{formatDate(stats.date)}</dd>
       <dt>Time</dt>
       <dd>{formatClock(stats.timeOfDayHours)}</dd>
+      <dt>Weather</dt>
+      <dd>{stats.weather}</dd>
       <dt>Air</dt>
       <dd>{formatTemperature(stats.airTemperature)}</dd>
       <dt>Backend</dt>

@@ -23,10 +23,13 @@ import { WorldStreaming } from "./world/WorldStreaming";
 import { houseDistanceGroups } from "./world/houses/houseDistanceGroups";
 import { treeDistanceGroup } from "./world/trees/treeDistanceGroup";
 import { registerCloudShadows } from "./world/sky/CloudShadowPlugin";
+import { registerHeightMist } from "./world/weather/HeightMistPlugin";
 import { Sky } from "./world/sky/Sky";
 import { serveWorldMap } from "./world/map/serveWorldMap";
 import { GrassBlockerGrid } from "./world/GrassBlockerGrid";
 import { rectangleBlocker } from "./world/grassBlockers";
+import { Weather } from "./world/weather/Weather";
+import { smokeWind } from "./world/fire/createSmokeParticles";
 
 const canvas = document.getElementById("render-canvas");
 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -46,6 +49,7 @@ const scene = runtime.loadScene(createMainScene);
 // Before any material exists: Babylon only gives a registered plugin to
 // materials made after it, and every standard material gets cloud shadows.
 registerCloudShadows();
+registerHeightMist();
 
 // The island first: everything after it stands on it.
 const terrain = new Terrain(scene);
@@ -115,6 +119,13 @@ grass.setBlockers(
   ]),
 );
 
+// The weather: worked out from the date every step, and followed by the sky's
+// colour and clouds, the fog, the trees, the grass and the chimney smoke.
+const weather = new Weather(player.controller.bean.position);
+for (const listener of [dayNight, sky, streaming, wind, grass, smokeWind]) {
+  weather.addListener(listener);
+}
+
 const settings = new SettingsBinder({
   resolution: runtime.resolution,
   camera: player.controller.camera,
@@ -123,15 +134,21 @@ const settings = new SettingsBinder({
   godRays,
   streaming,
   sky,
+  weather,
 });
 
 // After the settings, which carry the render distance: the first frame opens
 // on a finished world rather than one filling in around the player.
 streaming.prime(player.controller.bean.position);
+// And the opening weather, shown before any step runs: the game opens paused.
+weather.update(dayNight.totalHours);
+dayNight.refresh();
+sky.repaint();
 
 // setSimulationStep takes one function, so every system is composed here.
 runtime.setSimulationStep((fixedDeltaSeconds) => {
   dayNight.advance(fixedDeltaSeconds);
+  weather.update(dayNight.totalHours);
   // Before the player's own update, which clears any key press nothing took.
   publishPrompt(
     openings.update(fixedDeltaSeconds, player.controller.bean.position, player.takeOpeningKeys()),

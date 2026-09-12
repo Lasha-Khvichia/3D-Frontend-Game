@@ -24,15 +24,25 @@ const WARMEST_AFTER_NOON = 2.5;
 /** Air cools 6.5 °C for every kilometre climbed. */
 const COOLING_PER_METRE = 0.0065;
 
-/** Degrees Celsius, at a height above the sea in metres. */
-export function airTemperature(totalHours: number, altitude: number): number {
+/**
+ * Degrees Celsius, at a height above the sea in metres. `dayRange` scales the
+ * rise from dawn to afternoon — cloud flattens it — and `offset` is the
+ * weather's own warm or cold spell.
+ */
+export function airTemperature(
+  totalHours: number,
+  altitude: number,
+  dayRange = 1,
+  offset = 0,
+): number {
   const turn = (totalHours / HOURS_PER_DAY - WARMEST_DAY) / DAYS_PER_YEAR;
   const season = Math.cos(turn * Math.PI * 2);
   const dayMean = YEAR_MEAN + SEASON_SWING * season;
   const daySwing =
     (DAY_SWING_SUMMER + DAY_SWING_WINTER) / 2 +
     (season * (DAY_SWING_SUMMER - DAY_SWING_WINTER)) / 2;
-  return dayMean + daySwing * dayCurve(totalHours) - COOLING_PER_METRE * Math.max(0, altitude);
+  const height = COOLING_PER_METRE * Math.max(0, altitude);
+  return dayMean + offset + daySwing * dayRange * dayCurve(totalHours) - height;
 }
 
 /**

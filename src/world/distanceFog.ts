@@ -1,5 +1,4 @@
 import { Scene } from "@babylonjs/core/scene";
-import type { Color4 } from "@babylonjs/core/Maths/math.color";
 
 /**
  * How far the camera can see. Everything past this is clipped away entirely.
@@ -37,19 +36,25 @@ const FOG_START_SHARE = 0.35;
  * past the render distance is fully hidden in every direction, corners of the
  * screen included — which is why nothing needs to be built there at all.
  *
+ * The weather can bring it closer: `visibility` is how far one can see
+ * through fog or falling rain and snow, and never pushes it further out.
+ *
  * The colour is not set here. It has to follow the sky through the day, or
  * the world sits in grey haze at midnight — `DayNightCycle` pushes the sky
- * colour into it on every step.
+ * colour into it on every step, whitened in mist.
  */
-export function applyDistanceFog(scene: Scene, renderDistance = MAX_RENDER_DISTANCE): void {
+export function applyDistanceFog(
+  scene: Scene,
+  renderDistance = MAX_RENDER_DISTANCE,
+  visibility = Infinity,
+): void {
   // Linear rather than exponential. Exponential fog never fully hides
   // anything, so geometry would still be visible when the far plane cut it.
   scene.fogMode = Scene.FOGMODE_LINEAR;
-  scene.fogStart = renderDistance * FOG_START_SHARE;
-  scene.fogEnd = Math.min(renderDistance, MAX_RENDER_DISTANCE);
-}
-
-/** Keeps the haze the same colour as the sky it fades into. */
-export function setFogColour(scene: Scene, sky: Color4): void {
-  scene.fogColor.set(sky.r, sky.g, sky.b);
+  const reach = Math.min(renderDistance, MAX_RENDER_DISTANCE);
+  scene.fogEnd = Math.min(reach, visibility);
+  // Weather that shortens the view — fog, a downpour, a blizzard — thickens
+  // from close by, not from a third of the way out.
+  const share = visibility >= reach ? FOG_START_SHARE : 0.08 + 0.27 * (visibility / reach);
+  scene.fogStart = scene.fogEnd * share;
 }

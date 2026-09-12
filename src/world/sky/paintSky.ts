@@ -19,6 +19,7 @@ export function createSkyPaint(): SkyPaint {
     sunGlow: new Color3(),
     duskGlow: new Color3(),
     stars: new StarSky(),
+    cloudsShown: 1,
   };
 }
 
@@ -55,6 +56,7 @@ export function paintSky(
   paint.stars.update(seconds, dayNight.totalHours, sun.y, moonAboveHorizon, moonLit);
   paint.horizon.set(palette.background.r, palette.background.g, palette.background.b);
   paint.zenith.copyFrom(palette.zenith);
+  paint.cloudsShown = 1 - dayNight.murk;
   paint.sunDirection.copyFrom(sun);
   paint.sunGlow
     .copyFrom(palette.lightColor)

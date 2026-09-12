@@ -11,13 +11,12 @@ import { CloudWeather } from "./CloudWeather";
 import { loadCloudPass } from "./loadCloudPass";
 import { createCloudLighting, createSkyPaint, paintSky } from "./paintSky";
 import { SkyDome, type SkyPaint } from "./SkyDome";
+import type { WeatherState } from "../weather/weatherState";
 
 /**
- * The sky: its colour, the clouds in it, their weather, their shadows, and
- * how much of the sun and moon they let through.
- *
- * The clouds arrive a moment after the game starts, once the worker has built
- * their noise; until then the sky is drawn clear.
+ * The sky: its colour, the clouds in it, their shadows, and how much of the
+ * sun and moon they let through. The clouds arrive a moment after the game
+ * starts, once the worker has built their noise; until then the sky is clear.
  */
 export class Sky {
   readonly weather = new CloudWeather();
@@ -91,6 +90,10 @@ export class Sky {
     this.sunThrough += (sun - this.sunThrough) * ease;
     this.moonThrough += (moon - this.moonThrough) * ease;
     this.dayNight.sunAndMoon.setCloudCover(this.sunThrough, this.moonThrough);
-    this.dayNight.setOvercast(clouds ? this.weather.cover : 0);
+  }
+
+  /** The weather's cover and wind, for the clouds to take. */
+  setWeather(weather: Readonly<WeatherState>): void {
+    this.weather.setWeather(weather.cover, weather.wind, weather.heading);
   }
 }

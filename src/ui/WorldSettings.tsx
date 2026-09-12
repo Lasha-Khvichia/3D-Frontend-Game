@@ -7,6 +7,8 @@ import { useGameStats } from "./useGameStats";
 import { SliderRow } from "./SliderRow";
 import { ToggleRow } from "./ToggleRow";
 import { formatClock, formatDayOfYearShort } from "./formatCalendar";
+import { WeatherHoldRow } from "./WeatherHoldRow";
+
 import { SeasonDot } from "./SeasonDot";
 
 /** "21 Jun" after a dot in the season's colour. */
@@ -21,7 +23,7 @@ function formatDateSetting(dayOfYear: number) {
 
 export function WorldSettings() {
   const settings = useGameSettings();
-  const { timeOfDayHours, date } = useGameStats();
+  const { timeOfDayHours, date, weatherHeld } = useGameStats();
 
   return (
     <section className="menu__section">
@@ -44,6 +46,7 @@ export function WorldSettings() {
         format={formatClock}
         onChange={(hour) => sendCommand({ type: "set-time-of-day", hour })}
       />
+      <WeatherHoldRow held={weatherHeld} />
       <ToggleRow
         label="Clock"
         value={settings.clockFrozen}

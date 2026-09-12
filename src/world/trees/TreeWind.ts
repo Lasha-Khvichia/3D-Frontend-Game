@@ -2,10 +2,10 @@ import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import type { Material } from "@babylonjs/core/Materials/material";
 import { WorldEntity } from "../../core/WorldEntity";
 import { WindMaterialPlugin, type WindField, type WindStrength } from "./WindMaterialPlugin";
+import type { WeatherState } from "../weather/weatherState";
 
-/** Which way the wind blows. The same heading the chimney smoke drifts on. */
-const DIRECTION_X = 0.9;
-const DIRECTION_Z = 0.43;
+/** Metres a second at which the tuned strengths below are what the trees show. */
+const TUNED_FOR_WIND = 5;
 
 /** Wood leans and sways but does not flutter. */
 export const WOOD_WIND: WindStrength = { bend: 0.004, sway: 0.03, flutter: 0 };
@@ -30,7 +30,7 @@ export const LEAF_WIND: WindStrength = { ...WOOD_WIND, flutter: 0.022 };
  * that picks WebGPU, the wind quietly stays off there and the trees stand still.
  */
 export class TreeWind extends WorldEntity {
-  private readonly field: WindField = { time: 0, directionX: DIRECTION_X, directionZ: DIRECTION_Z };
+  private readonly field: WindField = { time: 0, directionX: 1, directionZ: 0, strength: 1 };
   readonly supported: boolean;
 
   constructor(engine: AbstractEngine) {
@@ -49,5 +49,12 @@ export class TreeWind extends WorldEntity {
 
   update(seconds: number): void {
     this.field.time += seconds;
+  }
+
+  /** The weather's wind: the same heading the clouds and the chimney smoke go. */
+  setWeather(weather: Readonly<WeatherState>): void {
+    this.field.strength = Math.min(3, Math.max(0.15, weather.wind / TUNED_FOR_WIND));
+    this.field.directionX = Math.sin(weather.heading);
+    this.field.directionZ = Math.cos(weather.heading);
   }
 }

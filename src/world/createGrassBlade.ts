@@ -127,11 +127,13 @@ const swayPositions = new Float32Array(15);
  * Takes every blade mesh at once, because the clock advances inside it. Called
  * once per mesh, the near and far patches would run at different speeds.
  */
-export function swayGrassBlade(meshes: readonly Mesh[], seconds: number): void {
-  swayTime += seconds;
+export function swayGrassBlade(meshes: readonly Mesh[], seconds: number, strength = 1): void {
+  // A stronger wind swings the blades further and quicker.
+  swayTime += seconds * (0.7 + 0.3 * strength);
 
-  const forward = Math.sin((swayTime / SWAY_PERIOD) * Math.PI * 2) * SWAY_REACH;
-  const sideways = Math.sin((swayTime / SWAY_SIDE_PERIOD) * Math.PI * 2) * SWAY_SIDE_REACH;
+  const forward = Math.sin((swayTime / SWAY_PERIOD) * Math.PI * 2) * SWAY_REACH * strength;
+  const sideways =
+    Math.sin((swayTime / SWAY_SIDE_PERIOD) * Math.PI * 2) * SWAY_SIDE_REACH * strength;
 
   const halfBase = BASE_WIDTH / 2;
   const halfMid = MID_WIDTH / 2;

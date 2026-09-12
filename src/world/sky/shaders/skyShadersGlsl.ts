@@ -62,11 +62,12 @@ uniform vec3 camRight;
 uniform vec3 camUp;
 uniform vec3 camForward;
 uniform vec2 tanHalf;
+uniform float cloudFade;
 void main() {
   vec3 ray = normalize(vDirection);
   float ahead = dot(ray, camForward);
   if (ahead <= 0.0) discard;
   vec2 uv = vec2(dot(ray, camRight), dot(ray, camUp)) / ahead / tanHalf * 0.5 + 0.5;
-  gl_FragColor = texture2D(cloudSampler, uv);
+  gl_FragColor = texture2D(cloudSampler, uv) * cloudFade;
 }
 `;

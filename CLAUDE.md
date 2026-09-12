@@ -110,6 +110,13 @@ game's worst stutter. Store by blocks and send each changed block
 draws every enabled mesh on its camera's layers, however far outside its view.
 Give it `renderListPredicate` with a frustum test (`ViewBoxFilter`).
 
+**Ground mist finds Babylon's fog line by its exact text.** `HeightMistPlugin`
+replaces `float fog=CalcFogFactor();` (GLSL) and `var fog: f32=CalcFogFactor();`
+(WGSL) through a plugin key starting with `!`, which Babylon applies as a
+regular expression after its includes are expanded. If a Babylon update
+rewrites that line the mist silently stops: the shader compiles and nothing
+matches. Check the mist after upgrading Babylon.
+
 **Detaching `VolumetricLightScatteringPostProcess` does not stop its occlusion
 pass**, which lives in `camera.customRenderTargets`; take it off that list too.
 And **an effect layer's `camera` option does not stop it being merged onto
@@ -385,6 +392,19 @@ one — real months and lengths, 365 days, no leap years, seasons as whole month
 (spring is March to May). A game day is 20 real minutes; the game opens at 10:00
 on 1 March.
 
+**The weather is a function of time** (`src/world/weather/`): worked out
+afresh every step from the date and hour, never stored, so the same moment
+always has the same weather — which is what makes a forecast and a save
+possible. Never keep weather state that the date cannot rebuild. `dayPlans.ts`
+decides each day from Kyiv's records (a wet/dry Markov chain, bright or grey
+skies, rain spells, fog and mist mornings, purple days); `Weather` blends the
+hours and hands its state to everything registered with `addListener` in
+`main.ts` — sky colour, clouds, fog, trees, grass, smoke. Anything new the
+weather should change implements `setWeather(state)` and is added there. After
+the menu moves the clock or holds a weather, `SettingsBinder` runs
+`weather.update`, `dayNight.refresh` and `sky.repaint`, because no step runs
+while paused.
+
 **Sun and moon are real astronomy** (`celestialPath.ts`, `calendar/solarYear.ts`):
 latitude 45 degrees, the sun highest at 13:00 all year, day length following the
 date. Sky colours are two keyframe tables in `timeOfDayKeyframes.ts`, keyed by
@@ -406,6 +426,7 @@ src/world/terrain/  the island's height grid, sea, and rivers/
 src/world/terrain/patches/  the drawn ground's levels of detail
 src/world/sky/      the sky, the clouds, their weather and their shadows
 src/world/calendar/ the calendar, the sun's path through the year, the climate
+src/world/weather/  the weather: what each day brings, and what it does to the sky and air
 src/world/rocks/    loose stones
 src/player/    the bean, its camera, controls, collisions, footing, head bob
 src/minimap/   the second camera and its overlay decorations

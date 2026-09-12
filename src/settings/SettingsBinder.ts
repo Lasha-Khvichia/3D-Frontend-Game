@@ -5,8 +5,9 @@ import type { DayNightCycle } from "../world/DayNightCycle";
 import type { SunGodRays } from "../world/SunGodRays";
 import type { WorldStreaming } from "../world/WorldStreaming";
 import type { Sky } from "../world/sky/Sky";
+import type { Weather } from "../world/weather/Weather";
 import { MAX_PIXEL_RATIO } from "../core/createEngine";
-import { subscribeToCommands } from "../ui/bridge";
+import { publishStats, subscribeToCommands } from "../ui/bridge";
 import { readSettings, subscribeToSettings } from "./settingsStore";
 import type { GameSettings } from "./gameSettings";
 
@@ -18,6 +19,7 @@ export type SettingsTargets = {
   readonly godRays: SunGodRays;
   readonly streaming: WorldStreaming;
   readonly sky: Sky;
+  readonly weather: Weather;
 };
 
 /**
@@ -37,8 +39,14 @@ export class SettingsBinder {
     this.unsubscribeCommands = subscribeToCommands((command) => {
       if (command.type === "set-time-of-day") targets.dayNight.setTimeOfDay(command.hour);
       else if (command.type === "set-date") targets.dayNight.setDayOfYear(command.dayOfYear);
-      else return;
-      // The menu is open, so the game is paused: the sky must follow now, not on resume.
+      else if (command.type === "set-weather") {
+        targets.weather.force(command.kind === "auto" ? null : command.kind);
+        publishStats({ weatherHeld: command.kind });
+      } else return;
+      // The menu is open, so the game is paused: the weather and the sky must
+      // follow now, not on resume.
+      targets.weather.update(targets.dayNight.totalHours);
+      targets.dayNight.refresh();
       targets.sky.repaint();
     });
     this.apply(readSettings());
