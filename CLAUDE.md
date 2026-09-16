@@ -41,9 +41,14 @@ which looks exactly like a broken shader.
 
 ## How the app is put together
 
-`src/main.ts` is the composition root and the **only** place systems are wired.
+`src/main.ts` boots the game; **`src/game/` is the only place systems are
+wired**. `buildWorld` builds every system and hands each the others it needs,
+through `buildLand` (terrain, player, sky and light), `buildVillage` and
+`buildWeather`, and returns them all as one flat `World`.
 `GameRuntime.setSimulationStep()` takes a single function, so every system's
-per-step update is called from that one closure. New system means a new line there.
+per-step update is called, in order, from `stepWorld`. New system means a line
+in the builder for its part of the world and a line in `stepWorld`. The files
+were split this way because `main.ts` passed the 100-line limit.
 
 `GameRuntime` owns the engine, the scene and the loop; nothing else creates them.
 `FixedStepLoop` runs game logic at a fixed 60 steps per second and renders as
@@ -412,9 +417,14 @@ possible. Never keep weather state that the date cannot rebuild. `dayPlans.ts`
 decides each day from Kyiv's records (a wet/dry Markov chain, bright or grey
 skies, rain spells, fog and mist mornings, purple days); `Weather` blends the
 hours and hands its state to everything registered with `addListener` in
-`main.ts` — sky colour, clouds, fog, trees, grass, smoke, rain and snow.
+`src/game/` — sky colour, clouds, fog, trees, grass, smoke, rain and snow.
 Anything new the weather should change implements `setWeather(state)` and is
-added there. After the menu moves the clock or holds a weather,
+added there. **Wind has its own spells, whatever falls** (`weatherWind.ts`):
+`KIND_LOOKS.wind` is what a kind _adds_ (a storm's gusts, fog's stillness),
+never the wind itself — put rain back in charge of the wind and every rainy
+day is windy again. **Clouds lead the rain**: cover and darkness are the
+heavier of now and three hours on (`skyLead.ts`), so a storm darkens the sky
+before its first drop. After the menu moves the clock or holds a weather,
 `SettingsBinder` runs `weather.update`, `dayNight.refresh` and `sky.repaint`,
 because no step runs while paused.
 
@@ -461,6 +471,37 @@ replayed with the snow, and drawn by `RiverIcePlugin` from the same bands the
 footing reads. Anything else that should stand on ice must be given the
 `WinterGround`, or it will wade through a frozen river.
 
+**Lightning lights the sky and the fill light, never the sun or the moon**
+(`src/world/weather/storm/`). Their lights cast shadows, and there is no
+fifth light to spare. Strikes are hashed from each real second of storm, so
+they too are a function of the date. The flash goes through
+`dayNight.light.setFlash` and shows when the clock next paints; no step runs
+while paused, so `Lightning` puts a flash out from a before-render check or
+the sky stays lit behind the menu. Bolts are drawn 1,150 m out, scaled to
+their true size, and can show in front of a mountain further off than that.
+
+**Sound runs on real time every drawn frame, not in the step** (`src/audio/`),
+so it goes on, quieter, while paused — except footsteps, which `StrideTracker`
+hears in `stepWorld` and `GroundSurfaces` names the ground for. Nothing plays
+until the player clicks or presses a key — browsers keep an `AudioContext`
+suspended until then. Every sound goes through the master gain and then the
+limiter; a sound connected straight to the destination escapes the volume
+setting and can clip. Rain, wind and leaves go through the weather bus, which
+dips under thunder: a new weather sound belongs there. Wiring is in
+`src/game/buildSound.ts`. House creaks are heard **only inside a house's
+walls** (the footprint), not under a roof's eaves (`Shelter.covers`).
+
+**Anything drawn behind the cloud veil must be dimmed by `behindClouds`**
+(`src/world/sky/skyThrough.ts`): stars, the sun and moon discs, the glare.
+Fog thins the drawn clouds out (`cloudsShown`) and rain a little, and the
+clouds no longer drawn must still cover what lies behind — without it a night
+storm is starry and the sun a white dot in a storm. Halos, added over the
+finished picture, take `throughClouds` instead. **Storm clouds are held back
+from full cover** by a fifth of the darkness (`CloudWeather`), or a storm is
+one flat sheet; the shadows share that cover, so change it in one place. A
+storm's base hangs lumpy (`stormBase`); keep that lift, plus its 0.07 fade,
+under `SHADOW_HEIGHT`, or the clouds and their shadows stop matching.
+
 **Sun and moon are real astronomy** (`celestialPath.ts`, `calendar/solarYear.ts`):
 latitude 45 degrees, the sun highest at 13:00 all year, day length following the
 date. Sky colours are two keyframe tables in `timeOfDayKeyframes.ts`, keyed by
@@ -486,7 +527,10 @@ src/world/weather/  the weather: what each day brings, and what it does to the s
 src/world/weather/precipitation/  rain, sleet, hail and snow falling, and the roofs that keep it off
 src/world/weather/wet/  what the rain leaves: wet ground, puddles and their rings
 src/world/weather/snow/  snow that builds and melts, on the ground, roofs and stones, and the trail through it
+src/world/weather/storm/  lightning: when and where it strikes, the flash and the bolt
 src/world/rocks/    loose stones
+src/game/      the world built and wired together, and the order it steps in
+src/audio/     every sound, made in code with Web Audio; footsteps/ by the ground underfoot
 src/player/    the bean, its camera, controls, collisions, footing, head bob
 src/minimap/   the second camera and its overlay decorations
 src/ui/        React overlay + the bridge

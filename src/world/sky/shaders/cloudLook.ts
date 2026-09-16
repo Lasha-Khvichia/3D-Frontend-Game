@@ -16,6 +16,18 @@ export const CLOUD_LOOK = {
    * lighter and darker patches instead of one flat ceiling.
    */
   scatteredSun: 0.45,
+  /**
+   * How much of the sky's light a black storm takes off its clouds. Without it
+   * a storm is one flat dark sheet; with it the thick cores go dark while
+   * thinner cloud still shows the light coming through from above.
+   */
+  stormAmbient: 0.6,
+  /**
+   * How far up a black storm's base may hang, as a share of the layer: lumpy
+   * where the cloud is thin, low where it is thick. With its 0.07 fade it stays
+   * under 0.3, the height the shadows sample, so they stay exactly as they were.
+   */
+  stormBase: 0.22,
   /** First stride of the march toward the light, doubling each step after. */
   lightStride: 45,
   /** Clouds whose base is further than this along the ray are not marched at all. */

@@ -35,7 +35,7 @@ export function attachPrecipitation(
 ): FallingWeather {
   const shelter = Shelter.fromHouses(world.houses);
   const catchMap = new CatchMap(scene, world.ground, shelter);
-  const precipitation = new Precipitation(scene, () => world.dayNight.palette, catchMap);
+  const precipitation = new Precipitation(scene, () => world.dayNight.light.palette, catchMap);
   for (const mesh of precipitation.meshes) {
     world.godRays.excludeFromOcclusion(mesh);
     world.dayNight.sunAndMoon.glow.exclude(mesh);

@@ -1,6 +1,5 @@
-import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Hearth } from "../fire/Hearth";
-import type { Footprint } from "../footprint";
+import { insideFootprint } from "../footprint";
 import type { Door } from "../openings/Door";
 import type { ShutteredWindow } from "../openings/ShutteredWindow";
 import type { DistanceGroup } from "../ShownByDistance";
@@ -41,7 +40,9 @@ export function houseDistanceGroups(
     const name = house.blueprint.name;
     const ownDoors = doors.filter((door) => door.opening.houseName === name);
     const ownWindows = windows.filter((window) => window.opening.houseName === name);
-    const ownHearths = hearths.filter((hearth) => isInside(house.footprint, hearth.firePoint));
+    const ownHearths = hearths.filter((hearth) =>
+      insideFootprint(house.footprint, hearth.firePoint.x, hearth.firePoint.z),
+    );
     const place = {
       x: house.centreX,
       z: house.centreZ,
@@ -70,13 +71,4 @@ export function houseDistanceGroups(
     });
   }
   return { bodies, details, fittings };
-}
-
-function isInside(footprint: Footprint, point: Vector3): boolean {
-  return (
-    point.x >= footprint.minX &&
-    point.x <= footprint.maxX &&
-    point.z >= footprint.minZ &&
-    point.z <= footprint.maxZ
-  );
 }

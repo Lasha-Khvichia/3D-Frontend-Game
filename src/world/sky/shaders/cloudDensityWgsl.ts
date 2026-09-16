@@ -6,6 +6,7 @@ import {
   SHAPE_TILE,
   WEATHER_TILE,
 } from "../cloudLayer";
+import { CLOUD_LOOK } from "./cloudLook";
 
 const f = (value: number): string => value.toFixed(1);
 
@@ -27,9 +28,10 @@ fn coverageFrom(weather: f32, cover: f32) -> f32 {
   return t * t * (3.0 - 2.0 * t);
 }
 
-fn heightShape(h: f32, tall: f32) -> f32 {
+// A storm's base hangs lumpy from its lift, which the shadows, sampled higher, never see.
+fn heightShape(h: f32, tall: f32, lift: f32) -> f32 {
   let top = mix(0.35, 1.0, tall);
-  return smoothstep(0.0, 0.07, h) * (1.0 - smoothstep(top * 0.55, top, h));
+  return smoothstep(lift, lift + 0.07, h) * (1.0 - smoothstep(top * 0.55, top, h));
 }
 
 fn cloudDensity(p: vec3f, altitude: f32, detailed: bool) -> f32 {
@@ -42,7 +44,8 @@ fn cloudDensity(p: vec3f, altitude: f32, detailed: bool) -> f32 {
   let q = vec3f(p.x + drift.x + h * 500.0, altitude - uniforms.weatherState.w, p.z + drift.y);
   let low = textureSampleLevel(shapeSampler, shapeSamplerSampler, q / SHAPE_TILE, 0.0);
   let lowFbm = low.g * 0.625 + low.b * 0.25 + low.a * 0.125;
-  var body = remap(low.r, lowFbm - 1.0, 1.0, 0.0, 1.0) * heightShape(h, weather.g);
+  let lift = uniforms.cloudDark * ${CLOUD_LOOK.stormBase.toFixed(3)} * (1.0 - smoothstep(0.35, 0.65, lowFbm));
+  var body = remap(low.r, lowFbm - 1.0, 1.0, 0.0, 1.0) * heightShape(h, weather.g, lift);
   body = clamp(remap(body, 1.0 - cover, 1.0, 0.0, 1.0), 0.0, 1.0) * cover;
   if (body <= 0.0 || !detailed) { return body; }
   let wisp = textureSampleLevel(detailSampler, detailSamplerSampler, (q + vec3f(drift.x, 0.0, drift.y) * 0.6) / DETAIL_TILE, 0.0).rgb;

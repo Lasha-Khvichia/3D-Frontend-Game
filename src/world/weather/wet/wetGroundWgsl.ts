@@ -52,7 +52,8 @@ if (uniforms.wetLook.x > 0.002) {
 #ifdef WETGROUND
   wetAmount *= 1.0 - wetUnderRoof(fragmentInputs.vPositionW.xz);
   let wetFlat = smoothstep(0.93, 0.99, normalize(fragmentInputs.vNormalW).y);
-  wetPuddle = wetPuddleAt(fragmentInputs.vPositionW.xz, uniforms.wetLook.y * wetFlat * wetAmount);
+  let wetNear = 1.0 - smoothstep(25.0, 70.0, distance(fragmentInputs.vPositionW, scene.vEyePosition.xyz));
+  wetPuddle = wetPuddleAt(fragmentInputs.vPositionW.xz, uniforms.wetLook.y * wetFlat * wetAmount) * wetNear;
 #endif
   let soaked = mix(1.0, ${darken.toFixed(3)}, wetAmount) * mix(1.0, 0.7, wetPuddle);
   baseColor = vec4f(baseColor.rgb * soaked, baseColor.a);

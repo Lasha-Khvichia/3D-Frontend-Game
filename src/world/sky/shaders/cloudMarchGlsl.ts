@@ -65,7 +65,7 @@ vec4 march(vec3 ray) {
         strength *= 0.5;
       }
       float h = clamp((altitude - CLOUD_BASE) / (CLOUD_TOP - CLOUD_BASE), 0.0, 1.0);
-      vec3 ambient = mix(skyHorizon * 0.8, skyZenith * 1.1, h) * ${f(CLOUD_LOOK.ambient)} + lightColour * ${f(CLOUD_LOOK.scatteredSun)} * mix(0.55, 1.0, h) * exp(-depth * 0.03);
+      vec3 ambient = mix(skyHorizon * 0.8, skyZenith * 1.1, h) * ${f(CLOUD_LOOK.ambient)} * (1.0 - ${f(CLOUD_LOOK.stormAmbient)} * cloudDark * (1.0 - exp(-depth * 0.05))) + lightColour * ${f(CLOUD_LOOK.scatteredSun)} * mix(0.55, 1.0, h) * exp(-depth * 0.03);
       vec3 glow = lightColour * scatter * ${f(CLOUD_LOOK.sunStrength)} + ambient;
       float kept = exp(-density * ${f(CLOUD_LOOK.extinction)} * stride);
       gathered += through * glow * (1.0 - kept);

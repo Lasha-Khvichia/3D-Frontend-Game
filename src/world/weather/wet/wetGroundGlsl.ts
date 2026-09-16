@@ -1,18 +1,17 @@
 import { SHELTER_SLOTS } from "./wetField";
 
 /**
- * Wet ground, in GLSL. Its twin is `wetGroundWgsl.ts`; the two must stay line
- * for line alike, or the ground looks different on WebGPU.
+ * Wet ground, in GLSL. Its twin, `wetGroundWgsl.ts`, must stay line for line alike.
  *
- * Three things happen to a soaked surface, and all three are what make it
- * read as wet rather than merely darker: it darkens, because the water traps
- * light that would have scattered back out; it goes glossy, mirroring the sky
- * and most strongly at a grazing angle (Fresnel), which is why a wet road
- * shines ahead of you and not at your feet; and where it is flat and can hold
- * no more, water stands in puddles, rung by the rain still falling.
+ * A soaked surface darkens, because the water traps light that would have
+ * scattered back out; goes glossy, mirroring the sky most at a grazing angle
+ * (Fresnel), which is why a wet road shines ahead and not at your feet; and
+ * where it is flat and full, water stands in puddles, rung by the rain.
  *
  * `darken` is how dark the surface goes when soaked: soil much, grass less.
  * Puddles and the dry ground under roofs are the ground's alone (`WETGROUND`).
+ * Puddles fade out past 25 m: further off, a 3 m hollow at a grazing angle is
+ * finer than a pixel, and they shimmered as broken white stripes.
  */
 export function wetGroundGlsl(darken: number): Record<string, string> {
   return {
@@ -72,7 +71,8 @@ if (wetLook.x > 0.002) {
 #ifdef WETGROUND
   wetAmount *= 1.0 - wetUnderRoof(vPositionW.xz);
   float wetFlat = smoothstep(0.93, 0.99, normalize(vNormalW).y);
-  wetPuddle = wetPuddleAt(vPositionW.xz, wetLook.y * wetFlat * wetAmount);
+  float wetNear = 1.0 - smoothstep(25.0, 70.0, distance(vPositionW, vEyePosition.xyz));
+  wetPuddle = wetPuddleAt(vPositionW.xz, wetLook.y * wetFlat * wetAmount) * wetNear;
 #endif
   baseColor.rgb *= mix(1.0, ${darken.toFixed(3)}, wetAmount) * mix(1.0, 0.7, wetPuddle);
 }

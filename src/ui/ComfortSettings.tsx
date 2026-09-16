@@ -31,6 +31,13 @@ export function ComfortSettings() {
         format={(value) => (value === 0 ? "Off" : `${Math.round(value * 100)}%`)}
         onChange={(headBobStrength) => updateSettings({ headBobStrength })}
       />
+      <SliderRow
+        label="Sound volume"
+        value={settings.soundVolume}
+        {...SETTINGS_LIMITS.soundVolume}
+        format={(value) => (value === 0 ? "Off" : `${Math.round(value * 100)}%`)}
+        onChange={(soundVolume) => updateSettings({ soundVolume })}
+      />
       <ToggleRow
         label="Invert vertical look"
         value={settings.invertLook}

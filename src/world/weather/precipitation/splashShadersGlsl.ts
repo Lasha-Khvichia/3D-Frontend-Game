@@ -3,13 +3,20 @@ import { CAUGHT_AT_GLSL } from "./caughtAtShaders";
 const f = (value: number): string => value.toFixed(4);
 /** Metres either side a splash looks at the surface: just past the widest ring. */
 export const SPLASH_SPREAD = 0.16;
+/** Squares of ground either way round the eye's own that splashes land in, and splashes to a square. */
+export const SPLASH_CELLS = 10;
+export const SPLASH_PER_CELL = 6;
 
 /**
  * Splashes: small rings spreading where rain lands, on a roof or the ground.
- * Each one lives a moment, then starts again somewhere new near the eye —
- * where is a hash of which splash it is and which moment, with Dave Hoskins'
- * sine-free hash, so every GPU puts it in the same place. Its twin is
- * `splashShadersWgsl.ts`, line for line alike.
+ * Each belongs to a square of ground fixed in the world, and lives a moment,
+ * then starts again somewhere new in its square — where and when is a hash of
+ * the square, which of its splashes, and which moment, with Dave Hoskins'
+ * sine-free hash, so every GPU puts it in the same place. Placed round the eye
+ * instead, every ring slid along with a walking player. Each quad draws the
+ * splash of the square at its offset from the eye's square, so as the eye
+ * moves a running ring is handed to another quad and stays where it landed.
+ * Its twin is `splashShadersWgsl.ts`, line for line alike.
  *
  * A ring is laid on the slope under it, from the surface either side: a level
  * ring on a 37-degree roof dips 11 cm into it on its uphill side, and shows
@@ -32,17 +39,20 @@ vec2 scatter(vec2 p) {
   return fract((q.xx + q.yz) * q.zy);
 }
 void main() {
-  float clock = splash.x / splash.w + position.z;
+  vec2 cell = floor(cameraPosition.xz / splash.y) + floor(position.xy * ${SPLASH_CELLS.toFixed(1)}) - ${(SPLASH_CELLS / 2).toFixed(1)};
+  float which = floor(position.z * ${SPLASH_PER_CELL.toFixed(1)});
+  vec2 own = scatter(vec2(cell.x * 7.13 + which, cell.y * 3.71 - which * 5.0));
+  float clock = splash.x / splash.w + own.x;
   float slot = floor(clock);
   float age = clock - slot;
-  vec2 xz = cameraPosition.xz + (scatter(vec2(slot, position.x * 1000.0 + position.y)) - 0.5) * 2.0 * splash.y;
+  vec2 xz = (cell + scatter(vec2(slot + cell.x * 0.61, cell.y * 1.37 + which * 17.0))) * splash.y;
   float y = caughtAt(xz);
   float east = caughtAt(xz + vec2(${f(SPLASH_SPREAD)}, 0.0)) - y;
   float west = y - caughtAt(xz - vec2(${f(SPLASH_SPREAD)}, 0.0));
   float north = caughtAt(xz + vec2(0.0, ${f(SPLASH_SPREAD)})) - y;
   float south = y - caughtAt(xz - vec2(0.0, ${f(SPLASH_SPREAD)}));
   float planar = step(abs(east - west) + abs(north - south), 0.02);
-  float shown = step(uv.y, splash.z) * step(-999.0, y) * planar;
+  float shown = step(own.y, splash.z) * step(-999.0, y) * planar;
   float radius = 0.03 + age * 0.12;
   vec2 corner = vec2(mod(uv.x, 2.0) - 0.5, floor(uv.x / 2.0) - 0.5) * 2.0;
   vec2 reach = corner * radius;

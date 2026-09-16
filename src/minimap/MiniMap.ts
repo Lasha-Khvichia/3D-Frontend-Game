@@ -6,7 +6,7 @@ import { MiniMapPicture } from "./MiniMapPicture";
 import { blendPose, createPose, POSE_TRANSITION_SECONDS } from "./miniMapPoses";
 import { drawMiniMapDecor, type MiniMapDecor } from "./drawMiniMapDecor";
 import { readMiniMapCanvas } from "../ui/bridge";
-import type { DayNightCycle } from "../world/DayNightCycle";
+import type { SunAndMoon } from "../world/SunAndMoon";
 
 export { MINI_MAP_SIZE_CSS } from "./miniMapCorner";
 
@@ -56,15 +56,10 @@ export class MiniMap {
     return this.blend;
   }
 
-  update(
-    seconds: number,
-    player: TransformNode,
-    wantsOverhead: boolean,
-    dayNight: DayNightCycle,
-  ): void {
+  update(seconds: number, player: TransformNode, wantsOverhead: boolean, sky: SunAndMoon): void {
     this.advanceBlend(seconds, wantsOverhead);
     const pitch = this.placeCamera(player);
-    this.updateDecor(player.rotation.y, pitch, dayNight);
+    this.updateDecor(player.rotation.y, pitch, sky);
   }
 
   /** Runs on the fixed step, so the slide takes the same time at any frame rate. */
@@ -100,12 +95,12 @@ export class MiniMap {
   }
 
   /** Updates what the canvas will show; it is painted when the next picture is ordered. */
-  private updateDecor(yaw: number, pitch: number, dayNight: DayNightCycle): void {
+  private updateDecor(yaw: number, pitch: number, sky: SunAndMoon): void {
     this.decor.playerYaw = yaw;
-    this.decor.sunBearing = dayNight.sunBearing;
-    this.decor.moonBearing = dayNight.moonBearing;
-    this.decor.sunUp = dayNight.sunHeight > 0;
-    this.decor.moonUp = dayNight.moonHeight > 0;
+    this.decor.sunBearing = sky.sunBearing;
+    this.decor.moonBearing = sky.moonBearing;
+    this.decor.sunUp = sky.sunHeight > 0;
+    this.decor.moonUp = sky.moonHeight > 0;
     this.decor.overheadBlend = this.blend;
     this.decor.groundSquash = Math.sin(pitch);
   }

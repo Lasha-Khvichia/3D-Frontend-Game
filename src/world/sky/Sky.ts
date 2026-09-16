@@ -4,6 +4,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import type { DayNightCycle } from "../DayNightCycle";
 import type { CloudLighting } from "./bindCloudUniforms";
+import { CloudedBodies } from "./CloudedBodies";
 import type { CloudPass } from "./CloudPass";
 import type { CloudQuality } from "./cloudQuality";
 import { shareWithShadows } from "./cloudShadowField";
@@ -25,14 +26,14 @@ export class Sky {
   private quality: CloudQuality = "high";
   private readonly paint: SkyPaint = createSkyPaint();
   private readonly lighting: CloudLighting = createCloudLighting(this.paint);
-  private sunThrough = 1;
-  private moonThrough = 1;
+  private readonly bodies: CloudedBodies;
 
   constructor(
     scene: Scene,
     private readonly dayNight: DayNightCycle,
   ) {
     this.dome = new SkyDome(scene, this.paint);
+    this.bodies = new CloudedBodies(dayNight, this.weather);
     for (const mesh of this.meshes) dayNight.sunAndMoon.glow.exclude(mesh);
     // The first camera drawn is the view: the player's, or the orbit camera.
     const view = (): Camera => scene.activeCameras?.[0] ?? scene.activeCamera!;
@@ -62,9 +63,9 @@ export class Sky {
     return [this.dome.sky, this.dome.veil];
   }
 
-  /** Share of sunlight getting through the clouds to the player, for the god rays. */
+  /** Share of sunlight getting through the clouds and the air to the player, for the god rays. */
   get sunlightThrough(): number {
-    return this.sunThrough;
+    return this.bodies.sunlight;
   }
 
   setQuality(quality: CloudQuality): void {
@@ -78,22 +79,11 @@ export class Sky {
     paintSky(this.dayNight, this.paint, this.lighting, seconds);
 
     shareWithShadows(this.weather, this.lighting.direction, clouds);
-
-    // Eased, so the halo fades as a cloud edge crosses the sun rather than blinking.
-    const ease = Math.min(1, seconds * 3);
-    const sun = clouds
-      ? 1 - this.weather.coverToward(eye, this.dayNight.sunAndMoon.sunDirection)
-      : 1;
-    const moon = clouds
-      ? 1 - this.weather.coverToward(eye, this.dayNight.sunAndMoon.moonDirection)
-      : 1;
-    this.sunThrough += (sun - this.sunThrough) * ease;
-    this.moonThrough += (moon - this.moonThrough) * ease;
-    this.dayNight.sunAndMoon.setCloudCover(this.sunThrough, this.moonThrough);
+    this.bodies.update(seconds, eye, clouds);
   }
 
   /** The weather's cover and wind, for the clouds to take. */
   setWeather(weather: Readonly<WeatherState>): void {
-    this.weather.setWeather(weather.cover, weather.wind, weather.heading);
+    this.weather.setWeather(weather.cover, weather.darkness, weather.wind, weather.heading);
   }
 }

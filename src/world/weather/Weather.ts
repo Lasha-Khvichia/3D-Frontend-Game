@@ -6,6 +6,8 @@ import { wandering } from "./weatherNoise";
 import { blendLooks } from "./blendLooks";
 import { kindAt, mistAt, type WeatherMoment } from "./sampleWeather";
 import { weatherTemperature } from "./weatherTemperature";
+import { windAt } from "./weatherWind";
+import { SkyLead } from "./skyLead";
 import {
   createWeatherState,
   formOf,
@@ -32,6 +34,7 @@ export class Weather {
     hail: false,
   }));
   private readonly looks: WeatherLook[] = [0, 1, 2, 3].map(() => KIND_LOOKS.clear);
+  private readonly lead = new SkyLead();
   private forced: WeatherKind | null = null;
   private shownName = "";
   private shownTemperature = Number.NaN;
@@ -64,11 +67,12 @@ export class Weather {
     }
     const t = totalHours - hour;
     blendLooks(this.looks, t, this.state);
+    this.lead.apply(totalHours, this.forced, state);
     const now = this.marks[t < 0.5 ? 1 : 2]!;
     state.kind = now.kind;
     state.hail = now.hail && !this.forced;
-    // Calmer or wilder from day to day, swinging slowly either side of the westerly.
-    state.wind *= 1 + 0.4 * wandering(totalHours / 30, 1);
+    // Wind keeps its own spells whatever falls, swinging slowly either side of the westerly.
+    state.wind = windAt(totalHours, state.wind);
     state.heading = PREVAILING_HEADING + 1.1 * wandering(totalHours / 40, 2);
     // Ground mist lies low (`HeightMistPlugin`), so it does not shorten the view over it.
     state.mist = this.forced ? 0 : mistAt(totalHours);

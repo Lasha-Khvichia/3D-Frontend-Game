@@ -6,6 +6,7 @@ import {
   SHAPE_TILE,
   WEATHER_TILE,
 } from "../cloudLayer";
+import { CLOUD_LOOK } from "./cloudLook";
 
 const f = (value: number): string => value.toFixed(1);
 
@@ -36,9 +37,10 @@ float coverageFrom(float weather, float cover) {
 }
 
 // Flat bases, rounded tops; tall clouds use the whole layer, low ones a third.
-float heightShape(float h, float tall) {
+// A storm's base hangs lumpy from its lift, which the shadows, sampled higher, never see.
+float heightShape(float h, float tall, float lift) {
   float top = mix(0.35, 1.0, tall);
-  return smoothstep(0.0, 0.07, h) * (1.0 - smoothstep(top * 0.55, top, h));
+  return smoothstep(lift, lift + 0.07, h) * (1.0 - smoothstep(top * 0.55, top, h));
 }
 
 float cloudDensity(vec3 p, float altitude, bool detailed) {
@@ -52,7 +54,8 @@ float cloudDensity(vec3 p, float altitude, bool detailed) {
   vec3 q = vec3(p.x + drift.x + h * 500.0, altitude - weatherState.w, p.z + drift.y);
   vec4 low = textureLod(shapeSampler, q / SHAPE_TILE, 0.0);
   float lowFbm = low.g * 0.625 + low.b * 0.25 + low.a * 0.125;
-  float body = remap(low.r, lowFbm - 1.0, 1.0, 0.0, 1.0) * heightShape(h, weather.g);
+  float lift = cloudDark * ${CLOUD_LOOK.stormBase.toFixed(3)} * (1.0 - smoothstep(0.35, 0.65, lowFbm));
+  float body = remap(low.r, lowFbm - 1.0, 1.0, 0.0, 1.0) * heightShape(h, weather.g, lift);
   body = clamp(remap(body, 1.0 - cover, 1.0, 0.0, 1.0), 0.0, 1.0) * cover;
   if (body <= 0.0 || !detailed) return body;
   vec3 wisp = textureLod(detailSampler, (q + vec3(drift.x, 0.0, drift.y) * 0.6) / DETAIL_TILE, 0.0).rgb;

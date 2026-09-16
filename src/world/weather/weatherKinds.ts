@@ -29,7 +29,7 @@ export type WeatherLook = {
   visibility: number;
   /** 0 nothing falling, 1 the heaviest. */
   precipitation: number;
-  /** Wind at the ground, metres a second. */
+  /** Metres a second added to the hour's own wind (`weatherWind.ts`): a storm's, fog's stillness. */
   wind: number;
   /** How far towards a purple day's colours. */
   purple: number;
@@ -46,16 +46,16 @@ const look = (...v: [number, number, number, number, number, number]): WeatherLo
 });
 
 export const KIND_LOOKS: Readonly<Record<WeatherKind, WeatherLook>> = {
-  clear: look(0.04, 0, 3000, 0, 3, 0),
-  fair: look(0.32, 0, 3000, 0, 4, 0),
-  cloudy: look(0.58, 0.05, 3000, 0, 5, 0),
-  overcast: look(0.9, 0.2, 2500, 0, 4.5, 0),
-  fog: look(0.85, 0.1, 140, 0, 0.8, 0),
-  drizzle: look(0.94, 0.3, 1600, 0.15, 4, 0),
-  rain: look(0.96, 0.45, 900, 0.5, 6, 0),
-  downpour: look(0.98, 0.65, 350, 1, 8, 0),
-  thunderstorm: look(1, 0.9, 500, 0.85, 12, 0),
-  purple: look(0.45, 0, 2200, 0, 3, 1),
+  clear: look(0.04, 0, 3000, 0, 0, 0),
+  fair: look(0.32, 0, 3000, 0, 0, 0),
+  cloudy: look(0.58, 0.05, 3000, 0, 0, 0),
+  overcast: look(0.9, 0.2, 2500, 0, 0, 0),
+  fog: look(0.85, 0.1, 140, 0, -6, 0),
+  drizzle: look(0.94, 0.3, 1600, 0.15, 0, 0),
+  rain: look(0.96, 0.45, 900, 0.5, 0, 0),
+  downpour: look(0.98, 0.65, 350, 1, 2, 0),
+  thunderstorm: look(1, 0.9, 500, 0.85, 9, 0),
+  purple: look(0.45, 0, 2200, 0, 0, 1),
 };
 
 /** Kinds from which something falls. */

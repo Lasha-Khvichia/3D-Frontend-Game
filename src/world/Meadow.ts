@@ -5,7 +5,8 @@ import { WorldEntity } from "../core/WorldEntity";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { FINE_DETAIL_LAYER } from "./fineDetailLayer";
 import type { GrassBlockerGrid } from "./GrassBlockerGrid";
-import { BLADE_HEIGHT, swayGrassBlade } from "./createGrassBlade";
+import { BLADE_HEIGHT } from "./grassBladeShape";
+import { swayGrassBlade } from "./swayGrassBlade";
 import { GrassField, type GrassSoil } from "./GrassField";
 import { FAR_GRASS, NEAR_GRASS } from "./grassLayout";
 

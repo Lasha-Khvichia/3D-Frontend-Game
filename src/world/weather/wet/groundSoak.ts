@@ -3,6 +3,7 @@ import { halfDayHours, SOLAR_NOON_HOUR } from "../../celestialPath";
 import { kindAt, type WeatherMoment } from "../sampleWeather";
 import { KIND_LOOKS, type WeatherKind } from "../weatherKinds";
 import { weatherTemperature } from "../weatherTemperature";
+import { windAt } from "../weatherWind";
 
 /** How much water the ground is holding: darkening it, and standing in puddles. */
 export type Soak = { wet: number; puddles: number };
@@ -76,9 +77,8 @@ export class SoakTrail {
     const temperature = weatherTemperature(hours, altitude, look.cover, look.precipitation);
     const falling = temperature < FREEZING ? 0 : look.precipitation;
     // Sun and wind carry the water off; a cold, still, overcast night barely does.
-    const daylight = sunIsUp(hours) ? 1 : 0;
-    const airing =
-      temperature < 0 ? 0 : (0.3 + 0.7 * daylight * (1 - 0.75 * look.cover)) * (1 + look.wind / 12);
+    const sunning = sunIsUp(hours) ? 0.7 * (1 - 0.75 * look.cover) : 0;
+    const airing = temperature < 0 ? 0 : (0.3 + sunning) * (1 + windAt(hours, look.wind) / 12);
     const wet = soak.wet + (falling * STEP_HOURS) / SOAK_HOURS - (airing * STEP_HOURS) / DRY_HOURS;
     soak.wet = Math.min(1, Math.max(0, wet));
     // Puddles only once the ground can take no more, and they go last.

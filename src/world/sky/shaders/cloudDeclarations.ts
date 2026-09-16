@@ -21,6 +21,7 @@ uniform vec3 skyZenith;
 uniform vec3 skyHorizon;
 uniform vec4 weatherState;
 uniform vec4 frame;
+uniform float cloudDark;
 `;
 
 /** The same, declared for WGSL. */
@@ -48,4 +49,5 @@ uniform skyZenith: vec3f;
 uniform skyHorizon: vec3f;
 uniform weatherState: vec4f;
 uniform frame: vec4f;
+uniform cloudDark: f32;
 `;

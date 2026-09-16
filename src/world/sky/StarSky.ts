@@ -38,7 +38,15 @@ export class StarSky {
   private untilMeteor = 30;
   private meteor: Meteor | null = null;
 
-  update(seconds: number, totalHours: number, sunY: number, moonUp: number, moonLit: number): void {
+  /** `starlight`: the share the weather lets through (`SceneLighting.behindClouds`), 0 to 1. */
+  update(
+    seconds: number,
+    totalHours: number,
+    sunY: number,
+    moonUp: number,
+    moonLit: number,
+    starlight: number,
+  ): void {
     const turns = (totalHours - CORE_DUE_SOUTH_HOURS) / SIDEREAL_DAY_HOURS;
     const turn = CORE_DUE_SOUTH + (turns - Math.floor(turns)) * Math.PI * 2;
     // The sky's own axes, turned: the equator's southern point and west, spun
@@ -51,7 +59,7 @@ export class StarSky {
     // Out from civil dusk, all out once the sun is 14 degrees down.
     const dark = Math.min(1, Math.max(0, (-0.02 - sunY) / 0.23));
     const moonlight = moonUp * moonLit;
-    const shown = dark * dark * (3 - 2 * dark) * (1 - 0.3 * moonlight);
+    const shown = dark * dark * (3 - 2 * dark) * (1 - 0.3 * moonlight) * starlight;
     this.state.x = shown;
     // Twilight and a full moon brighten the sky itself: the faint stars stay
     // under it, and come out one magnitude after another as it darkens.

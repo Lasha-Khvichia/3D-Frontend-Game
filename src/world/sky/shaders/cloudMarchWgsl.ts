@@ -52,7 +52,7 @@ fn march(ray: vec3f, uv: vec2f) -> vec4f {
         strength *= 0.5;
       }
       let h = clamp((altitude - CLOUD_BASE) / (CLOUD_TOP - CLOUD_BASE), 0.0, 1.0);
-      let ambient = mix(uniforms.skyHorizon * 0.8, uniforms.skyZenith * 1.1, h) * ${f(CLOUD_LOOK.ambient)} + uniforms.lightColour * ${f(CLOUD_LOOK.scatteredSun)} * mix(0.55, 1.0, h) * exp(-depth * 0.03);
+      let ambient = mix(uniforms.skyHorizon * 0.8, uniforms.skyZenith * 1.1, h) * ${f(CLOUD_LOOK.ambient)} * (1.0 - ${f(CLOUD_LOOK.stormAmbient)} * uniforms.cloudDark * (1.0 - exp(-depth * 0.05))) + uniforms.lightColour * ${f(CLOUD_LOOK.scatteredSun)} * mix(0.55, 1.0, h) * exp(-depth * 0.03);
       let glow = uniforms.lightColour * scatter * ${f(CLOUD_LOOK.sunStrength)} + ambient;
       let kept = exp(-density * ${f(CLOUD_LOOK.extinction)} * stride);
       gathered += through * glow * (1.0 - kept);

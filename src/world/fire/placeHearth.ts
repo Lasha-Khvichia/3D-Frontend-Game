@@ -70,6 +70,8 @@ export function placeHearth(
     ],
     guard: box(0, HEARTH_HEIGHT, OPENING_HEIGHT, OPENING_WIDTH, surroundFace, SURROUND_DEPTH * 0.5),
     firePoint: point(0, innerFace - outward * 0.3, HEARTH_HEIGHT + 0.12),
-    smokePoint: point(0, outerFace - outward * 0.37, stackTop + CAP_HEIGHT),
+    // The middle of the stack, which stands outside the wall: the wrong sign here
+    // put the smoke 0.75 m off it, rising from the air over the roof.
+    smokePoint: point(0, outerFace + (outward * STACK_DEPTH) / 2, stackTop + CAP_HEIGHT),
   };
 }

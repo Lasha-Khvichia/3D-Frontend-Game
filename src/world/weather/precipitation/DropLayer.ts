@@ -4,7 +4,7 @@ import { Vector3, Vector4 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import type { CatchMap } from "./CatchMap";
-import { createDropMesh } from "./createDropMesh";
+import { createDropMesh, randomNumbers } from "./createDropMesh";
 import { createFallingMaterial } from "./createFallingMaterial";
 import { DROP_FRAGMENT_GLSL, DROP_VERTEX_GLSL } from "./dropShadersGlsl";
 import { DROP_FRAGMENT_WGSL, DROP_VERTEX_WGSL } from "./dropShadersWgsl";
@@ -23,6 +23,8 @@ const SHADERS = {
   fragmentWgsl: DROP_FRAGMENT_WGSL,
 };
 const UNIFORMS = ["travelled", "fall", "drift", "dropSize", "tint"];
+/** Boxes the fall wraps over, so the shader's five paces (6 to 10 eighths) never jump. */
+const PACE_WRAP = 8;
 
 /**
  * One kind of falling drop — streaks, or flakes — as one mesh and one draw
@@ -43,7 +45,8 @@ export class DropLayer {
     private readonly spec: DropLayerSpec,
     private readonly catchMap: CatchMap,
   ) {
-    this.mesh = createDropMesh(scene, spec.name, spec.count, spec.count + (spec.flakes ? 7 : 3));
+    const seed = spec.count + (spec.flakes ? 7 : 3);
+    this.mesh = createDropMesh(scene, spec.name, spec.count, randomNumbers(seed));
     const defines = spec.flakes ? ["#define FLAKES"] : [];
     this.material = createFallingMaterial(
       scene,
@@ -64,11 +67,15 @@ export class DropLayer {
     if (!falling) return;
     const { box } = this.spec;
     const { seconds, wind } = frame;
-    const carried = falling.carried;
+    // Carried by the wind, but never leaning further than the drop's `lean`.
+    const blown = Math.hypot(wind.x, wind.z) * falling.carried;
+    const most = falling.speed * falling.lean;
+    const carried = blown > most ? (falling.carried * most) / blown : falling.carried;
     const t = this.travelled;
     t.set(
       wrap(t.x + wind.x * carried * seconds, box),
-      wrap(t.y - falling.speed * seconds, box),
+      // Over eight boxes, so every drop's pace still wraps on a whole box.
+      wrap(t.y - falling.speed * seconds, box * PACE_WRAP),
       wrap(t.z + wind.z * carried * seconds, box),
     );
     const m = this.material;

@@ -16,6 +16,8 @@ export type GameSettings = {
   travelSpeed: number;
   /** Metres. Where the fog closes in, and past which nothing is built. */
   renderDistance: number;
+  /** 0 silent to 1 full: rain, wind, thunder, birds and crickets together. */
+  soundVolume: number;
 
   /** Fraction of the window actually rendered, then upscaled. */
   renderScale: number;
@@ -37,6 +39,7 @@ export const SETTINGS_LIMITS = {
   renderScale: { min: 0.5, max: 1, step: 0.05 },
   travelSpeed: { min: 1, max: 8, step: 0.5 },
   renderDistance: { min: 300, max: 1200, step: 50 },
+  soundVolume: { min: 0, max: 1, step: 0.05 },
 } as const;
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -49,6 +52,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   // The furthest, which is also exactly the view the island had before it was
   // a setting. Lowering it is for machines that need the frames.
   renderDistance: 1200,
+  soundVolume: 0.7,
   renderScale: 1,
   autoResolution: true,
   sunEffects: true,

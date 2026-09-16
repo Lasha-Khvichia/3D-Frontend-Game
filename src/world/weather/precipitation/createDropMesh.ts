@@ -8,21 +8,25 @@ import { FINE_DETAIL_LAYER } from "../../fineDetailLayer";
  * `count` little quads for rain, snow or splashes to be drawn with, in one
  * mesh and one draw call.
  *
- * No quad is anywhere yet. Each corner carries its drop's own random numbers
- * in `position` and its corner number in `uv.x`, with one more random number
- * in `uv.y`; the vertex shader turns those into a place, a fall and a shape
+ * No quad is anywhere yet. Each corner carries its drop's own numbers — three
+ * in `position` and one in `uv.y`, from `numbers` — and its corner number in
+ * `uv.x`; the vertex shader turns those into a place, a fall and a shape
  * every frame. Nothing is sent to the GPU after this, however hard it rains.
  *
  * Babylon cannot know where the shader puts the quads, so the mesh is never
  * culled, picked or shadowed, and is kept off the mini-map with fine detail.
  */
-export function createDropMesh(scene: Scene, name: string, count: number, seed: number): Mesh {
-  const random = createSeededRandom(seed);
+export function createDropMesh(
+  scene: Scene,
+  name: string,
+  count: number,
+  numbers: (drop: number) => readonly [number, number, number, number],
+): Mesh {
   const positions = new Float32Array(count * 12);
   const uvs = new Float32Array(count * 8);
   const indices = new Uint32Array(count * 6);
   for (let drop = 0; drop < count; drop += 1) {
-    const [a, b, c, share] = [random(), random(), random(), random()];
+    const [a, b, c, share] = numbers(drop);
     for (let corner = 0; corner < 4; corner += 1) {
       const vertex = drop * 4 + corner;
       positions.set([a, b, c], vertex * 3);
@@ -43,4 +47,10 @@ export function createDropMesh(scene: Scene, name: string, count: number, seed: 
   mesh.layerMask = FINE_DETAIL_LAYER;
   mesh.setEnabled(false);
   return mesh;
+}
+
+/** Four random numbers a drop, the same every time for the same seed. */
+export function randomNumbers(seed: number): () => [number, number, number, number] {
+  const random = createSeededRandom(seed);
+  return () => [random(), random(), random(), random()];
 }

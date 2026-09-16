@@ -33,6 +33,7 @@ design.
 | Field of view        | 55 to 100 degrees, vertical                                                 |
 | Mouse sensitivity    | 0.25x to 3x                                                                 |
 | Head bob             | 0 to 100 percent of the bounce                                              |
+| Sound volume         | 0 to 100 percent, 70 by default: every sound together                       |
 | Invert vertical look | flips the mouse                                                             |
 | Date                 | jump to any day of the year; the hour stays                                 |
 | Weather              | for testing: Auto, or hold any kind of weather                              |
@@ -92,6 +93,11 @@ dayNight.setTimeOfDay(22); // jump straight to night, same date
 dayNight.setDayOfYear(354); // 21 December, same hour
 dayNight.currentHour; // read it back
 ```
+
+The cycle holds the clock and moves two things with it: `dayNight.sunAndMoon`,
+the bodies with their lights and the shadows they cast, and `dayNight.light`
+(`SceneLighting`), the sky's colours, the air and the flat fill, with the
+weather and any lightning in them.
 
 Colours live in `src/world/timeOfDayKeyframes.ts`, keyed by **how high the sun
 stands**, not by the hour. The clock no longer says where the sun is — a winter
@@ -193,18 +199,18 @@ Kyiv figure: no count for Kyiv turned up.
 
 ### What each kind does
 
-| Kind         | Cover | Darkness | Visibility | Falling | Wind    |
-| ------------ | ----- | -------- | ---------- | ------- | ------- |
-| Clear        | 4%    | —        | —          | —       | 3 m/s   |
-| Fair         | 32%   | —        | —          | —       | 4 m/s   |
-| Cloudy       | 58%   | 0.05     | —          | —       | 5 m/s   |
-| Overcast     | 90%   | 0.2      | 2.5 km     | —       | 4.5 m/s |
-| Fog          | 85%   | 0.1      | 140 m      | —       | 1 m/s   |
-| Drizzle      | 94%   | 0.3      | 1.6 km     | 0.15    | 4 m/s   |
-| Rain         | 96%   | 0.45     | 900 m      | 0.5     | 6 m/s   |
-| Downpour     | 98%   | 0.65     | 350 m      | 1       | 8 m/s   |
-| Thunderstorm | 100%  | 0.9      | 500 m      | 0.85    | 12 m/s  |
-| Purple       | 45%   | —        | —          | —       | 3 m/s   |
+| Kind         | Cover | Darkness | Visibility | Falling | Adds to the wind  |
+| ------------ | ----- | -------- | ---------- | ------- | ----------------- |
+| Clear        | 4%    | —        | —          | —       | —                 |
+| Fair         | 32%   | —        | —          | —       | —                 |
+| Cloudy       | 58%   | 0.05     | —          | —       | —                 |
+| Overcast     | 90%   | 0.2      | 2.5 km     | —       | —                 |
+| Fog          | 85%   | 0.1      | 140 m      | —       | −6 m/s: still air |
+| Drizzle      | 94%   | 0.3      | 1.6 km     | 0.15    | —                 |
+| Rain         | 96%   | 0.45     | 900 m      | 0.5     | —                 |
+| Downpour     | 98%   | 0.65     | 350 m      | 1       | +2 m/s            |
+| Thunderstorm | 100%  | 0.9      | 500 m      | 0.85    | +9 m/s, gusting   |
+| Purple       | 45%   | —        | —          | —       | —                 |
 
 What falls is decided by the temperature where the player stands: snow below
 0.5 °C, sleet up to 2.5 °C, rain above, and hail from one summer storm in five.
@@ -212,9 +218,29 @@ The stats panel names it — "Light snow", "Blizzard" for heavy snow in a wind o
 10 m/s or more, "Thundersnow", "Hailstorm". Falling snow hides far more than
 rain: 300 m in heavy snow, 120 m in a blizzard.
 
-Wind swings slowly either side of the westerly, calmer or wilder from day to
-day. The look eases across four hour marks with a cubic B-spline, so nothing
+**Wind keeps its own spells, whatever falls** (`weatherWind.ts`): calm, breezy
+or windy, a new spell about every 6 game hours, squared so calm is common and
+gales rare. A kind only adds to it — a storm brings 9 m/s more and gusts of
+35% either way every couple of seconds; fog stills the air. Rain on a still
+day falls straight down. The heading swings slowly either side of the
+westerly. Over a year of weather:
+
+|                                | Calm, under 2 m/s | Breezy | Windy, over 6 m/s |
+| ------------------------------ | ----------------- | ------ | ----------------- |
+| All hours                      | 42%               | 41%    | 18%               |
+| While rain falls               | 30%               | 47%    | 23%               |
+| While snow falls               | 37%               | 44%    | 19%               |
+| Thunderstorms (68% over 8 m/s) | 0%                | 8%     | 92%               |
+
+The look eases across four hour marks with a cubic B-spline, so nothing
 changes at once: a clear sky takes about two real minutes to cloud over.
+
+**Clouds gather before the rain** (`skyLead.ts`). Cover and darkness are the
+heavier of now and three game hours on, so a storm's black cloud builds up
+first, and clears only once the rain has stopped. In 157 of the year's 164
+rain spells the sky is at 80% of the rain's darkness an hour — 50 real
+seconds — before the first drop. Two hours of lead was tried first: the sky
+went dark only as the drops began.
 
 The weather also sets the temperature: warm and cold spells lasting days,
 five degrees either side in winter and three in summer — a winter spell above
@@ -226,9 +252,10 @@ day's and rain cools warm air by up to 2 °C.
 - **The clouds**: their cover, and the wind that carries them.
 - **The sky**: greyed by cloud; darkened in a storm — dark grey air, black
   clouds, weaker light; tinted on a purple day, keeping each colour's
-  brightness so a purple night is still night; and, in thick fog or heavy
-  rain, flattened to the fog's colour with the clouds faded out, because past
-  a few hundred metres there is no sky to see.
+  brightness so a purple night is still night; and, in thick fog, flattened
+  to the fog's colour with the clouds faded out, because past a few hundred
+  metres there is no sky to see. Rain hides the far land but not the cloud
+  base overhead, so in rain and storms the clouds keep their shape.
 - **The fog**: visibility pulls the haze in. The render distance still decides
   what is built, so a lifting fog shows a finished world.
 - **Ground mist**, below.
@@ -237,6 +264,7 @@ day's and rain cools warm air by up to 2 °C.
 - **Snow** lying on the ground, roofs and stones, which builds and melts with the weather, below.
 - **Wind** in the trees (strength and direction; trees move on WebGL only),
   the grass and the chimney smoke — all the same way as the clouds.
+- **Lightning and thunder** in a storm, below, and **every sound**: see Sound.
 
 The menu's **Weather** slider holds any kind, for testing; the stats panel
 shows the weather and the air temperature.
@@ -268,17 +296,23 @@ own random numbers and how far the fall and the wind have carried it, and wraps
 it into a box round the eye, so the rain never runs out and nothing is sent to
 the GPU however hard it rains. Drops move on real seconds, like the clouds.
 
-| Falls as | Speed        | Looks like                                  | Wind carries it |
-| -------- | ------------ | ------------------------------------------- | --------------- |
-| Rain     | 3.5 to 9 m/s | streaks 1 to 1.5 cm wide, 1/30 s of fall    | 90%             |
-| Sleet    | 4 and 2 m/s  | thin streaks and small flakes together      | 80% and all     |
-| Hail     | 11 m/s       | short white streaks 2 cm wide               | 60%             |
-| Snow     | 1 to 1.3 m/s | flakes 3 to 5 cm, swaying 20 cm either side | all             |
+| Falls as | Speed        | Looks like                                  | Wind carries it          |
+| -------- | ------------ | ------------------------------------------- | ------------------------ |
+| Rain     | 7 to 10 m/s  | streaks 5 to 9 mm wide and 30 to 45 cm long | all, leaning 45° at most |
+| Sleet    | 4 and 2 m/s  | thin streaks and small flakes together      | 80% and 70%              |
+| Hail     | 11 m/s       | short white streaks 2 cm wide               | 60%, leaning 31° at most |
+| Snow     | 1 to 1.3 m/s | flakes 3 to 5 cm, swaying 20 cm either side | 70%, leaning 60° at most |
 
-Speeds follow measured terminal velocities: drizzle about 2 m/s, a downpour's
-big drops 9, snow about 1. The weather's rate, 0 to 1, sets how many of the
-16,000 streaks or 24,000 flakes are shown and how heavy they are. Water takes
-the sky's colour and a little of the sun's; ice is white, as bright as the
+**Rain falls fast even as drizzle.** At 3.5 m/s drizzle came down as short,
+slow dashes drifting in the wind, and read as snow. Every drop also falls at
+one of five paces, a quarter slower to a quarter faster, so rain is not one
+sheet moving as a block; the fall wraps over eight boxes, so every pace lands
+on a whole box and no drop jumps. The wind carries drops but never leans them
+past their limit, and on a calm day they fall straight down.
+
+The weather's rate, 0 to 1, sets how many of the 16,000 streaks or 24,000
+flakes are shown and how heavy they are. Water takes the sky's colour, a
+little brighter, and a little of the sun's; ice is white, as bright as the
 daylight. At night rain all but vanishes, as it does.
 
 Nothing is drawn thinner than a pixel and a half. A centimetre-wide streak ten
@@ -306,6 +340,15 @@ snow. A ring is laid on the slope it lands on: a level ring on a roof dipped
 11 cm into it on its uphill side. Where the surface either side disagrees — a
 ridge, an eave, a roof's edge — the ring is not shown, rather than hang in the
 air. In grass they are mostly hidden, as real ones are.
+
+**A splash stays where it landed.** Each one belongs to a 1.8 m square of
+ground fixed in the world — six to a square, ten squares either way round the
+player's own — and where and when it lands is a hash of its square, which of
+the six it is, and the moment. Placed at a random offset from the player
+instead, every ring slid along the ground with anyone walking: 1.5 m in its
+0.35 s at walking pace. A quad draws the splash of the square at its offset
+from the player's square, so as the player moves, a running ring is handed to
+another quad and does not move.
 
 **Anything under a roof is dry.** Wind-driven rain does not reach under an eave
 or in at a door. `Shelter.covers` answers "is this point under cover", for the
@@ -355,7 +398,11 @@ off by, so the floor inside a house stays exactly as dry as it was before the
 rain (checked pixel for pixel).
 
 Puddles are a noise field over world coordinates, cut at a level that rises
-with the standing water, and only where the surface faces up. Their rings are
+with the standing water, and only where the surface faces up. **They fade out
+between 25 and 70 m**: further off, a 3 m hollow seen at a grazing angle is
+finer than a pixel, each one mirrored the bright sky, and the far ground
+shimmered with broken white stripes. The wet sheen stays out there; only the
+puddles go. Their rings are
 one ripple at a time in each 0.6 m cell, each starting at its own moment in
 its own place — a ring in every cell at once, all the same size, read as
 corrugated metal. The whole effect sits behind one test on a uniform, so dry
@@ -480,12 +527,133 @@ Three traps, all silent:
   vertices, so it went white, while every roof went white and then brown
   again. The snow whitens `diffuseColor` too.
 
+### Lightning and thunder
+
+**Every real second of a storm has a chance of a strike**
+(`src/world/weather/storm/`): 12% in a thunderstorm, 0.8% in a downpour.
+Whether a second strikes, when inside it, how far, in which direction and in
+which shape all come from a hash of that second, so like the weather they are
+a function of the date. Distances run from 300 m to 4 km — the storm is
+overhead — spread by area, so every flash is followed by thunder within 12 s.
+Strikes out to 9 km were tried first: most of their thunder came 20 s later,
+too quiet and too low to hear over the rain, and seemed not to come at all.
+
+Measured over 10,000 seconds of a held thunderstorm, and over a year of real
+weather:
+
+|                                      |                                                   |
+| ------------------------------------ | ------------------------------------------------- |
+| Strikes, held thunderstorm           | 5.87 a game hour: one every 8.5 s                 |
+| Longest wait between two             | 59 s                                              |
+| Half of all strikes are further than | 2.9 km, heard 8.5 s after the flash               |
+| Near enough to draw a bolt (6 km)    | all                                               |
+| Near enough to crack (1.5 km)        | 10%, and a house creaks after it                  |
+| A year of real weather               | 38 storm hours: 217 strikes, 47 more in downpours |
+| Worked out forwards and backwards    | identical                                         |
+
+**A flash lights the sky and the flat fill, never the sun or the moon.** Their
+lights cast shadows, and a flash from the sun's direction would throw a
+daylight shadow across a black storm. `SceneLighting` pulls the horizon and
+the zenith toward a pale blue-white and adds up to 1.6 to the fill light,
+less the further off the strike is. A real flash is not one pulse, so neither
+is this one: full for 0.07 s, down to a quarter, a second stroke at 80%, and
+dark again 0.5 s after it began. The bolt shows for the first 0.22 s.
+
+**A bolt is a flat ribbon that turns to face you**, one of four jagged shapes
+with a fork, 1.5 km tall. It is drawn 1,150 m out and scaled to look its real
+size from there — inside the far plane, and in front of the clouds. That has a
+cost: **a bolt can show in front of a mountain further off than 1,150 m.**
+
+**Thunder follows at 343 m a second** — a strike 1.7 km away is heard 5 s
+later — and is told to `SoundScape` the moment the flash starts.
+
+**Pausing mid-flash puts it out.** No step runs while paused, so nothing would
+end the flash; a check before each drawn frame does.
+
 ### Not yet
 
 Snow has no height: nothing sinks into it and it builds no banks against
 walls. Leaves stay on the trees all winter and the grass stays green under the
 snow, until the seasons change them (phase 8). Stone, timber and thatch still
-do not darken in the rain. Lightning and thunder come next.
+do not darken in the rain.
+
+## Sound
+
+**Every sound is made in code with Web Audio: there are no sound files**
+(`src/audio/`). Rain, wind and leaves are looped noise through filters;
+thunder is a rumble with a crack in front of it when close; birds are quick
+whistled notes that sweep up or down; crickets are a high note chopped into
+pulses; a house creaks as a low buzz through two wooden resonances; footsteps
+are short bursts of noise and knocks laid together, one recipe per ground.
+
+| Sound     | Follows                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------- |
+| Rain      | how hard it falls; hail harder and brighter, sleet softer, snow silent                      |
+| Wind      | its speed, silent below 2.5 m/s, with gusts every 1.5 to 6.5 s                              |
+| Leaves    | the trees within 30 m, nearer louder, from their side; the wind; pines softer, higher       |
+| Thunder   | each strike, at the speed of sound; rain, wind and leaves dip to half under it              |
+| Birds     | every dry, sunny day, busiest at dawn; fewer and quieter in winter, cold and cloud          |
+| Crickets  | warm, dry, still nights                                                                     |
+| Creaks    | bad weather, heard only inside a house, at random times and strengths                       |
+| Fire      | the nearest hearth within 10 m: a roar, a hiss and crackles; muffled from outside its house |
+| Footsteps | the player's strides, a jump and a landing, on whatever ground is underfoot                 |
+
+**Footsteps** come from `StrideTracker`, which reads only what the player
+controller already shows — where the player is, whether they stand on
+anything, whether they climb — each simulation step. A stride is 1.1 m plus
+8 cm per metre a second, so walking is 3 steps a second and running 4.2,
+never more than 6 however fast the travel setting goes. A jump is heard from
+the push upward (3 m/s or faster, which no slope or step reaches); a landing
+after a quarter of a second in the air, harder the longer the fall. Climbing
+is silent. `GroundSurfaces` says what is underfoot, only when a foot comes
+down: a short ray finds built things — a bridge, a roof or a branch is wood; a
+boulder, a hearth or a wall top is stone — and the rest comes from the same
+numbers that shape and paint the ground: a house floor is wood, a frozen river
+ice, water over 5 cm splashes, snow over 3 cm crunches (firmer on your own
+trail), steep ground is stone, the shore sand, grass where grass grows, dirt
+above it. Soaked ground adds a squelch.
+
+**Under a roof it all sounds as it would indoors**: the rain loses its top end
+and its level, the wind becomes a muffled roar, the leaves a murmur, birds and
+crickets fade. It uses the same test that keeps the rain off
+(`Shelter.covers`). Creaks use the house's walls instead: under the eaves is
+not inside.
+
+**Sound runs on real time, every drawn frame, not in the simulation step**, so
+it carries on while the game is paused — at a quarter of its volume, because
+the world is still there behind the menu. Footsteps are the exception: they
+come from the step, so nothing walks while paused. **A browser keeps sound off
+until the player clicks or presses a key**, so it starts at the first of
+either.
+
+**The last stage is a limiter** (`createLimiter.ts`): a compressor, then a soft
+ceiling. A strike 400 m away in a downpour and a gale, at full volume, peaked
+at 1.55 — 289 samples past full scale, which a browser clips as a harsh
+crackle. The compressor alone still let 11 samples through, because a crack
+arrives faster than a compressor reacts; with the ceiling the loudest mix
+peaks at 0.95 and nothing passes. Quieter sound is left alone.
+
+Measured by rendering each sound offline, and in the real island:
+
+| Test                                                      | Result                                                                                      |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Rain level: drizzle, rain, downpour                       | 0.073, 0.169, 0.276                                                                         |
+| Downpour indoors                                          | level 0.066, a fifth of the top end                                                         |
+| Wind at 2, 6, 12, 20 m/s                                  | 0, 0.016, 0.058, 0.118                                                                      |
+| Thunder 1,715 m away                                      | silent until 5.00 s, first sound at 5.01 s                                                  |
+| Thunder over storm rain, 150–2000 Hz, with the dip        | 2.4× at 1 km, 2.8× at 2.5 km, 1.9× at 4 km                                                  |
+| Birds, sunny daytime hours with any                       | all, every month; activity 0.07 in winter, 0.36 in summer                                   |
+| Birds singing in rain, over a year                        | never                                                                                       |
+| Crickets with the sun up, over a year                     | never; May to October only                                                                  |
+| Leaves: no trees; one oak at 20 m calm; five near in wind | 0; 0.0007; 0.030                                                                            |
+| Leaves: pines, indoors, a tree to the right               | softer and brighter; 0.006 and dull; right 7× the left                                      |
+| Creaks inside in a storm, 3 minutes                       | 19, gaps 4.8–13.5 s, peak 0.06                                                              |
+| Creaks on a fair day, or outside in a storm               | none                                                                                        |
+| Fire at 1.5 m, 4 m and 6 m inside                         | 0.032, 0.020, 0.009; about 7 crackles a second                                              |
+| Fire through the wall at 4 m; outside at 12 m             | 0.006 and dull; silent, nothing scheduled                                                   |
+| Footstep peaks, walking                                   | 0.08 (snow) to 0.17 (stone); a landing on stone 0.29                                        |
+| Ground under the feet, 10 places on the island            | all right: house, bridge, ford, beach, rock, meadow, upland, boulder, February ice and snow |
+| Walking and jumping in the real game                      | a grass step and a jump played                                                              |
 
 ## Sun and moon
 
@@ -518,8 +686,8 @@ Neither body is ever hidden. Below the horizon they keep orbiting under the
 platform, so the cycle is one unbroken circle.
 
 ```ts
-dayNight.sunHeight; // -1 under the platform, 1 overhead
-dayNight.moonHeight;
+dayNight.sunAndMoon.sunHeight; // -1 under the platform, 1 overhead
+dayNight.sunAndMoon.moonHeight;
 dayNight.dayNumber; // whole days since 1 January, Year 1
 dayNight.setDayOfYear(354); // 21 December, to see the winter moon ride high
 ```
@@ -633,6 +801,33 @@ The numbers that decide the look are one table, `shaders/cloudLook.ts`.
 
 Cover and wind come from the weather (see [Weather](#weather)); the wind a
 kilometre and more up blows at 5 m/s plus 1.8 times the wind at the ground.
+
+**In rain and storms the clouds keep their shape.** Only fog fades them out;
+rain fades them by a third of its murk at most. At full cover every lump
+merged into one even sheet, so **cover is held back by a fifth of the
+weather's darkness** (`CloudWeather`): a black storm is drawn at 82% and keeps
+thick and thin parts, while a plain overcast is as before. The shadows take
+the same cover. And a storm's darkness (`cloudDark`) takes up to 60% of the
+sky's light off thick cloud, less off thin, so the cores go dark and the
+shape shows.
+
+**A storm's base hangs lumpy** (`stormBase` in `cloudLook.ts`): where the cloud
+noise is thin, the base lifts by up to 22% of the layer, about 480 m. With the
+sun overhead a flat base lit evenly from above read as one dark ceiling; now it
+hangs in lobes. The lift, with its fade, stays below 30% of the layer, the one
+height the cloud shadows sample, so the shadows are exactly as before — lift it
+higher and the sky and the shadows on the ground disagree.
+
+| Storm sky, WebGL                     | Spread | Texture |
+| ------------------------------------ | ------ | ------- |
+| Facing a low sun, before this work   | 8.2    | —       |
+| Facing a low sun, now                | 20.5   | 4.40    |
+| Midday, looking up, before the lumps | 1.6    | 0.08    |
+| Midday, looking up, now              | 3.8    | 1.04    |
+
+Spread is how much brightness varies across the sky; texture is how far each
+pixel differs from a 25-pixel blur of the picture, so a smooth gradient counts
+for nothing.
 **The drift runs on real seconds, not game hours** — a game day is twenty
 minutes, and on the game clock clouds would race across the sky.
 
@@ -686,6 +881,13 @@ At night the sky is full of stars, crowding along the Milky Way, and turning.
 - **They twinkle**, more near the horizon, where their light crosses more air
   and fades to nothing at the horizon itself.
 - **A shooting star** crosses every 25 to 90 seconds on a clear night.
+- **Clouds hide them, and so does rain or fog.** Thick air fades the clouds
+  out, and the stars behind would then shine through a storm, so they are
+  dimmed by the clouds that are no longer drawn (`skyThrough.behindClouds`),
+  and dark storm cloud lets none through at all. The sun and moon discs are
+  dimmed the same way — the sun once showed through a storm as a white dot —
+  leaving only a soft glow where the sun is. Through a night thunderstorm no
+  star shows; a clear night is unchanged.
 
 Two traps. **A star's distance from the pixel is taken from the difference of
 two directions, never from 1 − dot**: near 1 a float has too few steps left, and
@@ -1365,7 +1567,15 @@ a 16.7 ms budget. Nothing needed optimising.
 
 ## Fireplaces, chimneys, fire and smoke
 
-Every house has a hearth burning and a chimney smoking.
+Every house has a hearth burning and a chimney smoking, and the nearest fire
+within 10 m is heard (see Sound): one fire at a time, as one firelight is lit
+at a time.
+
+**The smoke leaves from the middle of the stack.** The stack stands outside
+the chimney wall, and a wrong sign once put the smoke point 0.75 m inside that
+line instead: from the side the smoke rose out of the air over the roof. It
+hid for a long time because a steady wind carried the smoke away; on the calm
+days the wind now has, it rose straight up beside the chimney.
 
 ### Where the chimney goes, and what it costs the wall
 
@@ -1686,8 +1896,8 @@ drawn into the shadow map every frame and casts nothing anyone can see. With
 forty-four trees that is nearly all of them. Trees are added to and removed from
 the map as they come within 32 m: **one tree in the map instead of forty-four**.
 
-That needed new plumbing — `DayNightCycle` could add a shadow caster but never
-remove one.
+That needed new plumbing — the sun's shadow map (`SunAndMoon`) could take a
+caster but never let one go.
 
 ### Every branch is solid, trunk to twig
 

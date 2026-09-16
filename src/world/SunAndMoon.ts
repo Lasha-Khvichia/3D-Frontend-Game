@@ -11,7 +11,8 @@ import { SunShadows } from "./SunShadows";
 import { CELESTIAL_DISTANCE, createCelestialDisc, type CelestialDisc } from "./createCelestialDisc";
 import type { TimeOfDayLighting } from "./timeOfDayPalette";
 import type { ShadowQuality } from "../settings/gameSettings";
-import { clamp01, lerp, smoothStep } from "./blend";
+import { smoothStep } from "./blend";
+import { paintSunDisc } from "./paintSunDisc";
 
 /**
  * 0.53 degrees across, which is the sun's real angular size from Earth. It is
@@ -28,16 +29,11 @@ const MOON_LIGHT_MAX = 0.42;
 /** Height where a body's light starts and finishes fading at the horizon. */
 const HORIZON_FADE_START = -0.05;
 const HORIZON_FADE_END = 0.15;
-
-/** Sun height at which the disc has finished turning from orange to white. */
-const SUN_COLOUR_BLEND_HEIGHT = 0.4;
-// Deliberately yellow, not white. The halo is added on top of a blue sky, so
-// a white sun bleeds into blue. Holding the blue channel down keeps it warm.
-const SUN_HORIZON_COLOUR: readonly [number, number, number] = [1.6, 0.55, 0.16];
-const SUN_HIGH_COLOUR: readonly [number, number, number] = [1.62, 1.36, 0.62];
 /** Lifts the whole moon texture. Emissive texture is added, not multiplied. */
 const MOON_TEXTURE_LEVEL = 1.15;
 const MOON_LIGHT_COLOUR: readonly [number, number, number] = [0.55, 0.65, 0.95];
+
+type BodyShares = { readonly sun: number; readonly moon: number };
 
 /**
  * The sun and the moon: a directional light and a visible disc each.
@@ -95,10 +91,15 @@ export class SunAndMoon {
     this.sunGlare.mesh.alphaIndex = -1;
   }
 
-  /** Dims each halo, and the glare, by the cloud in front of the body. */
-  setCloudCover(sun: number, moon: number): void {
-    this.glow.setCloudCover(sun, moon);
-    this.sunGlare.material.alpha = sun;
+  /**
+   * Dims each body by the cloud in front of it (`CloudedBodies`): `seen` for
+   * the discs and glare, drawn behind the cloud veil; `glow` for the halos.
+   */
+  setCloudCover(glow: BodyShares, seen: BodyShares): void {
+    this.glow.setCloudCover(glow.sun, glow.moon);
+    this.sunGlare.material.alpha = seen.sun;
+    this.sunDisc.mesh.visibility = seen.sun;
+    this.moonDisc.mesh.visibility = seen.moon;
   }
 
   get sunDirection(): Vector3 {
@@ -206,15 +207,6 @@ export class SunAndMoon {
       this.moonDisc.mesh.position.addInPlace(this.focus);
     }
     this.sunGlare.mesh.position.copyFrom(this.sunDisc.mesh.position);
-    this.paintSunDisc();
-  }
-
-  /** Orange near the horizon, white when high. Independent of the sky palette. */
-  private paintSunDisc(): void {
-    const blend = clamp01(this.towardSun.y / SUN_COLOUR_BLEND_HEIGHT);
-    const colour = this.sunDisc.material.emissiveColor;
-    colour.r = lerp(SUN_HORIZON_COLOUR[0], SUN_HIGH_COLOUR[0], blend);
-    colour.g = lerp(SUN_HORIZON_COLOUR[1], SUN_HIGH_COLOUR[1], blend);
-    colour.b = lerp(SUN_HORIZON_COLOUR[2], SUN_HIGH_COLOUR[2], blend);
+    paintSunDisc(this.sunDisc.material.emissiveColor, this.towardSun.y);
   }
 }

@@ -9,6 +9,8 @@ export type SkyWeather = {
   mist: number;
   /** Metres. */
   visibility: number;
+  /** 0 nothing falling, 1 the heaviest: rain hides far land but not the clouds overhead. */
+  precipitation: number;
 };
 
 /** How much fog or falling rain and snow hides the sky: 0 clear, 1 at 200 m or less. */
@@ -56,7 +58,7 @@ export function applySkyWeather(lighting: TimeOfDayLighting, weather: Readonly<S
 }
 
 export function createSkyWeather(): SkyWeather {
-  return { cover: 0, darkness: 0, purple: 0, mist: 0, visibility: 3000 };
+  return { cover: 0, darkness: 0, purple: 0, mist: 0, visibility: 3000, precipitation: 0 };
 }
 
 /** Takes the sky's share of the weather's state. */
@@ -66,6 +68,7 @@ export function copySkyWeather(from: Readonly<SkyWeather>, to: SkyWeather): void
   to.purple = from.purple;
   to.mist = from.mist;
   to.visibility = from.visibility;
+  to.precipitation = from.precipitation;
 }
 
 function greyForOvercast(colour: Colour, overcast: number): void {

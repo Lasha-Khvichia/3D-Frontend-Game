@@ -16,12 +16,14 @@ ${CAUGHT_AT_WGSL}
 @vertex
 fn main(input: VertexInputs) -> FragmentInputs {
   let box = uniforms.fall.y;
-  var offset = vertexInputs.position * box + uniforms.travelled - uniforms.cameraPosition + box * 0.5;
+  // Five paces, a quarter slower to a quarter faster, so rain is not one falling sheet.
+  let pace = 0.75 + floor(fract(vertexInputs.position.x * 91.7 + vertexInputs.position.z * 47.3) * 5.0) * 0.125;
+  var offset = vertexInputs.position * box + vec3f(uniforms.travelled.x, uniforms.travelled.y * pace, uniforms.travelled.z) - uniforms.cameraPosition + box * 0.5;
   offset = offset - box * floor(offset / box);
   var p = uniforms.cameraPosition + offset - box * 0.5;
   p.x += sin(uniforms.drift.w * 1.7 + vertexInputs.position.x * 60.0) * uniforms.drift.y;
   p.z += cos(uniforms.drift.w * 1.3 + vertexInputs.position.z * 60.0) * uniforms.drift.y;
-  let velocity = vec3f(uniforms.drift.x, -uniforms.fall.x, uniforms.drift.z);
+  let velocity = vec3f(uniforms.drift.x, -uniforms.fall.x * pace, uniforms.drift.z);
   let toEye = normalize(uniforms.cameraPosition - p);
   let away = length(p - uniforms.cameraPosition);
   let pixel = uniforms.dropSize.z * away;

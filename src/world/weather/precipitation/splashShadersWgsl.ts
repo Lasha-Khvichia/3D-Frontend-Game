@@ -1,5 +1,5 @@
 import { CAUGHT_AT_WGSL } from "./caughtAtShaders";
-import { SPLASH_SPREAD } from "./splashShadersGlsl";
+import { SPLASH_CELLS, SPLASH_PER_CELL, SPLASH_SPREAD } from "./splashShadersGlsl";
 
 const f = (value: number): string => value.toFixed(4);
 
@@ -20,17 +20,20 @@ fn scatter(p: vec2f) -> vec2f {
 }
 @vertex
 fn main(input: VertexInputs) -> FragmentInputs {
-  let clock = uniforms.splash.x / uniforms.splash.w + vertexInputs.position.z;
+  let cell = floor(uniforms.cameraPosition.xz / uniforms.splash.y) + floor(vertexInputs.position.xy * ${SPLASH_CELLS.toFixed(1)}) - ${(SPLASH_CELLS / 2).toFixed(1)};
+  let which = floor(vertexInputs.position.z * ${SPLASH_PER_CELL.toFixed(1)});
+  let own = scatter(vec2f(cell.x * 7.13 + which, cell.y * 3.71 - which * 5.0));
+  let clock = uniforms.splash.x / uniforms.splash.w + own.x;
   let slot = floor(clock);
   let age = clock - slot;
-  let xz = uniforms.cameraPosition.xz + (scatter(vec2f(slot, vertexInputs.position.x * 1000.0 + vertexInputs.position.y)) - 0.5) * 2.0 * uniforms.splash.y;
+  let xz = (cell + scatter(vec2f(slot + cell.x * 0.61, cell.y * 1.37 + which * 17.0))) * uniforms.splash.y;
   let y = caughtAt(xz);
   let east = caughtAt(xz + vec2f(${f(SPLASH_SPREAD)}, 0.0)) - y;
   let west = y - caughtAt(xz - vec2f(${f(SPLASH_SPREAD)}, 0.0));
   let north = caughtAt(xz + vec2f(0.0, ${f(SPLASH_SPREAD)})) - y;
   let south = y - caughtAt(xz - vec2f(0.0, ${f(SPLASH_SPREAD)}));
   let planar = step(abs(east - west) + abs(north - south), 0.02);
-  let shown = step(vertexInputs.uv.y, uniforms.splash.z) * step(-999.0, y) * planar;
+  let shown = step(own.y, uniforms.splash.z) * step(-999.0, y) * planar;
   let radius = 0.03 + age * 0.12;
   let corner = vec2f(vertexInputs.uv.x - 2.0 * floor(vertexInputs.uv.x / 2.0) - 0.5, floor(vertexInputs.uv.x / 2.0) - 0.5) * 2.0;
   let reach = corner * radius;

@@ -52,7 +52,7 @@ export class WetGround implements WeatherListener {
 
   /** Water mirrors the sky and glints at whichever of the sun and moon is up. */
   private lightWater(): void {
-    const { background, lightIntensity } = this.dayNight.palette;
+    const { background, lightIntensity } = this.dayNight.light.palette;
     wetField.sky.set(background.r, background.g, background.b);
     // Brighter by day: the water mirrors the whole lit dome, not just its average colour.
     wetField.skyStrength = 0.9 + 0.4 * lightIntensity;

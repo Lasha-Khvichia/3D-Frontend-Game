@@ -31,12 +31,14 @@ varying float vFade;
 ${CAUGHT_AT_GLSL}
 void main() {
   float box = fall.y;
-  vec3 offset = position * box + travelled - cameraPosition + box * 0.5;
+  // Five paces, a quarter slower to a quarter faster, so rain is not one falling sheet.
+  float pace = 0.75 + floor(fract(position.x * 91.7 + position.z * 47.3) * 5.0) * 0.125;
+  vec3 offset = position * box + vec3(travelled.x, travelled.y * pace, travelled.z) - cameraPosition + box * 0.5;
   offset = offset - box * floor(offset / box);
   vec3 p = cameraPosition + offset - box * 0.5;
   p.x += sin(drift.w * 1.7 + position.x * 60.0) * drift.y;
   p.z += cos(drift.w * 1.3 + position.z * 60.0) * drift.y;
-  vec3 velocity = vec3(drift.x, -fall.x, drift.z);
+  vec3 velocity = vec3(drift.x, -fall.x * pace, drift.z);
   vec3 toEye = normalize(cameraPosition - p);
   float away = length(p - cameraPosition);
   float pixel = dropSize.z * away;

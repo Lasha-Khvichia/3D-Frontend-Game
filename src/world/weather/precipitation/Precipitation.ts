@@ -79,11 +79,12 @@ export class Precipitation implements WeatherListener {
   /** Water shows the sky it catches; ice is white, as bright as the daylight. */
   private lightDrops(): void {
     const { background: sky, lightColor, lightIntensity } = this.palette();
-    const sun = lightIntensity * 0.2;
+    // Clear water: only a little brighter than the sky behind, where ice is white.
+    const sun = lightIntensity * 0.15;
     this.water.set(
-      sky.r * 1.5 + lightColor.r * sun,
-      sky.g * 1.5 + lightColor.g * sun,
-      sky.b * 1.5 + lightColor.b * sun,
+      sky.r * 1.45 + lightColor.r * sun,
+      sky.g * 1.45 + lightColor.g * sun,
+      sky.b * 1.45 + lightColor.b * sun,
     );
     const bright = Math.min(
       1.1,

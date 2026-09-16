@@ -68,6 +68,7 @@ export const CLOUD_UNIFORMS = [
   "skyHorizon",
   "weatherState",
   "frame",
+  "cloudDark",
 ] as const;
 
 export const CLOUD_SAMPLERS = ["historySampler", "shapeSampler", "detailSampler", "weatherSampler"];
@@ -89,6 +90,7 @@ export function bindCloudUniforms(effect: Effect, state: CloudFrame): void {
   effect.setColor3("skyHorizon", lighting.horizon);
   effect.setFloat4("weatherState", weather.cover, weather.drift.x, weather.drift.z, weather.rise);
   effect.setFloat4("frame", state.frame[0], state.frame[1], state.size[0], state.size[1]);
+  effect.setFloat("cloudDark", weather.darkness);
   effect.setTexture("historySampler", state.history);
   effect.setTexture("shapeSampler", state.textures.shape);
   effect.setTexture("detailSampler", state.textures.detail);

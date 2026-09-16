@@ -2,7 +2,7 @@ import type { PrecipitationForm } from "../weatherState";
 
 /** How one kind of drop falls and looks at this moment. */
 export type Falling = {
-  /** Metres a second downward. Measured terminal speeds: drizzle about 2, a downpour's big drops 9, snow about 1. */
+  /** Metres a second downward, before each drop's own pace. Raindrops 7 to 10, snow about 1. */
   readonly speed: number;
   /** Share of the layer's drops shown: how hard it is coming down. */
   readonly share: number;
@@ -17,29 +17,33 @@ export type Falling = {
   readonly opacity: number;
   /** 0 clear water, 1 white ice. */
   readonly white: number;
-  /** Share of the wind a drop is carried by: snow goes wherever it blows, hail barely. */
+  /** Share of the wind a drop is carried by: snow further than rain, hail barely. */
   readonly carried: number;
+  /** Most sideways speed per metre a second of fall: 1 leans a drop 45 degrees at most. */
+  readonly lean: number;
 };
 
 /**
  * The streaks for rain, sleet and hail, or null when nothing streaks. `rate`
- * runs from 0 to 1: drizzle is about 0.15, a downpour 1.
+ * runs from 0 to 1: drizzle is about 0.15, a downpour 1. Rain is thin, fast
+ * and faint, even as drizzle: slow short dashes read as snow.
  */
 export function streaksFor(form: PrecipitationForm, rate: number): Falling | null {
   const heavy = Math.min(1, Math.max(0, rate));
   if (form === "rain") {
     return drop(
-      2.5 + 6.5 * heavy,
-      0.12 + 0.88 * heavy,
-      0.009 + 0.006 * heavy,
-      1 / 30,
-      0.22 + 0.18 * heavy,
+      7 + 3 * heavy,
+      0.1 + 0.9 * heavy,
+      0.005 + 0.004 * heavy,
+      1 / 22,
+      0.32 + 0.2 * heavy,
       0,
-      0.9,
+      1,
+      1,
     );
   }
-  if (form === "sleet") return drop(4, 0.1 + 0.4 * heavy, 0.012, 1 / 40, 0.35, 0.5, 0.8);
-  if (form === "hail") return drop(11, 0.15 + 0.85 * heavy, 0.02, 1 / 90, 0.75, 1, 0.6);
+  if (form === "sleet") return drop(4, 0.1 + 0.4 * heavy, 0.01, 1 / 40, 0.35, 0.5, 0.8, 1);
+  if (form === "hail") return drop(11, 0.15 + 0.85 * heavy, 0.02, 1 / 90, 0.75, 1, 0.6, 0.6);
   return null;
 }
 
@@ -66,10 +70,23 @@ function drop(
   opacity: number,
   white: number,
   carried: number,
+  lean: number,
 ): Falling {
-  return { speed, share, width, shutter, flake: 0, sway: 0, opacity, white, carried };
+  return { speed, share, width, shutter, flake: 0, sway: 0, opacity, white, carried, lean };
 }
 
 function flake(speed: number, share: number, size: number, sway: number, opacity: number): Falling {
-  return { speed, share, width: 0, shutter: 0, flake: size, sway, opacity, white: 1, carried: 1 };
+  // Snow drifts with the wind, but even a gale leans it no more than 60 degrees.
+  return {
+    speed,
+    share,
+    width: 0,
+    shutter: 0,
+    flake: size,
+    sway,
+    opacity,
+    white: 1,
+    carried: 0.7,
+    lean: 1.7,
+  };
 }

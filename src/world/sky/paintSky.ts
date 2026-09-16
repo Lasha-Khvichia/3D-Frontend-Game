@@ -48,15 +48,16 @@ export function paintSky(
   lighting: CloudLighting,
   seconds: number,
 ): void {
-  const palette = dayNight.palette;
+  const palette = dayNight.light.palette;
   const sun = dayNight.sunAndMoon.sunDirection;
   const { moonDirection, moonAboveHorizon } = dayNight.sunAndMoon;
   // How much of the moon's face is lit: full when it stands opposite the sun.
   const moonLit = (1 - Vector3.Dot(sun, moonDirection)) / 2;
-  paint.stars.update(seconds, dayNight.totalHours, sun.y, moonAboveHorizon, moonLit);
+  const starlight = dayNight.light.behindClouds();
+  paint.stars.update(seconds, dayNight.totalHours, sun.y, moonAboveHorizon, moonLit, starlight);
   paint.horizon.set(palette.background.r, palette.background.g, palette.background.b);
   paint.zenith.copyFrom(palette.zenith);
-  paint.cloudsShown = 1 - dayNight.murk;
+  paint.cloudsShown = dayNight.light.cloudsShown;
   paint.sunDirection.copyFrom(sun);
   paint.sunGlow
     .copyFrom(palette.lightColor)

@@ -4,6 +4,14 @@ import { cloudShadeAt } from "./cloudShadeAt";
 import type { CloudNoise } from "./noise/buildCloudNoise";
 
 /**
+ * How much dark weather holds its cover back from full. At full cover every
+ * lump merges into one even sheet and a storm has no shape; a black storm
+ * drawn at 82% keeps thick and thin parts, while a plain overcast is left as
+ * it was. The shadows take the same cover.
+ */
+const STORM_BREAK = 0.2;
+
+/**
  * The clouds' side of the weather: how much of the sky is cloud, which way
  * the wind blows it, and how far it has blown. Cover and wind are the
  * weather's (`Weather`); this carries the clouds along.
@@ -13,8 +21,10 @@ import type { CloudNoise } from "./noise/buildCloudNoise";
  * a time-lapse.
  */
 export class CloudWeather {
-  /** 0 is a clear sky, 1 overcast. */
+  /** 0 is a clear sky, 1 overcast: the weather's cover, held back in a storm (`STORM_BREAK`). */
   cover = 0;
+  /** 0 a bright sky, 1 a black storm: how much of the sky's light the clouds lose. */
+  darkness = 0;
   /** Metres the wind has carried the clouds, kept inside one weather repeat. */
   readonly drift = { x: 0, z: 0 };
   /** Metres the lumps inside each cloud have risen: how clouds change shape as they go. */
@@ -33,8 +43,9 @@ export class CloudWeather {
    * Cover, and the wind at the ground. Wind a kilometre and more up blows
    * about twice as hard, and never quite stops.
    */
-  setWeather(cover: number, groundWind: number, heading: number): void {
-    this.cover = cover;
+  setWeather(cover: number, darkness: number, groundWind: number, heading: number): void {
+    this.cover = Math.min(1 - STORM_BREAK * darkness, cover);
+    this.darkness = darkness;
     this.speed = 5 + 1.8 * groundWind;
     this.heading = heading;
   }

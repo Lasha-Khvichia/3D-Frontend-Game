@@ -5,6 +5,7 @@ import type { DayNightCycle } from "../world/DayNightCycle";
 import type { SunGodRays } from "../world/SunGodRays";
 import type { WorldStreaming } from "../world/WorldStreaming";
 import type { Sky } from "../world/sky/Sky";
+import type { SoundScape } from "../audio/SoundScape";
 import type { SnowGround } from "../world/weather/snow/SnowGround";
 import type { WetGround } from "../world/weather/wet/WetGround";
 import type { Weather } from "../world/weather/Weather";
@@ -24,6 +25,7 @@ export type SettingsTargets = {
   readonly weather: Weather;
   readonly wet: WetGround;
   readonly snow: SnowGround;
+  readonly sound: SoundScape;
 };
 
 /**
@@ -73,6 +75,7 @@ export class SettingsBinder {
     controller.setHeadBobStrength(settings.headBobStrength);
     controller.setMoveSpeedScale(settings.travelSpeed);
     streaming.setRenderDistance(settings.renderDistance);
+    this.targets.sound.setVolume(settings.soundVolume);
 
     // Hardware scaling is the inverse of resolution, and it sits on top of the
     // device pixel ratio cap rather than replacing it.
@@ -80,8 +83,8 @@ export class SettingsBinder {
     resolution.configure(ratio, settings.autoResolution);
 
     godRays.setEnabled(settings.sunEffects);
-    dayNight.setSunEffectsVisible(settings.sunEffects);
-    dayNight.setShadowQuality(settings.shadowQuality);
+    dayNight.sunAndMoon.setGlareVisible(settings.sunEffects);
+    dayNight.sunAndMoon.setShadowQuality(settings.shadowQuality);
     sky.setQuality(settings.clouds);
     dayNight.setClockFrozen(settings.clockFrozen);
   }
