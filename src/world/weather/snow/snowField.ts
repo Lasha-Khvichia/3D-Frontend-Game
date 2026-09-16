@@ -10,6 +10,8 @@ const ranges = SNOWY_RANGES.flatMap((range) => [range.x, range.z, range.radius, 
 export const snowField = {
   /** Metres of snow at each height band, from the sea upward (`snowDepth.ts`). */
   deep: new Array<number>(SNOW_BANDS).fill(0),
+  /** Metres of ice on a river at each height band. */
+  ice: new Array<number>(SNOW_BANDS).fill(0),
   /** The cap that never melts: where it starts, how far it fades in, how deep it lies. */
   cap: { line: PERMANENT_LINE, edge: PERMANENT_EDGE, depth: PERMANENT_DEPTH },
   /** How far through the print window we are, so the shader can age each print. */

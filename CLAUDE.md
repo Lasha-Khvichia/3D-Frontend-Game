@@ -448,7 +448,18 @@ to the ground, stones, houses and bridge timber; on the ground it must come
 **after** `WetGroundPlugin`, whose roof test and `wetAmount` it uses. Grass is
 buried through the shared blade mesh (`Meadow.setSnowDepth`). Footprints are
 the one thing in the weather that is stored — no date can work out where the
-player walked — and only for 20 m round them (`FootprintMap`).
+player walked — and only for 20 m round them (`FootprintMap`). Snow lies on
+whichever side of a sheet faces the sky: the test flips the normal for a back
+face, because a roof's ceiling and a leaf's underside carry the same normal
+as their tops. Leaves pass `foliage` to `snowSurface` and take a dusting.
+
+**The player walks on `WinterGround`, not on `Terrain`.** It answers the
+terrain's own questions, except that a river frozen at least 10 cm thick is
+ground at its surface, and deep snow slows walking through `Ground.paceAt`,
+except along the player's own trail. The sea never freezes. River ice is
+replayed with the snow, and drawn by `RiverIcePlugin` from the same bands the
+footing reads. Anything else that should stand on ice must be given the
+`WinterGround`, or it will wade through a frozen river.
 
 **Sun and moon are real astronomy** (`celestialPath.ts`, `calendar/solarYear.ts`):
 latitude 45 degrees, the sun highest at 13:00 all year, day length following the

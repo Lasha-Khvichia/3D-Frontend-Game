@@ -19,7 +19,8 @@ const slope = { x: 0, z: 0 };
  * Three rules, and all of them only while the feet are down at ground level —
  * on a bridge the water under the deck is somebody else's problem:
  *
- * - **Water slows you**, down to 40% at chest height.
+ * - **Water slows you**, down to 40% at chest height, and so does deep snow
+ *   when the ground says so (`paceAt`).
  * - **Water too deep to wade stops you.** Wading further in is refused, and
  *   wading back out is always allowed, so nobody gets stranded.
  * - **A slope too steep to climb takes away the uphill part of the move** and
@@ -37,8 +38,9 @@ export function fitMoveToGround(
 
   const depth = ground.waterDepthAt(x, z);
   const wading = 1 - (1 - SLOWEST_SHARE) * Math.min(1, depth / SLOWEST_AT_DEPTH);
-  move.x *= wading;
-  move.z *= wading;
+  const pace = wading * (ground.paceAt?.(x, z) ?? 1);
+  move.x *= pace;
+  move.z *= pace;
 
   const aheadDepth = ground.waterDepthAt(x + move.x, z + move.z);
   if (aheadDepth > MAX_WADE_DEPTH && aheadDepth > depth) {

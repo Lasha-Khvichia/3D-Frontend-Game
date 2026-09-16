@@ -1,5 +1,5 @@
 import { COVERS_GROUND, SNOWY_RANGES } from "./snowCover";
-import { BAND_METRES, SNOW_BANDS } from "./snowDepth";
+import { bandReaderWgsl } from "./bandShaders";
 
 const f = (value: number): string => value.toFixed(3);
 const SNOW_COLOUR = "vec3f(0.93, 0.95, 0.98)";
@@ -9,16 +9,7 @@ export const SNOW_GROUND_WGSL: Record<string, string> = {
   CUSTOM_FRAGMENT_DEFINITIONS: `
 var footprintMapSampler: sampler;
 var footprintMap: texture_2d<f32>;
-fn snowBand(index: i32) -> f32 {
-  let four = uniforms.snowDeep[index / 4];
-  let lane = index - (index / 4) * 4;
-  return select(select(select(four.w, four.z, lane == 2), four.y, lane == 1), four.x, lane == 0);
-}
-fn snowDeepAt(y: f32) -> f32 {
-  let at = clamp(y / ${f(BAND_METRES)}, 0.0, ${f(SNOW_BANDS - 1.001)});
-  let low = i32(at);
-  return mix(snowBand(low), snowBand(low + 1), at - f32(low));
-}
+${bandReaderWgsl("snowDeep", "snowDeep")}
 fn snowJitter(p: vec2f) -> f32 {
   return fract(sin(dot(floor(p * 0.35), vec2f(12.9898, 78.233))) * 43758.5453) - 0.5;
 }
@@ -43,16 +34,23 @@ fn snowTrodden(xz: vec2f) -> f32 {
 {
   let snowTop = fragmentInputs.vPositionW.y + snowJitter(fragmentInputs.vPositionW.xz) * 8.0;
   let cap = snowRange(fragmentInputs.vPositionW.xz) * uniforms.snowLook.z * clamp((snowTop - uniforms.snowLook.x) / uniforms.snowLook.y, 0.0, 1.0);
-  let deep = max(snowDeepAt(snowTop), cap);
+  var lowland = snowDeepAt(snowTop);
+#ifdef WETGROUND
+  lowland *= 0.4 + 1.2 * wetNoise(vec2f(fragmentInputs.vPositionW.x * 0.18, fragmentInputs.vPositionW.z * 0.05));
+#endif
+  let deep = max(lowland, cap);
   if (deep > 0.002) {
-    let snowUp = normalize(fragmentInputs.vNormalW).y;
+    let snowUp = select(-1.0, 1.0, fragmentInputs.frontFacing) * normalize(fragmentInputs.vNormalW).y;
 #ifdef WETGROUND
     let snowSlope = 1.0 - 0.5 * (1.0 - clamp((snowUp - 0.5) / 0.35, 0.0, 1.0));
 #else
+#ifdef SNOWFOLIAGE
+    let snowSlope = 0.45 * smoothstep(-0.4, 0.2, snowUp);
+#else
     let snowSlope = smoothstep(0.35, 0.8, snowUp);
 #endif
-    let snowFacing = select(0.0, 1.0, fragmentInputs.frontFacing);
-    var snowHere = smoothstep(0.004, ${f(COVERS_GROUND)}, deep) * snowSlope * snowFacing;
+#endif
+    var snowHere = smoothstep(0.004, ${f(COVERS_GROUND)}, deep) * snowSlope;
 #ifdef WETGROUND
     snowHere *= 1.0 - wetUnderRoof(fragmentInputs.vPositionW.xz);
 #endif

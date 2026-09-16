@@ -1,3 +1,4 @@
+import { iceSurface } from "../../weather/snow/RiverIcePlugin";
 import { snowSurface } from "../../weather/snow/SnowGroundPlugin";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
@@ -13,6 +14,8 @@ export function createRiverMaterials(scene: Scene) {
   water.alpha = 0.78;
   // A ribbon has no inside; drawing both faces means its winding cannot hide it.
   water.backFaceCulling = false;
+  // It freezes in deep winter; the sea, with its own material, never does.
+  iceSurface(water);
 
   const timber = new StandardMaterial("bridge-timber", scene);
   snowSurface(timber);

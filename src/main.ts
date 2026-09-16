@@ -24,6 +24,7 @@ import { houseDistanceGroups } from "./world/houses/houseDistanceGroups";
 import { treeDistanceGroup } from "./world/trees/treeDistanceGroup";
 import { registerCloudShadows } from "./world/sky/CloudShadowPlugin";
 import { SnowGround } from "./world/weather/snow/SnowGround";
+import { WinterGround } from "./world/weather/snow/WinterGround";
 import { WetGround } from "./world/weather/wet/WetGround";
 import { registerHeightMist } from "./world/weather/HeightMistPlugin";
 import { Sky } from "./world/sky/Sky";
@@ -56,10 +57,12 @@ registerHeightMist();
 
 // The island first: everything after it stands on it.
 const terrain = new Terrain(scene);
+// What the player walks on: the terrain, with ice to stand on and snow to wade through.
+const winterGround = new WinterGround(terrain);
 const dayNight = new DayNightCycle(scene);
 const miniMap = new MiniMap(scene);
 const grass = new Meadow(scene, terrainSoil(terrain));
-const player = attachPlayer(scene, canvas, miniMap, terrain);
+const player = attachPlayer(scene, canvas, miniMap, winterGround);
 dayNight.addShadowCaster(player.controller.bean);
 dayNight.setShadowFocus(player.controller.bean.position);
 // Only what is registered flattens the grass. The ground never does.
@@ -137,6 +140,7 @@ weather.addListener(wet);
 // Snow that never melts on the two high ranges, and the trail through it.
 const snow = new SnowGround(scene, player.controller.bean.position, terrain, weather);
 weather.addListener(snow);
+winterGround.useWinter(snow);
 
 const settings = new SettingsBinder({
   resolution: runtime.resolution,

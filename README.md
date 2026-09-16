@@ -412,6 +412,63 @@ about 3 game hours, faster while snow falls or the wind blows. A step sends
 up 2.3 KB, never the whole 576 KB map. On bare snow they read clearly; in
 shallow snow over grass the stubble hides them.
 
+**Snow on trees** is a dusting. Leaves hang every way, so the rule that puts
+snow only on faces looking at the sky gave the canopy none at all — measured:
+with 50 cm forced, the ground, roofs and trunks changed and the canopy did not
+change by one colour step. Foliage takes up to 45% snow on any side not turned
+to the ground. Branches keep the sky-facing rule. Whichever side of a sheet is
+drawn, the side that faces the sky is what counts: a roof's ceiling and a
+leaf's underside carry the same normal as their tops, so the test flips the
+normal for a back face rather than refusing back faces outright.
+
+**Wind drifts** pile the lowland snow in ridges across the westerly and scour
+it thin between them, from 40% to 160% of the depth. At full cover this does
+not show; in thin snow, early and late in the season, it shows as patches of
+bare ground and streaks on the slopes. Drifts are drawn only: walking and
+footprints use the undrifted depth.
+
+### Ice, and walking in winter
+
+**Rivers freeze in deep winter and can be walked on. The sea never freezes.**
+Ice grows with the square root of the frost it has had — Stefan's law, the
+standard rule for ice, with a slower rate than still water because a river
+moves — and a thaw takes it away far faster. It is replayed with the snow, at
+the same sixteen heights, so it too is a function of the date.
+
+|                       |                                                   |
+| --------------------- | ------------------------------------------------- |
+| Holds a person        | 10 cm and thicker                                 |
+| Walkable at sea level | 76 days, late December to mid-March, in one spell |
+| Thickest              | 27 cm                                             |
+| At 100 m              | 91 days                                           |
+
+The player walks on `WinterGround`, not on the terrain: a wrapper that answers
+the terrain's own questions, except that a river frozen thick enough is ground
+at its surface — no wading, no deep-water stop, and it lies level. Water that
+has reached the sea stays open, in the footing and in the picture alike. The
+ice is drawn by `RiverIcePlugin` on the river water, reading its thickness by
+the water's height from the same bands the footing reads, so the ice you see
+is the ice that holds you. It goes opaque as it thickens, and takes snow once
+it can carry it.
+
+**Deep snow slows walking**, down to 60% of normal at 40 cm — except along the
+player's own trail, which is packed firm. The trail is read from the same
+footprint map the shader draws, with the same sum, so the path that looks
+trodden is the path that is fast.
+
+Measured with the real player controller:
+
+|                                        | Result                             |
+| -------------------------------------- | ---------------------------------- |
+| July, walking at a river 2.2 m deep    | stopped at the water after 3.8 m   |
+| February, the same river, 22 cm of ice | straight across, onto the far bank |
+| Walking speed, July                    | 4.50 m/s                           |
+| Through February snow                  | 3.94 m/s                           |
+| Along your own trail                   | 4.50 m/s                           |
+
+The player does not sink into the snow. It is painted on the ground and has no
+height to sink into; the slowing is how deep snow is felt.
+
 Three traps, all silent:
 
 - **A one-channel raw texture (`CreateRTexture`) sampled black**, with no
@@ -425,11 +482,10 @@ Three traps, all silent:
 
 ### Not yet
 
-Ice on the rivers and still water, walkable in deep winter; sinking into deep
-snow and slowing in it; wind drifts; and snow on trees. Stone, timber and
-thatch still do not darken in the rain. Grass stays summer-green under snow
-until the seasons change its colour (phase 8). Lightning and thunder come
-after that.
+Snow has no height: nothing sinks into it and it builds no banks against
+walls. Leaves stay on the trees all winter and the grass stays green under the
+snow, until the seasons change them (phase 8). Stone, timber and thatch still
+do not darken in the rain. Lightning and thunder come next.
 
 ## Sun and moon
 

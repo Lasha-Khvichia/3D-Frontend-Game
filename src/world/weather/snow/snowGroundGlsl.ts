@@ -1,5 +1,5 @@
 import { COVERS_GROUND, SNOWY_RANGES } from "./snowCover";
-import { BAND_METRES, SNOW_BANDS } from "./snowDepth";
+import { bandReaderGlsl } from "./bandShaders";
 
 const f = (value: number): string => value.toFixed(3);
 /** How white lying snow is. */
@@ -22,17 +22,7 @@ const SNOW_COLOUR = "vec3(0.93, 0.95, 0.98)";
 export const SNOW_GROUND_GLSL: Record<string, string> = {
   CUSTOM_FRAGMENT_DEFINITIONS: `
 uniform sampler2D footprintMap;
-float snowBand(int index) {
-  vec4 four = snowDeep[index / 4];
-  int lane = index - (index / 4) * 4;
-  return lane == 0 ? four.x : (lane == 1 ? four.y : (lane == 2 ? four.z : four.w));
-}
-/** Metres of snow lying at this height, read between the bands. */
-float snowDeepAt(float y) {
-  float at = clamp(y / ${f(BAND_METRES)}, 0.0, ${f(SNOW_BANDS - 1.001)});
-  int low = int(at);
-  return mix(snowBand(low), snowBand(low + 1), at - float(low));
-}
+${bandReaderGlsl("snowDeep", "snowDeep")}
 float snowJitter(vec2 p) {
   return fract(sin(dot(floor(p * 0.35), vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
 }
@@ -57,20 +47,30 @@ float snowTrodden(vec2 xz) {
 {
   float snowTop = vPositionW.y + snowJitter(vPositionW.xz) * 8.0;
   float cap = snowRange(vPositionW.xz) * snowLook.z * clamp((snowTop - snowLook.x) / snowLook.y, 0.0, 1.0);
-  float deep = max(snowDeepAt(snowTop), cap);
+  float lowland = snowDeepAt(snowTop);
+#ifdef WETGROUND
+  // Drifts: the westerly piles snow in ridges across its path and scours it
+  // thin between them, which shows in thin snow as patches and bare ground.
+  lowland *= 0.4 + 1.2 * wetNoise(vec2(vPositionW.x * 0.18, vPositionW.z * 0.05));
+#endif
+  float deep = max(lowland, cap);
   if (deep > 0.002) {
-    float snowUp = normalize(vNormalW).y;
+    // Whichever side is drawn, the side that faces the sky: a roof's ceiling and
+    // a leaf's underside carry the same normal as their tops.
+    float snowUp = (gl_FrontFacing ? 1.0 : -1.0) * normalize(vNormalW).y;
 #ifdef WETGROUND
     // The ground keeps half its snow on a steep face: from the valley a mountain is all steep face.
     float snowSlope = 1.0 - 0.5 * (1.0 - clamp((snowUp - 0.5) / 0.35, 0.0, 1.0));
 #else
+#ifdef SNOWFOLIAGE
+    // Leaves and needles hang every way: the canopy holds a dusting on any side not turned to the ground.
+    float snowSlope = 0.45 * smoothstep(-0.4, 0.2, snowUp);
+#else
     // Everything else holds it only where it looks at the sky: roofs and sills, never walls.
     float snowSlope = smoothstep(0.35, 0.8, snowUp);
 #endif
-    // Only the side that faces the sky: a roof is one sheet drawn both ways,
-    // and its underside carries the same upward normal as its top.
-    float snowFacing = gl_FrontFacing ? 1.0 : 0.0;
-    float snowHere = smoothstep(0.004, ${f(COVERS_GROUND)}, deep) * snowSlope * snowFacing;
+#endif
+    float snowHere = smoothstep(0.004, ${f(COVERS_GROUND)}, deep) * snowSlope;
 #ifdef WETGROUND
     // Bare under a roof: the same roofs the rain is kept off by.
     snowHere *= 1.0 - wetUnderRoof(vPositionW.xz);

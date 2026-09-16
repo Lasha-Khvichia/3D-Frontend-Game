@@ -1,7 +1,29 @@
 import type { InternalTexture } from "@babylonjs/core/Materials/Textures/internalTexture";
-import type { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import type { Scene } from "@babylonjs/core/scene";
 import { FOOT_BYTES, FOOT_TEXELS } from "./footprintStamps";
+
+/**
+ * The print map as a texture: RGBA, because a one-channel raw texture sampled
+ * black; bilinear with no mipmaps, said outright, because the default asks for
+ * mip levels it has not got and reads black too.
+ */
+export function createPrintTexture(scene: Scene, data: Uint8Array): RawTexture {
+  const bilinear = Texture.BILINEAR_SAMPLINGMODE;
+  const texture = RawTexture.CreateRGBATexture(
+    data,
+    FOOT_TEXELS,
+    FOOT_TEXELS,
+    scene,
+    false,
+    false,
+    bilinear,
+  );
+  texture.wrapU = Texture.CLAMP_ADDRESSMODE;
+  texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+  return texture;
+}
 
 /** Room for one print, with margin: a step sends up 2 KB rather than the whole 590. */
 export const BLOCK = 24;

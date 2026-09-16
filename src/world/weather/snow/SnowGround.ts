@@ -3,35 +3,29 @@ import type { Scene } from "@babylonjs/core/scene";
 import type { WeatherKind } from "../weatherKinds";
 import type { WeatherListener, WeatherState } from "../weatherState";
 import { FootprintMap } from "./FootprintMap";
+import { Footsteps } from "./Footsteps";
 import { PRINT_FADE_HOURS, PRINT_WINDOW_HOURS } from "./footprintStamps";
 import { HOLDS_A_PRINT, snowDepthAt } from "./snowCover";
-import { SnowTrail } from "./snowDepth";
+import { depthAtHeight, SnowTrail } from "./snowDepth";
 import { snowField } from "./snowField";
 
-/** Metres between boot prints, and how far each foot falls either side of the walk. */
-const STRIDE = 0.8;
-const FOOT_APART = 0.12;
-/** Longer than any step: past this the player was put somewhere, not walked. */
-const A_LEAP = 3;
-
 /**
- * The snow lying on the high ground, and the trail the player leaves in it.
+ * The winter on the ground: snow lying, ice on the rivers, and the trail the
+ * player leaves.
  *
- * Where the snow lies is a function of time like the weather (`snowCover.ts`),
- * so nothing about it is stored. The trail is the one thing that is: it is
+ * Snow and ice are functions of time like the weather (`snowDepth.ts`), so
+ * nothing about them is stored. The trail is the one thing that is: it is
  * what the player did, and no date can work that out. It is kept only round
  * them (`FootprintMap`) and fades as the snow fills it in.
  */
 export class SnowGround implements WeatherListener {
   private readonly prints: FootprintMap;
+  private readonly steps: Footsteps;
   private readonly trail = new SnowTrail();
   /** Metres of snow where the player stands: the grass is buried in it. */
   private underFoot = 0;
-  private lastX = Number.NaN;
-  private lastZ = Number.NaN;
-  private walked = 0;
-  private rightFoot = false;
   private filling = 1;
+  private hours = 0;
 
   constructor(
     scene: Scene,
@@ -40,6 +34,7 @@ export class SnowGround implements WeatherListener {
     private readonly weather: { readonly held: WeatherKind | null },
   ) {
     this.prints = new FootprintMap(scene);
+    this.steps = new Footsteps(this.prints);
     snowField.prints = this.prints.texture;
     snowField.foot = this.prints.area;
   }
@@ -54,40 +49,34 @@ export class SnowGround implements WeatherListener {
     return this.underFoot;
   }
 
-  /** Every step: the depth at every height, then the trail through it. */
+  /** Metres of snow lying here, on the ground at this height. */
+  depthAt(x: number, z: number, height: number): number {
+    return snowDepthAt(snowField.deep, x, z, height);
+  }
+
+  /** Metres of ice on water at this height. */
+  iceAt(height: number): number {
+    return depthAtHeight(snowField.ice, height);
+  }
+
+  /** How trodden the snow is here, 0 to 1: the player's own trail is packed firm. */
+  packedAt(x: number, z: number): number {
+    return this.prints.packedAt(x, z, this.hours, snowField.printLife);
+  }
+
+  /** Every step: snow and ice at every height, then the trail through them. */
   update(totalHours: number): void {
-    const deep = this.trail.at(totalHours, this.weather.held);
-    for (let band = 0; band < deep.length; band += 1) snowField.deep[band] = deep[band]!;
+    this.hours = totalHours;
+    const winter = this.trail.at(totalHours, this.weather.held);
+    for (let band = 0; band < winter.deep.length; band += 1) {
+      snowField.deep[band] = winter.deep[band]!;
+      snowField.ice[band] = winter.ice[band]!;
+    }
     snowField.nowShare = this.prints.shareNow(totalHours);
     snowField.printLife = (PRINT_WINDOW_HOURS / PRINT_FADE_HOURS) * this.filling;
     const { x, z } = this.eye;
-    this.underFoot = snowDepthAt(snowField.deep, x, z, this.ground.heightAt(x, z));
-    this.trackFeet(totalHours);
-    this.prints.update(this.eye.x, this.eye.z, totalHours);
-  }
-
-  /** A print every stride, left and right of the line walked, where there is snow to take it. */
-  private trackFeet(totalHours: number): void {
-    const { x, z } = this.eye;
-    if (!Number.isFinite(this.lastX)) {
-      this.lastX = x;
-      this.lastZ = z;
-      return;
-    }
-    const stepX = x - this.lastX;
-    const stepZ = z - this.lastZ;
-    const far = Math.hypot(stepX, stepZ);
-    this.lastX = x;
-    this.lastZ = z;
-    if (far < 1e-4 || far > A_LEAP) return;
-    this.walked += far;
-    if (this.walked < STRIDE) return;
-    this.walked = 0;
-    if (this.underFoot < HOLDS_A_PRINT) return;
-    const towardX = stepX / far;
-    const towardZ = stepZ / far;
-    this.rightFoot = !this.rightFoot;
-    const side = this.rightFoot ? FOOT_APART : -FOOT_APART;
-    this.prints.press(x + towardZ * side, z - towardX * side, towardX, towardZ, totalHours);
+    this.underFoot = this.depthAt(x, z, this.ground.heightAt(x, z));
+    this.steps.track(x, z, this.underFoot >= HOLDS_A_PRINT, totalHours);
+    this.prints.update(x, z, totalHours);
   }
 }

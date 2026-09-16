@@ -30,8 +30,11 @@ function noFootprints(scene: Scene): RawTexture {
  * or neither — `Terrain` does both, one after the other.
  */
 class SnowGroundPlugin extends MaterialPluginBase {
-  constructor(material: StandardMaterial) {
-    super(material, "SnowGround", 180, { SNOWGROUND: false });
+  constructor(
+    material: StandardMaterial,
+    private readonly foliage: boolean,
+  ) {
+    super(material, "SnowGround", 180, { SNOWGROUND: false, SNOWFOLIAGE: false });
     this._enable(true);
   }
 
@@ -45,6 +48,7 @@ class SnowGroundPlugin extends MaterialPluginBase {
 
   override prepareDefines(defines: MaterialDefines): void {
     defines["SNOWGROUND"] = true;
+    defines["SNOWFOLIAGE"] = this.foliage;
   }
 
   override getSamplers(samplers: string[]): void {
@@ -91,6 +95,6 @@ class SnowGroundPlugin extends MaterialPluginBase {
 }
 
 /** Gives the ground its lying snow and footprints. Call it after `wetSurface`. */
-export function snowSurface(material: StandardMaterial): void {
-  new SnowGroundPlugin(material);
+export function snowSurface(material: StandardMaterial, foliage = false): void {
+  new SnowGroundPlugin(material, foliage);
 }

@@ -1,5 +1,4 @@
-import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
-import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import type { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import type { Scene } from "@babylonjs/core/scene";
 import {
   FOOT_BYTES,
@@ -11,7 +10,8 @@ import {
   rebaseStamps,
   slideStamps,
 } from "./footprintStamps";
-import { blockRoom, sendPrintBlock } from "./sendPrintBlock";
+import { troddenShare } from "./readPrint";
+import { blockRoom, createPrintTexture, sendPrintBlock } from "./printTexture";
 
 /** The map follows the player once they are this far from its middle. */
 const RECENTRE_METRES = 4;
@@ -32,22 +32,19 @@ export class FootprintMap {
   private wholeMap = false;
 
   constructor(private readonly scene: Scene) {
-    this.texture = RawTexture.CreateRGBATexture(
-      this.data,
-      FOOT_TEXELS,
-      FOOT_TEXELS,
-      scene,
-      false,
-      false,
-      Texture.BILINEAR_SAMPLINGMODE,
-    );
-    this.texture.wrapU = Texture.CLAMP_ADDRESSMODE;
-    this.texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+    this.texture = createPrintTexture(scene, this.data);
   }
 
   /** How far through the window we are now: the shader takes each print's age from this. */
   shareNow(totalHours: number): number {
     return (totalHours - this.epoch) / PRINT_WINDOW_HOURS;
+  }
+
+  /** How trodden the snow is here now, 0 to 1: the player's own trail is packed firm. */
+  packedAt(x: number, z: number, totalHours: number, printLife: number): number {
+    const column = Math.round((x - this.area.x) / FOOT_TEXEL_METRES);
+    const row = Math.round((z - this.area.z) / FOOT_TEXEL_METRES);
+    return troddenShare(this.data, column, row, this.shareNow(totalHours), printLife);
   }
 
   /** One boot down, pointing the way the player is walking. */

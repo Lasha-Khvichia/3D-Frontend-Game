@@ -16,4 +16,6 @@ export type Ground = {
   waterDepthAt(x: number, z: number): number;
   /** Metres inside the coast; negative out at sea. */
   inlandAt(x: number, z: number): number;
+  /** Share of normal walking speed the ground allows here: 1 on firm ground, less in deep snow. */
+  paceAt?(x: number, z: number): number;
 };
