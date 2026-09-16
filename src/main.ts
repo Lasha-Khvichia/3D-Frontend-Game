@@ -135,7 +135,7 @@ const falling = attachPrecipitation(scene, { ground: terrain, houses, dayNight, 
 const wet = new WetGround(player.controller.bean.position, weather, dayNight, falling.roofs);
 weather.addListener(wet);
 // Snow that never melts on the two high ranges, and the trail through it.
-const snow = new SnowGround(scene, player.controller.bean.position, terrain);
+const snow = new SnowGround(scene, player.controller.bean.position, terrain, weather);
 weather.addListener(snow);
 
 const settings = new SettingsBinder({
@@ -159,6 +159,7 @@ falling.update(player.controller.bean.position);
 weather.update(dayNight.totalHours);
 wet.update(dayNight.totalHours, 0);
 snow.update(dayNight.totalHours);
+grass.setSnowDepth(snow.depthUnderFoot);
 dayNight.refresh();
 sky.repaint();
 
@@ -168,6 +169,7 @@ runtime.setSimulationStep((fixedDeltaSeconds) => {
   weather.update(dayNight.totalHours);
   wet.update(dayNight.totalHours, fixedDeltaSeconds);
   snow.update(dayNight.totalHours);
+  grass.setSnowDepth(snow.depthUnderFoot);
   // Before the player's own update, which clears any key press nothing took.
   publishPrompt(
     openings.update(fixedDeltaSeconds, player.controller.bean.position, player.takeOpeningKeys()),

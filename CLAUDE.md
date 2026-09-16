@@ -153,6 +153,12 @@ raw data textures here. And **WGSL only allows `textureSample` from uniform
 control flow** — read a texture inside an `if` with `textureSampleLevel`, or
 WebGPU refuses to compile the shader while WebGL says nothing.
 
+**Changing `baseColor` in a material plugin does nothing to most materials.**
+A standard material multiplies `diffuseColor` in afterwards, so only a
+material whose colour is in its vertices (the ground) follows `baseColor`.
+Snow went white on the ground and stayed brown on every roof. Change
+`diffuseColor` as well.
+
 **`RegisterMaterialPlugin` only reaches materials created after it.** The cloud
 shadows are registered at the top of `main.ts`, before the terrain; register
 later and everything already built has no shadows, with no error.
@@ -432,16 +438,17 @@ only those two show it, and the ground alone carries the puddles and the roof
 test that keeps a floor dry. A new material that should show the rain needs
 that call — there is nothing to notice if it is missing.
 
-**Snow on the high ground is painted by the ground shader, not into the
-ground** (`src/world/weather/snow/`): the line comes down the slopes through
-winter and lifts in spring, and a patch's vertex colours are baked when it is
-built. It lies on the two biggest ranges only (`SNOWY_RANGES`) and is a
-function of time, like the weather. `SnowGroundPlugin` must be attached
-**after** `WetGroundPlugin` on the ground material: it takes over that
-plugin's `wetAmount` and `wetPuddle` where snow lies, so rain does not pool on
-snow. Footprints are the one thing in the weather that is stored — no date can
-work out where the player walked — and only for 20 m round them
-(`FootprintMap`), which sends up just the block round each print.
+**Snow depth is replayed from 1 September, never stored**
+(`src/world/weather/snow/`): an hour at a time since the ground was last bare,
+at sixteen heights, so walking to a date and jumping to it agree exactly. A
+window of so many days does not: a hard winter never melts, and what fell
+before the window still counts. The two biggest ranges keep a cap all year
+(`SNOWY_RANGES`). `SnowGroundPlugin` is attached **by hand** (`snowSurface`)
+to the ground, stones, houses and bridge timber; on the ground it must come
+**after** `WetGroundPlugin`, whose roof test and `wetAmount` it uses. Grass is
+buried through the shared blade mesh (`Meadow.setSnowDepth`). Footprints are
+the one thing in the weather that is stored — no date can work out where the
+player walked — and only for 20 m round them (`FootprintMap`).
 
 **Sun and moon are real astronomy** (`celestialPath.ts`, `calendar/solarYear.ts`):
 latitude 45 degrees, the sun highest at 13:00 all year, day length following the
@@ -467,7 +474,7 @@ src/world/calendar/ the calendar, the sun's path through the year, the climate
 src/world/weather/  the weather: what each day brings, and what it does to the sky and air
 src/world/weather/precipitation/  rain, sleet, hail and snow falling, and the roofs that keep it off
 src/world/weather/wet/  what the rain leaves: wet ground, puddles and their rings
-src/world/weather/snow/  snow on the high ground, and the trail through it
+src/world/weather/snow/  snow that builds and melts, on the ground, roofs and stones, and the trail through it
 src/world/rocks/    loose stones
 src/player/    the bean, its camera, controls, collisions, footing, head bob
 src/minimap/   the second camera and its overlay decorations

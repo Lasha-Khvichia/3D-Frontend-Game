@@ -1,3 +1,4 @@
+import { snowSurface } from "../../weather/snow/SnowGroundPlugin";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
@@ -14,6 +15,7 @@ export function createRiverMaterials(scene: Scene) {
   water.backFaceCulling = false;
 
   const timber = new StandardMaterial("bridge-timber", scene);
+  snowSurface(timber);
   timber.diffuseColor = new Color3(0.42, 0.3, 0.19);
   timber.specularColor = Color3.Black();
 

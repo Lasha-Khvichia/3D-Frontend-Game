@@ -1,3 +1,4 @@
+import { snowSurface } from "../weather/snow/SnowGroundPlugin";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
@@ -16,6 +17,8 @@ import type { Scene } from "@babylonjs/core/scene";
  */
 export function createRockMaterial(scene: Scene): StandardMaterial {
   const material = new StandardMaterial("rock", scene);
+  // Snow settles on the tops of stones as it does on the ground.
+  snowSurface(material);
   material.diffuseColor = new Color3(0.7, 0.67, 0.62);
   // Specular on a big rock face under a moving sun reads as wet plastic.
   material.specularColor = Color3.Black();

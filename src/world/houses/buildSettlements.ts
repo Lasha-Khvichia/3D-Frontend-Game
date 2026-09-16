@@ -1,3 +1,4 @@
+import { snowSurface } from "../weather/snow/SnowGroundPlugin";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Scene } from "@babylonjs/core/scene";
@@ -55,6 +56,8 @@ function makeRoofTwoSided(material: StandardMaterial): StandardMaterial {
 
 function createMaterial(scene: Scene, name: string, colour: Color3): StandardMaterial {
   const material = new StandardMaterial(name, scene);
+  // Snow lies on roofs, sills and the tops of walls, never on their sides.
+  snowSurface(material);
   material.diffuseColor = colour;
   // Specular on a big flat wall under a moving sun reads as a smear of gloss.
   material.specularColor = Color3.Black();

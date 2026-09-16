@@ -1,16 +1,16 @@
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import type { WeatherKind } from "../weatherKinds";
 import type { WeatherListener, WeatherState } from "../weatherState";
 import { FootprintMap } from "./FootprintMap";
 import { PRINT_FADE_HOURS, PRINT_WINDOW_HOURS } from "./footprintStamps";
-import { snowCoverAt, snowLineAt } from "./snowCover";
+import { HOLDS_A_PRINT, snowDepthAt } from "./snowCover";
+import { SnowTrail } from "./snowDepth";
 import { snowField } from "./snowField";
 
 /** Metres between boot prints, and how far each foot falls either side of the walk. */
 const STRIDE = 0.8;
 const FOOT_APART = 0.12;
-/** Below this the cover is too thin to hold a print. */
-const HOLDS_A_PRINT = 0.15;
 /** Longer than any step: past this the player was put somewhere, not walked. */
 const A_LEAP = 3;
 
@@ -24,6 +24,9 @@ const A_LEAP = 3;
  */
 export class SnowGround implements WeatherListener {
   private readonly prints: FootprintMap;
+  private readonly trail = new SnowTrail();
+  /** Metres of snow where the player stands: the grass is buried in it. */
+  private underFoot = 0;
   private lastX = Number.NaN;
   private lastZ = Number.NaN;
   private walked = 0;
@@ -34,6 +37,7 @@ export class SnowGround implements WeatherListener {
     scene: Scene,
     private readonly eye: Vector3,
     private readonly ground: { heightAt(x: number, z: number): number },
+    private readonly weather: { readonly held: WeatherKind | null },
   ) {
     this.prints = new FootprintMap(scene);
     snowField.prints = this.prints.texture;
@@ -46,11 +50,18 @@ export class SnowGround implements WeatherListener {
     this.filling = 1 + falling + state.wind / 12;
   }
 
-  /** Every step. */
+  get depthUnderFoot(): number {
+    return this.underFoot;
+  }
+
+  /** Every step: the depth at every height, then the trail through it. */
   update(totalHours: number): void {
-    snowField.line = snowLineAt(totalHours);
+    const deep = this.trail.at(totalHours, this.weather.held);
+    for (let band = 0; band < deep.length; band += 1) snowField.deep[band] = deep[band]!;
     snowField.nowShare = this.prints.shareNow(totalHours);
     snowField.printLife = (PRINT_WINDOW_HOURS / PRINT_FADE_HOURS) * this.filling;
+    const { x, z } = this.eye;
+    this.underFoot = snowDepthAt(snowField.deep, x, z, this.ground.heightAt(x, z));
     this.trackFeet(totalHours);
     this.prints.update(this.eye.x, this.eye.z, totalHours);
   }
@@ -72,7 +83,7 @@ export class SnowGround implements WeatherListener {
     this.walked += far;
     if (this.walked < STRIDE) return;
     this.walked = 0;
-    if (snowCoverAt(x, z, this.ground.heightAt(x, z), totalHours) < HOLDS_A_PRINT) return;
+    if (this.underFoot < HOLDS_A_PRINT) return;
     const towardX = stepX / far;
     const towardZ = stepZ / far;
     this.rightFoot = !this.rightFoot;

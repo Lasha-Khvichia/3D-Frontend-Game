@@ -7,6 +7,7 @@ import { RawTexture } from "@babylonjs/core/Materials/Textures/rawTexture";
 import type { UniformBuffer } from "@babylonjs/core/Materials/uniformBuffer";
 import type { Scene } from "@babylonjs/core/scene";
 import { SNOWY_RANGES } from "./snowCover";
+import { SNOW_BANDS } from "./snowDepth";
 import { snowField } from "./snowField";
 import { SNOW_GROUND_GLSL } from "./snowGroundGlsl";
 import { SNOW_GROUND_WGSL } from "./snowGroundWgsl";
@@ -51,15 +52,19 @@ class SnowGroundPlugin extends MaterialPluginBase {
   }
 
   override getUniforms(language: ShaderLanguage = ShaderLanguage.GLSL) {
+    const deepVectors = SNOW_BANDS / 4;
     const ubo = [
       { name: "snowLook", size: 4, type: "vec4" },
       { name: "footArea", size: 4, type: "vec4" },
       { name: "snowRanges", size: 4, type: "vec4", arraySize: SNOWY_RANGES.length },
+      { name: "snowDeep", size: 4, type: "vec4", arraySize: deepVectors },
     ];
     if (language === ShaderLanguage.WGSL) return { ubo };
     return {
       ubo,
-      fragment: `uniform vec4 snowLook;\nuniform vec4 footArea;\nuniform vec4 snowRanges[${SNOWY_RANGES.length}];`,
+      fragment:
+        `uniform vec4 snowLook;\nuniform vec4 footArea;\n` +
+        `uniform vec4 snowRanges[${SNOWY_RANGES.length}];\nuniform vec4 snowDeep[${deepVectors}];`,
     };
   }
 
@@ -68,10 +73,11 @@ class SnowGroundPlugin extends MaterialPluginBase {
     scene: Scene,
     _engine: AbstractEngine,
   ): void {
-    const { line, edge, nowShare, printLife, foot } = snowField;
-    uniformBuffer.updateFloat4("snowLook", line, edge, nowShare, printLife);
-    uniformBuffer.updateFloat4("footArea", foot.x, foot.z, foot.size, 0);
+    const { cap, nowShare, printLife, foot } = snowField;
+    uniformBuffer.updateFloat4("snowLook", cap.line, cap.edge, cap.depth, printLife);
+    uniformBuffer.updateFloat4("footArea", foot.x, foot.z, foot.size, nowShare);
     uniformBuffer.updateArray("snowRanges", snowField.ranges);
+    uniformBuffer.updateArray("snowDeep", snowField.deep);
     uniformBuffer.setTexture("footprintMap", snowField.prints ?? noFootprints(scene));
   }
 

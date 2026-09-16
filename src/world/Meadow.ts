@@ -5,7 +5,7 @@ import { WorldEntity } from "../core/WorldEntity";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { FINE_DETAIL_LAYER } from "./fineDetailLayer";
 import type { GrassBlockerGrid } from "./GrassBlockerGrid";
-import { swayGrassBlade } from "./createGrassBlade";
+import { BLADE_HEIGHT, swayGrassBlade } from "./createGrassBlade";
 import { GrassField, type GrassSoil } from "./GrassField";
 import { FAR_GRASS, NEAR_GRASS } from "./grassLayout";
 
@@ -28,6 +28,8 @@ export class Meadow extends WorldEntity {
   private readonly near: GrassField;
   private readonly far: GrassField;
   private windStrength = 1;
+  /** Share of a blade's height that snow has swallowed. */
+  private buried = 0;
 
   constructor(scene: Scene, soil: GrassSoil) {
     super();
@@ -68,7 +70,15 @@ export class Meadow extends WorldEntity {
     // The breeze lives in the shared blade mesh, not in the transforms: five
     // vertices move and every blade in both patches follows, on the GPU, for
     // nothing. Both meshes go in one call because the clock advances inside it.
-    swayGrassBlade([this.near.mesh, this.far.mesh], seconds, this.windStrength);
+    swayGrassBlade([this.near.mesh, this.far.mesh], seconds, this.windStrength, this.buried);
+  }
+
+  /**
+   * Metres of snow lying where the player stands. Snow presses long grass
+   * down as well as covering it, so about 16 cm hides a 46 cm blade entirely.
+   */
+  setSnowDepth(metres: number): void {
+    this.buried = Math.min(1, metres / (BLADE_HEIGHT * 0.35));
   }
 
   /** The weather's wind: 1 is the breeze the sway was tuned in, 4.5 m/s. */

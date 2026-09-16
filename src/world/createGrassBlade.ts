@@ -130,7 +130,12 @@ const swayPositions = new Float32Array(15);
  * Takes every blade mesh at once, because the clock advances inside it. Called
  * once per mesh, the near and far patches would run at different speeds.
  */
-export function swayGrassBlade(meshes: readonly Mesh[], seconds: number, strength = 1): void {
+export function swayGrassBlade(
+  meshes: readonly Mesh[],
+  seconds: number,
+  strength = 1,
+  buried = 0,
+): void {
   // A stronger wind swings the blades further and quicker.
   swayTime += seconds * (0.7 + 0.3 * strength);
 
@@ -140,12 +145,15 @@ export function swayGrassBlade(meshes: readonly Mesh[], seconds: number, strengt
 
   const halfBase = BASE_WIDTH / 2;
   const halfMid = MID_WIDTH / 2;
-  const midHeight = BLADE_HEIGHT * 0.55;
+  // Snow buries a blade from the bottom: what is left standing is shorter and
+  // leans less, until at a blade's depth there is nothing left to see.
+  const showing = Math.max(0, 1 - buried);
+  const midHeight = BLADE_HEIGHT * 0.55 * showing;
   // The base stays planted; the bend grows towards the tip.
-  const midForward = MID_LEAN + forward * 0.32;
-  const midSide = sideways * 0.32;
-  const tipForward = TIP_LEAN + forward;
-  const tipSide = sideways;
+  const midForward = (MID_LEAN + forward * 0.32) * showing;
+  const midSide = sideways * 0.32 * showing;
+  const tipForward = (TIP_LEAN + forward) * showing;
+  const tipSide = sideways * showing;
 
   swayPositions.set([
     -halfBase,
@@ -161,7 +169,7 @@ export function swayGrassBlade(meshes: readonly Mesh[], seconds: number, strengt
     midHeight,
     midForward,
     tipSide,
-    BLADE_HEIGHT,
+    BLADE_HEIGHT * showing,
     tipForward,
   ]);
   for (const mesh of meshes) mesh.updateVerticesData(VertexBuffer.PositionKind, swayPositions);
