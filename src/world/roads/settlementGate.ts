@@ -1,6 +1,6 @@
 import { HOUSE_SHAPES } from "../houses/houseShapes";
 import type { Settlement } from "../houses/settlements";
-import type { RoadPoint } from "./routeRoad";
+import type { RoadPoint } from "./routeOverLand";
 import { villageStreet } from "./villageStreet";
 
 /** Metres from a hamlet's green the road stops at: outside the ring its cottages stand on. */

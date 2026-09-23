@@ -419,14 +419,19 @@ blocked move from 0.4 m up, and that retry must only land somewhere
 `isStandable` agrees with, or it becomes a way to stair-step up a rock face.
 
 **Roads are painted into the ground, not laid on it** (`src/world/roads/`):
-`buildRoads` runs inside `Terrain` — after the rivers, so a road can bend to a
-bridge, and before any patch is built, because `createPatchMesh` asks
-`roadShareAt` for every vertex. A road that must cross water aims at a
-crossing **across** the river (each bridge carries its yaw), or it walks up
-the channel to get there. Roads leave the village at the ends of its street
-and stop outside a hamlet's ring of cottages, which is what keeps them out of
-people's houses. The village street's cobbles are thin instances hashed from
-the ground, like the grass.
+`buildRoads` runs inside `Terrain` — after the rivers, so the water and the
+bridges are known, and before any patch is built, because `createPatchMesh`
+asks `roadShareAt` for every vertex. **Each road is a search, not a line**:
+A* over a 16 m cost grid where climbing is charged by the square of the
+grade, high ground costs more than low, riverbanks cost more than open
+country, and water away from a bridge is closed — which is what makes a road
+bend round a hill. The staircase it returns is straightened and rounded, and
+the rounded line is then **checked along its whole length** for water, because
+a curve can cut a corner the corners themselves avoided. A square is sampled
+for water at nine places: a river narrower than a square hides between fewer.
+Roads leave the village at the ends of its street and stop outside a hamlet's
+ring of cottages, which keeps them out of people's houses. The village
+street's cobbles are thin instances hashed from the ground, like the grass.
 
 **Every rock is two meshes**, built only near the player: a smooth one to look
 at, with no collision, and an invisible upright prism to bump into

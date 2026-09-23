@@ -26,6 +26,8 @@ import { TerrainDetail } from "./patches/TerrainDetail";
 export class Terrain extends WorldEntity implements Ground {
   readonly grid: HeightGrid;
   readonly rivers: Rivers;
+  /** What the road-maker laid, and how many roads it could not find a dry way for. */
+  readonly roads: ReturnType<typeof buildRoads>;
   /** The drawn ground: built around the player, and refined as they move. */
   readonly detail: TerrainDetail;
   private readonly sea: Mesh[];
@@ -39,7 +41,7 @@ export class Terrain extends WorldEntity implements Ground {
 
     // After the rivers, so a road can bend to a bridge; before any patch is
     // built, because a road is painted into the ground's own colours.
-    buildRoads((x, z) => this.waterDepthAt(x, z), this.rivers.crossings);
+    this.roads = buildRoads(this.grid, (x, z) => this.waterDepthAt(x, z), this.rivers.crossings);
 
     const material = terrainMaterial(scene);
 

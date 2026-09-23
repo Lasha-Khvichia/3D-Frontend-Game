@@ -1501,8 +1501,40 @@ thawed to be placed and frozen again after, or the turn is silently ignored.
 ## Roads
 
 **Every settlement is joined to every other by road**: one out of the village
-to each of the five hamlets, and a ring joining each hamlet to its neighbour
-round the island. 7.9 km of road in 26 straight runs.
+to each of the five hamlets, and a ring joining each hamlet to its neighbour.
+10.3 km of road in 715 short runs, because a road here is a curve, not a line.
+
+### They are found over the land, not ruled across the map
+
+Each road is the **cheapest walk** between two places over a 16 m cost grid
+(`roadCountry`, `routeOverLand`), where cheap means level and low:
+
+| What a road is charged for   | How much                                 |
+| ---------------------------- | ---------------------------------------- |
+| Climbing                     | by the square of the grade, hard past 9% |
+| A cliff, over 32%            | twelve times over                        |
+| Being high up                | by the square of the height, from 45 m   |
+| Running along a riverbank    | two and a half times                     |
+| Water away from a bridge     | closed to it                             |
+| The ground a house stands on | closed to it                             |
+
+So a road takes the long way round a hill rather than the short way over it.
+Measured over every road: **median grade 0.6 degrees, nothing over 20
+degrees, 0.8% over 10**, and the median height along a road is 0.9 m above
+the sea on an island that rises past 200 m. Every road keeps out of the water
+except on a bridge, and none passes through a house.
+
+The staircase the route finder leaves is straightened (Douglas-Peucker, 7 m)
+and rounded through a Catmull-Rom curve, which passes **through** its points
+rather than near them — a road that misses the bridge it was routed to is
+worse than a straight one. 451 of the 715 joins bend by more than 3 degrees.
+
+**A river narrower than a square can hide between two dry samples.** Each
+square is asked about water at nine places, not one, or a road steps straight
+over a stream; and a rounded corner is checked along its whole length before
+it is accepted, falling back to the unrounded corners if it dips into water.
+
+Finding all ten roads costs about 70 ms, once, while the terrain is built.
 
 A road is **not geometry**. It is painted into the ground's own vertex colours
 as each patch is built (`roadShareAt` in `terrainColour`), so it costs nothing
@@ -1517,16 +1549,7 @@ edges (`roadGrassBlockers`).
 
 **Roads leave the village at the two ends of its street**, never from the
 middle of it, and meet a hamlet just outside the ring its cottages stand in,
-at the gap nearest the way the road comes from. Measured over every road:
-**no road passes through a house**.
-
-**Where a road would walk into a river it bends to a bridge** and crosses
-there (`routeRoad`). The bridge it picks is the one that costs the least
-walking, and it is met **across** the river, not along the road's own line —
-aimed the other way, a road climbs the bank with its feet in the water the
-whole way, which is exactly what the first version did. Measured: every wet
-step of every road is at a bridge, and bending for them costs 0.5 km over the
-straight lines.
+at the gap nearest the way the road comes from.
 
 ### The village street is cobbled
 
