@@ -1276,6 +1276,7 @@ full size after 10 changes in 5 minutes, and a fast one never changes.
 | ------------------- | ---------- | --------------------------------------------- |
 | Main view           | about 390  | every frame                                   |
 | Sun shadow map      | 132        | while the sun is up                           |
+| Moon shadow map     | about 138  | while the moon is up and the sun is not       |
 | Far shadow cascades | about 500  | Far only, while the sun is up                 |
 | Fire shadow map     | about 114  | only inside the house whose fire is lit       |
 | Mountain shade      | none       | a worker, about every 2 s while the sun moves |
@@ -2235,19 +2236,27 @@ Speeds and sizes live in `src/player/PlayerController.ts` and
 
 ## Shadows
 
-Four kinds, each paid for only where it shows:
+Five kinds, each paid for only where it shows:
 
 | Kind              | What casts, onto what                                     | Where                                 |
 | ----------------- | --------------------------------------------------------- | ------------------------------------- |
 | Sun, Low and High | houses, doors, chimneys, bridges, trees, lanterns, player | a fixed 48 m box round the player     |
 | Sun, Far          | the same, and trees out to 150 m                          | three cascades to 150 m               |
+| Moon              | the same casters, in black                                | the same box or cascades, at night    |
 | Mountains         | the island itself, onto everything                        | the whole island, from a map          |
 | Firelight         | the house the player is in, and the player                | only while standing inside that house |
 
-The sun's shadow map is switched **off while the sun is below the horizon**.
-It is a whole extra render of every caster, and nothing is lit by the sun then
-anyway. Every map is redrawn every frame while it is on — never every second
-frame, which was tried and turned down.
+The sun's shadow map is switched **off while the sun is below the horizon**,
+and the moon's takes over until dawn. A map is a whole extra render of every
+caster, so only one is ever drawn, and none at all when neither body is up.
+Every map is redrawn every frame while it is on — never every second frame,
+which was tried and turned down.
+
+**The moon's shadows are black**, where the sun's let 58% of the light
+through. The sun's are filled in by a bright sky; the moon's by the night
+sky's glow, which the ambient light already carries. With no moon shadows at
+all, moonlight came through every roof and lit the rooms inside a pale blue,
+and the fire was not the only light in a house at night.
 
 ### Low, High and Far
 
