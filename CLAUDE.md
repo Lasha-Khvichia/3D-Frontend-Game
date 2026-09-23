@@ -71,6 +71,12 @@ mouse. The world map (`M`) uses the same rule — it lets go of the mouse to
 pause, and hides the pause menu while it is open. Pausing freezes the simulation, keeps rendering, and resets the loop
 accumulator so menu time does not replay as a burst of steps.
 
+**Paused, nothing moves and nothing sounds.** What runs outside the step is
+stopped by hand: rain and snow move by 0 seconds, `ParticleFreeze` (in
+`GameRuntime`) sets every particle system's `updateSpeed` to 0, `CloudPass`
+stops tracing, and `SoundScape` suspends the `AudioContext`. Anything new on
+real time or in a before-render check must read `readPaused()` and stop too.
+
 ## Rules that fail silently if broken
 
 **Import Babylon by deep path, never the package root.** `@babylonjs/core/scene`
@@ -481,10 +487,11 @@ the sky stays lit behind the menu. Bolts are drawn 1,150 m out, scaled to
 their true size, and can show in front of a mountain further off than that.
 
 **Sound runs on real time every drawn frame, not in the step** (`src/audio/`),
-so it goes on, quieter, while paused — except footsteps, which `StrideTracker`
-hears in `stepWorld` and `GroundSurfaces` names the ground for. Nothing plays
-until the player clicks or presses a key — browsers keep an `AudioContext`
-suspended until then. Every sound goes through the master gain and then the
+and stops dead while paused: a 0.1 s fade, then the `AudioContext` is
+suspended, which holds scheduled sounds too. Footsteps are the exception to
+real time: `StrideTracker` hears them in `stepWorld` and `GroundSurfaces`
+names the ground for them. Nothing plays until the player clicks or presses a
+key — browsers keep an `AudioContext` suspended until then. Every sound goes through the master gain and then the
 limiter; a sound connected straight to the destination escapes the volume
 setting and can clip. Rain, wind and leaves go through the weather bus, which
 dips under thunder: a new weather sound belongs there. Wiring is in

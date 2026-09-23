@@ -2,6 +2,8 @@ import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { EffectRenderer, type EffectWrapper } from "@babylonjs/core/Materials/effectRenderer";
 import type { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import type { Scene } from "@babylonjs/core/scene";
+import { readPaused } from "../../ui/bridge";
+import { advanceCloudFrame } from "./advanceCloudFrame";
 import { CameraBasis } from "./CameraBasis";
 import type { CloudTextures } from "./createCloudTextures";
 import {
@@ -10,19 +12,22 @@ import {
   type CloudFrame,
   type CloudLighting,
 } from "./bindCloudUniforms";
-import { CLOUD_HISTORY_KEEP, CLOUD_QUALITY, type CloudQuality } from "./cloudQuality";
+import { cloudTargetWidth, type CloudQuality } from "./cloudQuality";
 import type { CloudWeather } from "./CloudWeather";
-import { createCloudMarch, createCloudTargets } from "./createCloudMarch";
+import { buildCloudMarch } from "./createCloudMarch";
+import { PausedCloudSettle } from "./PausedCloudSettle";
 
 /**
  * Traces the clouds into a small off-screen target every frame, before the
  * scene is drawn, for the veil to lay into it. Two targets take turns: each
  * frame blends into the one the last frame wrote, and writes the other.
+ *
+ * Paused, the clouds hold still but for settling a change (`PausedCloudSettle`).
  */
 export class CloudPass {
   /** The camera as this frame's clouds were traced for it. */
   readonly view = new CameraBasis();
-  private readonly before = new CameraBasis();
+  private readonly settle = new PausedCloudSettle();
   private readonly renderer: EffectRenderer;
   private wrapper: EffectWrapper | null = null;
   private targets: RenderTargetTexture[] = [];
@@ -38,7 +43,8 @@ export class CloudPass {
     lighting: CloudLighting,
   ) {
     this.renderer = new EffectRenderer(scene.getEngine());
-    this.state = createCloudFrame(camera(), this.view, this.before, textures, weather, lighting);
+    const before = new CameraBasis();
+    this.state = createCloudFrame(camera(), this.view, before, textures, weather, lighting);
     this.rebuild();
   }
 
@@ -53,20 +59,19 @@ export class CloudPass {
     this.rebuild();
   }
 
+  /** Traces a few more frames while paused: the sky the clouds are lit by has changed. */
+  refresh(): void {
+    this.settle.restart();
+  }
+
   render(): void {
     const wrapper = this.wrapper;
     if (!wrapper?.effect.isReady()) return;
     if (this.targets[0]?.getRenderWidth() !== this.targetWidth()) return this.rebuild();
-    this.before.copyFrom(this.view);
-    this.state.camera = this.camera();
-    this.view.readFrom(this.state.camera, this.scene.getEngine());
+    const [camera, engine] = [this.camera(), this.scene.getEngine()];
+    if (readPaused() && !this.settle.shouldTrace(camera, engine, this.view)) return;
     const target = this.targets[1 - this.latest]!;
-    const first = this.state.history === null;
-    this.state.history = this.targets[this.latest]!;
-    this.state.frame[0] = (this.state.frame[0] + 0.618034) % 1;
-    this.state.frame[1] = first ? 0 : CLOUD_HISTORY_KEEP;
-    this.state.size[0] = target.getRenderWidth();
-    this.state.size[1] = target.getRenderHeight();
+    advanceCloudFrame(this.state, camera, engine, this.targets[this.latest]!, target);
     this.renderer.render(wrapper, target);
     this.latest = 1 - this.latest;
   }
@@ -78,22 +83,18 @@ export class CloudPass {
   }
 
   private targetWidth(): number {
-    const scale = this.quality === "off" ? 0 : CLOUD_QUALITY[this.quality].scale;
-    return Math.max(1, Math.round(this.scene.getEngine().getRenderWidth() * scale));
+    return cloudTargetWidth(this.scene.getEngine().getRenderWidth(), this.quality);
   }
 
   private rebuild(): void {
     this.wrapper?.dispose();
     for (const target of this.targets) target.dispose();
-    this.wrapper = null;
-    this.targets = [];
+    [this.wrapper, this.targets] = [null, []];
     this.state.history = null;
+    this.settle.restart();
     if (this.quality === "off") return;
-    const { scale, steps, lightSteps } = CLOUD_QUALITY[this.quality];
-    const height = Math.round(this.scene.getEngine().getRenderHeight() * scale);
-    this.targets = createCloudTargets(this.scene, this.targetWidth(), Math.max(1, height));
-    this.wrapper = createCloudMarch(this.scene, steps, lightSteps);
-    const wrapper = this.wrapper;
+    const { wrapper, targets } = buildCloudMarch(this.scene, this.quality);
+    [this.wrapper, this.targets] = [wrapper, targets];
     wrapper.onApplyObservable.add(() => bindCloudUniforms(wrapper.effect, this.state));
   }
 }

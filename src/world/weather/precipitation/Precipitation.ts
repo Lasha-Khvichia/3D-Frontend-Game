@@ -2,6 +2,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { readPaused } from "../../../ui/bridge";
 import type { TimeOfDayLighting } from "../../timeOfDayPalette";
 import type { PrecipitationForm, WeatherListener, WeatherState } from "../weatherState";
 import type { CatchMap } from "./CatchMap";
@@ -20,8 +21,9 @@ const CLOCK_WRAP = 600;
  * where rain lands: whatever the weather says falls, as hard as it says.
  *
  * Moved on real seconds, every drawn frame, like the clouds — drops falling
- * on the game clock would fall seventy times too fast. Coloured by the sky's
- * own light, so rain glints grey by day and all but vanishes at night.
+ * on the game clock would fall seventy times too fast — and held still while
+ * the game is paused. Coloured by the sky's own light, so rain glints grey by
+ * day and all but vanishes at night.
  */
 export class Precipitation implements WeatherListener {
   private readonly streaks: DropLayer;
@@ -46,7 +48,8 @@ export class Precipitation implements WeatherListener {
       const view = scene.activeCameras?.[0] ?? scene.activeCamera;
       // Metres a pixel covers a metre from the eye: no drop is drawn thinner than that.
       this.frame.pixel = view ? (2 * Math.tan(view.fov / 2)) / engine.getRenderHeight() : 0;
-      this.draw(Math.min(0.1, engine.getDeltaTime() / 1000));
+      // Paused, every drop and splash holds where it is.
+      this.draw(readPaused() ? 0 : Math.min(0.1, engine.getDeltaTime() / 1000));
     });
   }
 

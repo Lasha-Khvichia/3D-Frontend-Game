@@ -6,6 +6,7 @@ import { ShaderLanguage } from "@babylonjs/core/Materials/shaderLanguage";
 import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
 import type { Scene } from "@babylonjs/core/scene";
 import { CLOUD_SAMPLERS, CLOUD_UNIFORMS } from "./bindCloudUniforms";
+import { CLOUD_QUALITY, cloudTargetWidth } from "./cloudQuality";
 import { CLOUD_MARCH_GLSL } from "./shaders/cloudMarchGlsl";
 import { CLOUD_MARCH_WGSL } from "./shaders/cloudMarchWgsl";
 
@@ -50,4 +51,14 @@ export function createCloudTargets(
         generateDepthBuffer: false,
       }),
   );
+}
+
+/** The march and its two targets at a quality, sized for the screen. */
+export function buildCloudMarch(scene: Scene, quality: "low" | "high") {
+  const { scale, steps, lightSteps } = CLOUD_QUALITY[quality];
+  const engine = scene.getEngine();
+  const width = cloudTargetWidth(engine.getRenderWidth(), quality);
+  const height = Math.max(1, Math.round(engine.getRenderHeight() * scale));
+  const targets = createCloudTargets(scene, width, height);
+  return { wrapper: createCloudMarch(scene, steps, lightSteps), targets };
 }

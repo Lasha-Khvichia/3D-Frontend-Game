@@ -1,3 +1,4 @@
+import type { CloudQuality } from "../../settings/gameSettings";
 export type { CloudQuality } from "../../settings/gameSettings";
 
 /**
@@ -13,3 +14,9 @@ export const CLOUD_QUALITY = {
 
 /** How much of the last frame each new frame keeps: the noise averages out over about seven. */
 export const CLOUD_HISTORY_KEEP = 0.86;
+
+/** Pixels across the clouds are traced at, for a screen this many wide. Never less than one. */
+export function cloudTargetWidth(screenWidth: number, quality: CloudQuality): number {
+  const scale = quality === "off" ? 0 : CLOUD_QUALITY[quality].scale;
+  return Math.max(1, Math.round(screenWidth * scale));
+}

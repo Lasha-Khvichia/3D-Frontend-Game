@@ -30,6 +30,16 @@ export class CameraBasis {
     this.tanHalf.set(upward * engine.getAspectRatio(camera), upward);
   }
 
+  /** Whether both are exactly the same view. */
+  equals(other: CameraBasis): boolean {
+    return (
+      this.right.equals(other.right) &&
+      this.up.equals(other.up) &&
+      this.forward.equals(other.forward) &&
+      this.tanHalf.equals(other.tanHalf)
+    );
+  }
+
   copyFrom(other: CameraBasis): void {
     this.right.copyFrom(other.right);
     this.up.copyFrom(other.up);

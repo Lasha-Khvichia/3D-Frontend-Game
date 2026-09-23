@@ -4,14 +4,13 @@ import { readPaused } from "../ui/bridge";
 import type { Underfoot } from "../world/GroundSurfaces";
 import type { Strike } from "../world/weather/storm/lightningStrikes";
 import { AmbientSounds } from "./AmbientSounds";
+import { AudioPause } from "./AudioPause";
 import { createLimiter } from "./createLimiter";
 import { FootstepSound } from "./footsteps/FootstepSound";
 import { brownNoise, whiteNoise } from "./noiseBuffers";
 import { playThunder } from "./playThunder";
 import type { SoundWorld } from "./soundWorld";
 
-/** With the menu open the world is still there, only quieter. */
-const PAUSED_SHARE = 0.25;
 /** How far rain, wind and leaves dip while thunder rolls, so it is heard over them. */
 const UNDER_THUNDER = 0.5;
 /** Metres: a strike nearer than this shakes the house the player is in. */
@@ -21,8 +20,8 @@ const SHAKES_WITHIN = 1500;
  * Every sound in the game, made in code with Web Audio — no sound files:
  * rain, wind, leaves, thunder, birds, crickets, a house's creaks, footsteps.
  *
- * Run on real time every drawn frame, not in the simulation step, so it keeps
- * going (quieter) while the game is paused. Browsers keep sound off until the
+ * Run on real time every drawn frame, not in the simulation step, and
+ * silent while paused (`AudioPause`). Browsers keep sound off until the
  * player clicks or presses a key, so it starts at the first of either.
  */
 export class SoundScape {
@@ -34,6 +33,7 @@ export class SoundScape {
   private readonly steps: FootstepSound;
   private readonly rumble: AudioBuffer;
   private readonly hiss: AudioBuffer;
+  private readonly pause: AudioPause;
   private volume = 0.7;
 
   constructor(
@@ -48,6 +48,7 @@ export class SoundScape {
     this.hiss = whiteNoise(context, 2);
     this.ambient = new AmbientSounds(context, this.weatherBus, this.master, this.hiss);
     this.steps = new FootstepSound(context, this.master, this.hiss);
+    this.pause = new AudioPause(context, this.master);
     const wake = (): void => void context.resume();
     window.addEventListener("pointerdown", wake);
     window.addEventListener("keydown", wake);
@@ -88,9 +89,10 @@ export class SoundScape {
   }
 
   private update(): void {
+    if (readPaused()) return this.pause.hold();
+    this.pause.release();
     if (!this.listening) return;
-    const quieter = readPaused() ? PAUSED_SHARE : 1;
-    this.master.gain.setTargetAtTime(this.volume * quieter, this.context.currentTime, 0.2);
+    this.master.gain.setTargetAtTime(this.volume, this.context.currentTime, 0.2);
     this.ambient.update(this.world);
   }
 }

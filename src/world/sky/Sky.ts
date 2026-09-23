@@ -56,6 +56,7 @@ export class Sky {
   /** Paints the sky from the clock at once, for when the menu moves the time or date. */
   repaint(): void {
     paintSky(this.dayNight, this.paint, this.lighting, 0);
+    this.pass?.refresh();
   }
 
   /** The two domes, for passes they must stay out of. */

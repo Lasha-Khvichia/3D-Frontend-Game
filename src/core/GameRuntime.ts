@@ -1,21 +1,20 @@
 import type { AbstractEngine } from "@babylonjs/core/Engines/abstractEngine";
 import type { Scene } from "@babylonjs/core/scene";
 import { createEngine, type RenderBackend } from "./createEngine";
-import { FixedStepLoop, type RenderFrame, type SimulationStep } from "./FixedStepLoop";
+import type { RenderFrame, SimulationStep } from "./FixedStepLoop";
+import { FrameRunner } from "./FrameRunner";
 import { StatsReporter } from "./StatsReporter";
 import { AutoResolution } from "./AutoResolution";
 import { toggleInspector } from "./toggleInspector";
-import { publishStats, readPaused, subscribeToCommands, type OverlayCommand } from "../ui/bridge";
+import { publishStats, subscribeToCommands, type OverlayCommand } from "../ui/bridge";
 
 export type SceneFactory = (engine: AbstractEngine) => Scene;
 
 /** Owns the engine, the loop and the active scene. Nothing else creates them. */
 export class GameRuntime {
   private activeScene: Scene | null = null;
-  private simulationStep: SimulationStep = () => {};
-  private frameUpdate: RenderFrame = () => {};
-  private readonly loop = new FixedStepLoop(60, 5);
   private readonly stats: StatsReporter;
+  private readonly frames: FrameRunner;
   /** Lowers the resolution while frames run slow; the menu's setting is its ceiling. */
   readonly resolution: AutoResolution;
   private unsubscribeCommands: (() => void) | null = null;
@@ -36,6 +35,7 @@ export class GameRuntime {
   ) {
     this.stats = new StatsReporter(engine);
     this.resolution = new AutoResolution(engine);
+    this.frames = new FrameRunner(engine, this.stats, this.resolution);
   }
 
   static async create(canvas: HTMLCanvasElement): Promise<GameRuntime> {
@@ -54,13 +54,13 @@ export class GameRuntime {
     const scene = factory(this.engine);
     this.activeScene = scene;
     this.stats.watch(scene);
-    this.loop.reset();
+    this.frames.reset();
     return scene;
   }
 
   /** Where gameplay systems will run, at a fixed 60 steps per second. */
   setSimulationStep(step: SimulationStep): void {
-    this.simulationStep = step;
+    this.frames.step = step;
   }
 
   /**
@@ -70,11 +70,13 @@ export class GameRuntime {
    * gameplay, which would then run faster on a faster screen.
    */
   setFrameUpdate(update: RenderFrame): void {
-    this.frameUpdate = update;
+    this.frames.update = update;
   }
 
   start(): void {
-    this.engine.runRenderLoop(() => this.renderFrame());
+    this.engine.runRenderLoop(() => {
+      if (this.activeScene) this.frames.run(this.activeScene);
+    });
   }
 
   stop(): void {
@@ -90,32 +92,5 @@ export class GameRuntime {
     this.activeScene?.dispose();
     this.activeScene = null;
     this.engine.dispose();
-  }
-
-  private renderFrame(): void {
-    const scene = this.activeScene;
-    if (!scene) return;
-
-    // Paused freezes the simulation but keeps rendering, so the world stays on
-    // screen behind the menu. The accumulator is reset so that time spent in
-    // the menu is not replayed as a burst of steps on resume.
-    if (readPaused()) {
-      this.loop.reset();
-      scene.render();
-      this.stats.tick();
-      return;
-    }
-
-    const frameSeconds = this.engine.getDeltaTime() / 1000;
-    this.loop.advance(
-      frameSeconds,
-      (fixedDeltaSeconds) => this.simulationStep(fixedDeltaSeconds),
-      (progress) => {
-        this.frameUpdate(progress);
-        scene.render();
-      },
-    );
-    this.resolution.frame(this.engine.getDeltaTime());
-    this.stats.tick();
   }
 }

@@ -25,6 +25,23 @@ Pausing freezes the simulation and keeps rendering, so the world stays on screen
 behind the menu. The fixed-step accumulator is reset on pause, or the time spent
 in the menu would replay as a burst of steps on resume.
 
+**Paused, nothing moves and nothing sounds.** Four things run outside the step,
+on every drawn frame, and each is stopped by hand:
+
+| What                     | How it is held                                                                     |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| Rain, snow and splashes  | `Precipitation` moves them by 0 seconds                                            |
+| Fire and smoke particles | `ParticleFreeze` sets every particle system's `updateSpeed` to 0, and puts it back |
+| Clouds                   | `CloudPass` stops tracing, or its moving ray offsets would keep them shimmering    |
+| Sound                    | `SoundScape` fades out over 0.1 s, then suspends the `AudioContext`                |
+
+Suspending the audio clock freezes what is already scheduled too — a crackle,
+thunder on its way — so it carries on from the same moment on resume. The
+clouds are traced again while paused for 30 frames after anything the menu
+changes: the clock, the weather, the cloud quality, the window size or the
+field of view. Anything new that runs on real time, or in a before-render
+check, must stop the same way.
+
 There is no pause in the orbit view (`C`), because the mouse is free there by
 design.
 
@@ -294,7 +311,8 @@ for snow and sleet's icy half, and rings where rain lands. Each is one mesh of
 small quads that never changes. The vertex shader places every drop from its
 own random numbers and how far the fall and the wind have carried it, and wraps
 it into a box round the eye, so the rain never runs out and nothing is sent to
-the GPU however hard it rains. Drops move on real seconds, like the clouds.
+the GPU however hard it rains. Drops move on real seconds, like the clouds,
+and hold still while the game is paused.
 
 | Falls as | Speed        | Looks like                                  | Wind carries it          |
 | -------- | ------------ | ------------------------------------------- | ------------------------ |
@@ -619,12 +637,12 @@ crickets fade. It uses the same test that keeps the rain off
 (`Shelter.covers`). Creaks use the house's walls instead: under the eaves is
 not inside.
 
-**Sound runs on real time, every drawn frame, not in the simulation step**, so
-it carries on while the game is paused — at a quarter of its volume, because
-the world is still there behind the menu. Footsteps are the exception: they
-come from the step, so nothing walks while paused. **A browser keeps sound off
-until the player clicks or presses a key**, so it starts at the first of
-either.
+**Sound runs on real time, every drawn frame, not in the simulation step**, and
+**stops while the game is paused**: it fades out over 0.1 s and the
+`AudioContext` is suspended, so nothing plays behind the menu, and a sound cut
+off mid-way carries on from there on resume. Footsteps come from the step, so
+nothing walks while paused. **A browser keeps sound off until the player
+clicks or presses a key**, so it starts at the first of either.
 
 **The last stage is a limiter** (`createLimiter.ts`): a compressor, then a soft
 ceiling. A strike 400 m away in a downpour and a gale, at full volume, peaked
