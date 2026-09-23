@@ -1,18 +1,15 @@
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { WorldEntity } from "../../core/WorldEntity";
 import { createSea } from "./createSea";
 import type { Ground } from "./Ground";
 import { HeightGrid } from "./HeightGrid";
+import { buildRoads } from "../roads/buildRoads";
 import { smoothHighGround } from "./smoothHighGround";
+import { terrainMaterial } from "./terrainMaterial";
 import { Rivers } from "./rivers/Rivers";
 import { coastDistance } from "./islandShape";
 import { terrainHeightAt } from "./terrainHeight";
-import { frostSurface } from "../seasons/FrostPlugin";
-import { snowSurface } from "../weather/snow/SnowGroundPlugin";
-import { wetSurface } from "../weather/wet/WetGroundPlugin";
 import { SEA_LEVEL } from "./terrainConstants";
 import { createPatchMesh } from "./patches/createPatchMesh";
 import { TerrainDetail } from "./patches/TerrainDetail";
@@ -40,15 +37,11 @@ export class Terrain extends WorldEntity implements Ground {
     // Before any mesh: the rivers cut the ground everything else is built on.
     this.rivers = new Rivers(scene, this.grid);
 
-    const material = new StandardMaterial("terrain", scene);
-    // Rain darkens the ground and stands in puddles on the flat of it, and
-    // snow lies over both up on the high ground. Snow must come second.
-    wetSurface(material, true);
-    frostSurface(material);
-    snowSurface(material);
-    // White, because the colour is all in the vertices and this multiplies it.
-    material.diffuseColor = Color3.White();
-    material.specularColor = Color3.Black();
+    // After the rivers, so a road can bend to a bridge; before any patch is
+    // built, because a road is painted into the ground's own colours.
+    buildRoads((x, z) => this.waterDepthAt(x, z), this.rivers.crossings);
+
+    const material = terrainMaterial(scene);
 
     const waterAt = (column: number, row: number): number =>
       Math.max(SEA_LEVEL, this.rivers.water.atSample(column, row));

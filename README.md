@@ -1498,6 +1498,51 @@ solver to slide anyone down. It is built along x at the origin and then
 turned — merged meshes come back with their world matrix frozen, so it is
 thawed to be placed and frozen again after, or the turn is silently ignored.
 
+## Roads
+
+**Every settlement is joined to every other by road**: one out of the village
+to each of the five hamlets, and a ring joining each hamlet to its neighbour
+round the island. 7.9 km of road in 26 straight runs.
+
+A road is **not geometry**. It is painted into the ground's own vertex colours
+as each patch is built (`roadShareAt` in `terrainColour`), so it costs nothing
+to draw and nothing per pixel, and it follows every rise and dip of the land
+exactly. Grass is kept off it the way it is kept off a wall, thinning at the
+edges (`roadGrassBlockers`).
+
+|                                  | Metres                             |
+| -------------------------------- | ---------------------------------- |
+| Half width of a country road     | 2.3, fading to grass over 1.4 more |
+| Half width of the village street | 6                                  |
+
+**Roads leave the village at the two ends of its street**, never from the
+middle of it, and meet a hamlet just outside the ring its cottages stand in,
+at the gap nearest the way the road comes from. Measured over every road:
+**no road passes through a house**.
+
+**Where a road would walk into a river it bends to a bridge** and crosses
+there (`routeRoad`). The bridge it picks is the one that costs the least
+walking, and it is met **across** the river, not along the road's own line —
+aimed the other way, a road climbs the bank with its feet in the water the
+whole way, which is exactly what the first version did. Measured: every wet
+step of every road is at a bridge, and bending for them costs 0.5 km over the
+straight lines.
+
+### The village street is cobbled
+
+5,771 stones, each a six-sided tapered block bedded into the ground with
+3.5 cm showing, laid on a 42 cm grid with their size, turn, colour and offset
+hashed from the square of ground they sit on — the same trick the grass and
+the wildflowers use, so the street is identical every time it is built. One
+draw call for the lot, and no collision: the player walks on the ground they
+are bedded in.
+
+**A box read as a tile dropped on the street.** The shading down a stone's
+sides is what the eye reads as roundness, and a box has none, so the stones
+are tapered — narrower at the crown than the base. Written as raw
+`VertexData`, their winding was checked against Babylon's own box rather than
+by eye: 0 of 18 triangles wound outward, matching `CreateBox` exactly.
+
 ## Rocks
 
 420 loose stones, 0.5 m to 1.7 m across, and the rocks framing each spring.

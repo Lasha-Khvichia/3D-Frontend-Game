@@ -2,6 +2,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { FireShadows } from "../world/fire/FireShadows";
 import { VillageFires } from "../world/fire/VillageFires";
 import { buildSettlements } from "../world/houses/buildSettlements";
+import { Cobbles } from "../world/roads/Cobbles";
 import { buildLanterns } from "../world/nightLights/buildLanterns";
 import { NightLights } from "../world/nightLights/NightLights";
 import { WindowGlow } from "../world/nightLights/WindowGlow";
@@ -14,7 +15,7 @@ export type Village = ReturnType<typeof buildVillage>;
  * Every house on the island, with its doors and shutters, its fireplace and
  * its chimney, all casting shadows from the sun.
  */
-export function buildVillage(scene: Scene, { dayNight, godRays, player }: Land) {
+export function buildVillage(scene: Scene, { dayNight, godRays, player, terrain }: Land) {
   const { sunAndMoon } = dayNight;
   const houses = buildSettlements(scene);
   for (const house of houses) {
@@ -58,5 +59,9 @@ export function buildVillage(scene: Scene, { dayNight, godRays, player }: Land) 
   const { windows } = openings;
   const nightLights = new NightLights(houses, windows, lanterns.glass, lanterns.places, windowGlow);
 
-  return { houses, openings, fires, fireShadows, lanterns, nightLights };
+  // The cobbled street, bedded into the ground the roads are painted on.
+  const cobbles = new Cobbles(scene, (x, z) => terrain.heightAt(x, z));
+  godRays.excludeFromOcclusion(cobbles.mesh);
+
+  return { houses, openings, fires, fireShadows, lanterns, nightLights, cobbles };
 }

@@ -10,6 +10,8 @@ const WET_SAND: Rgb = [0.55, 0.52, 0.4];
 /** Shared with the flat sea floor beyond the grid, or the join shows as steps. */
 export const DEEP: Rgb = [0.16, 0.24, 0.25];
 const ROCK: Rgb = [0.47, 0.45, 0.42];
+/** Earth pressed bare and hard by everyone who has walked it. */
+const ROAD: Rgb = [0.44, 0.35, 0.24];
 
 /** Rise per metre past which bare rock shows through, about 38 degrees. */
 const ROCK_FROM = 0.62;
@@ -26,12 +28,16 @@ const ROCK_TO = 0.95;
  *
  * `speckle` is a small per-vertex variation, between -1 and 1, that stops the
  * bands being ruled lines.
+ *
+ * `road` is how much of a road runs over this spot, 0 to 1: pressed dirt
+ * laid over whatever the ground would otherwise be.
  */
 export function terrainColour(
   height: number,
   water: number,
   steepness: number,
   speckle: number,
+  road: number,
   out: number[],
 ): void {
   // Measured from whatever water is here, so a riverbank gets the same sand
@@ -49,6 +55,8 @@ export function terrainColour(
 
   const rock = smoothStep(ROCK_FROM, ROCK_TO, steepness);
   colour = blend(colour, ROCK, rock);
+  // The road goes on last: it is worn through whatever grew there.
+  if (road > 0) colour = blend(colour, ROAD, road * (0.85 + speckle * 0.1));
 
   // No snow here: `snowGroundGlsl.ts` lays it on in the shader, because the
   // snow line comes down the slopes through the winter and these colours are

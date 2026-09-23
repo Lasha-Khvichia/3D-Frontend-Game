@@ -7,6 +7,9 @@ import type { RiverCourse } from "./riverCourses";
 import type { RiverProfile } from "./riverProfile";
 import type { RiverPoint } from "./traceRiver";
 
+/** Where a bridge stands and which way the river runs under it. */
+export type BridgePlace = { readonly x: number; readonly z: number; readonly yaw: number };
+
 /** How far each bridge reaches onto the bank past the channel edge. */
 const ABUTMENT = 4;
 /** Deck always at least this far above the water. */
@@ -25,8 +28,9 @@ export function placeBridges(
   profile: RiverProfile,
   grid: HeightGrid,
   timber: Material,
-): Mesh[] {
+): { bridges: Mesh[]; places: BridgePlace[] } {
   const bridges: Mesh[] = [];
+  const places: BridgePlace[] = [];
   for (const crossing of course.crossings) {
     if (crossing.kind !== "bridge") continue;
     const index = crossingIndex(profile, crossing.at);
@@ -38,8 +42,9 @@ export function placeBridges(
     const place = { x: point.x, z: point.z, yaw: Math.atan2(point.flowX, point.flowZ) };
     const bridge = createBridge(scene, `${course.name}-bridge`, place, reach * 2, deckTop, timber);
     if (bridge) bridges.push(bridge);
+    if (bridge) places.push(place);
   }
-  return bridges;
+  return { bridges, places };
 }
 
 /** The point on a river where a crossing at `at`, a share of its length on land, falls. */

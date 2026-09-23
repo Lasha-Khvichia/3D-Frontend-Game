@@ -7,7 +7,7 @@ import { createSpringMouth } from "./createSpringMouth";
 import { RIVER_COURSES } from "./riverCourses";
 import { createRiverMaterials } from "./riverMaterials";
 import { riverProfile } from "./riverProfile";
-import { placeBridges } from "./placeBridges";
+import { placeBridges, type BridgePlace } from "./placeBridges";
 import { raiseSpringHill, reachIntoHill } from "./springHill";
 import { traceRiver } from "./traceRiver";
 import { WaterLevels } from "./WaterLevels";
@@ -27,6 +27,8 @@ export class Rivers {
   readonly bridges: Mesh[] = [];
   /** The rock arches the rivers come out of, and the darkness behind them. */
   readonly springs: Mesh[] = [];
+  /** Where each bridge stands and which way its river runs: what a road aims for. */
+  readonly crossings: BridgePlace[] = [];
 
   constructor(scene: Scene, grid: HeightGrid) {
     this.water = new WaterLevels(grid.size);
@@ -72,7 +74,9 @@ export class Rivers {
         ),
       );
 
-      this.bridges.push(...placeBridges(scene, course, river, profile, grid, materials.timber));
+      const built = placeBridges(scene, course, river, profile, grid, materials.timber);
+      this.bridges.push(...built.bridges);
+      this.crossings.push(...built.places);
     }
   }
 

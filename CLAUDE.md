@@ -418,6 +418,16 @@ forward motion, so a 6 cm lip stops a sprint dead. `stepOver.ts` retries a
 blocked move from 0.4 m up, and that retry must only land somewhere
 `isStandable` agrees with, or it becomes a way to stair-step up a rock face.
 
+**Roads are painted into the ground, not laid on it** (`src/world/roads/`):
+`buildRoads` runs inside `Terrain` — after the rivers, so a road can bend to a
+bridge, and before any patch is built, because `createPatchMesh` asks
+`roadShareAt` for every vertex. A road that must cross water aims at a
+crossing **across** the river (each bridge carries its yaw), or it walks up
+the channel to get there. Roads leave the village at the ends of its street
+and stop outside a hamlet's ring of cottages, which is what keeps them out of
+people's houses. The village street's cobbles are thin instances hashed from
+the ground, like the grass.
+
 **Every rock is two meshes**, built only near the player: a smooth one to look
 at, with no collision, and an invisible upright prism to bump into
 (`createRockCollider.ts`) — plumb sides, level top, no material. A smooth rock made a bad solid: the solver slides the
@@ -588,6 +598,7 @@ src/world/weather/wet/  what the rain leaves: wet ground, puddles and their ring
 src/world/weather/snow/  snow that builds and melts, on the ground, roofs and stones, and the trail through it
 src/world/weather/storm/  lightning: when and where it strikes, the flash and the bolt
 src/world/rocks/    loose stones
+src/world/roads/    the roads between settlements, and the village's cobbles
 src/world/seasons/  the growing year: leaf colour, bare winter, falling leaves, flowers, frost
 src/world/light/    mountains shading the valleys: the worker's sweep, its texture and plugin
 src/world/shadows/  the sun's shadow maps: one box on Low and High, cascades on Far

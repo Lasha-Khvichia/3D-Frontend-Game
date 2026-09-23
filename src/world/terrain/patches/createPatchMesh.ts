@@ -2,6 +2,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 import type { HeightGrid } from "../HeightGrid";
+import { roadShareAt } from "../../roads/roadField";
 import { terrainColour } from "../terrainColour";
 import { GRID_SPACING } from "../terrainConstants";
 import { addPatchSkirts } from "./addPatchSkirts";
@@ -56,7 +57,8 @@ export function createPatchMesh(
       );
       // A cheap, fixed speckle from the position, so the sand line wanders.
       const speckle = Math.sin(c * 12.9898 + r * 78.233) * 0.5 + Math.sin(c * 3.1 - r * 2.3) * 0.5;
-      terrainColour(height, waterAt(c, r), steepness, speckle, colours);
+      const road = roadShareAt(grid.xOf(c), grid.zOf(r));
+      terrainColour(height, waterAt(c, r), steepness, speckle, road, colours);
     }
   }
 
