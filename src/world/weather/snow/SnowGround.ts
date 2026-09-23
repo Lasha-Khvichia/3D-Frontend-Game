@@ -1,5 +1,6 @@
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
+import { PLAYER_HEIGHT } from "../../../player/createPlayerBean";
 import type { WeatherKind } from "../weatherKinds";
 import type { WeatherListener, WeatherState } from "../weatherState";
 import { FootprintMap } from "./FootprintMap";
@@ -8,6 +9,9 @@ import { PRINT_FADE_HOURS, PRINT_WINDOW_HOURS } from "./footprintStamps";
 import { HOLDS_A_PRINT, snowDepthAt } from "./snowCover";
 import { depthAtHeight, SnowTrail } from "./snowDepth";
 import { snowField } from "./snowField";
+
+/** Metres the feet may be above the snow and still be pressing into it. */
+const ON_THE_SNOW = 0.1;
 
 /**
  * The winter on the ground: snow lying, ice on the rivers, and the trail the
@@ -75,8 +79,13 @@ export class SnowGround implements WeatherListener {
     snowField.nowShare = this.prints.shareNow(totalHours);
     snowField.printLife = (PRINT_WINDOW_HOURS / PRINT_FADE_HOURS) * this.filling;
     const { x, z } = this.eye;
-    this.underFoot = this.depthAt(x, z, this.ground.heightAt(x, z));
-    this.steps.track(x, z, this.underFoot >= HOLDS_A_PRINT, totalHours);
+    const floor = this.ground.heightAt(x, z);
+    this.underFoot = this.depthAt(x, z, floor);
+    // Only feet on the snow leave a print. Without this the trail went on
+    // being stamped through a jump, and along the ground under a bridge or a
+    // roof — a walk in the air, printed below.
+    const standing = this.eye.y - PLAYER_HEIGHT / 2 - floor < ON_THE_SNOW;
+    this.steps.track(x, z, standing && this.underFoot >= HOLDS_A_PRINT, totalHours);
     this.prints.update(x, z, totalHours);
   }
 }
