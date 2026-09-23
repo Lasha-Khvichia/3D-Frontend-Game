@@ -1,3 +1,4 @@
+import { frostSurface } from "../../seasons/FrostPlugin";
 import { iceSurface } from "../../weather/snow/RiverIcePlugin";
 import { snowSurface } from "../../weather/snow/SnowGroundPlugin";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
@@ -18,6 +19,7 @@ export function createRiverMaterials(scene: Scene) {
   iceSurface(water);
 
   const timber = new StandardMaterial("bridge-timber", scene);
+  frostSurface(timber);
   snowSurface(timber);
   timber.diffuseColor = new Color3(0.42, 0.3, 0.19);
   timber.specularColor = Color3.Black();

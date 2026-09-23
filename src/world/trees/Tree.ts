@@ -4,13 +4,10 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { WorldEntity } from "../../core/WorldEntity";
 import { circleBlocker, type GrassBlocker } from "../grassBlockers";
-import { createSeededRandom, seedFromText } from "../houses/seededRandom";
 import type { BranchSpec } from "./branchSpec";
-import { collideTree } from "./collideTree";
-import { growTreeSkeleton } from "./growTreeSkeleton";
-import { scatterLeaves } from "./scatterLeaves";
-import { TreeCanopy } from "./TreeCanopy";
-import { TreeBranches } from "./TreeBranches";
+import { growTree } from "./growTree";
+import type { TreeCanopy } from "./TreeCanopy";
+import type { TreeBranches } from "./TreeBranches";
 import { LEAF_SHARE, LEAF_SIZE, type DetailTier } from "./treeDetail";
 import { TREE_SPECIES, type TreeSpeciesName } from "./treeSpecies";
 
@@ -35,6 +32,7 @@ export class Tree extends WorldEntity {
   /** One invisible shell holding every branch. See collideTree. */
   readonly solid: Mesh | null;
   private tier: DetailTier = "near";
+  private leafShare = 1;
 
   constructor(
     scene: Scene,
@@ -47,22 +45,11 @@ export class Tree extends WorldEntity {
     leaf: Material,
   ) {
     super();
-    const shape = TREE_SPECIES[species];
-    this.skeleton = growTreeSkeleton(shape, createSeededRandom(seedFromText(name)));
-    this.branches = new TreeBranches(scene, name, this.skeleton, bark);
-    this.branches.mesh.position.set(centreX, baseY, centreZ);
-
-    // One random stream for the wood and another for the leaves, so changing
-    // how leaves scatter does not regrow every tree in the wood.
-    const leaves = scatterLeaves(
-      this.skeleton,
-      shape,
-      createSeededRandom(seedFromText(`${name}-leaves`)),
-    );
-    this.canopy = new TreeCanopy(scene, name, leaves, leaf);
-    this.canopy.mesh.position.set(centreX, baseY, centreZ);
-
-    this.solid = collideTree(scene, name, this.skeleton, new Vector3(centreX, baseY, centreZ));
+    const parts = growTree(scene, name, species, new Vector3(centreX, baseY, centreZ), bark, leaf);
+    this.skeleton = parts.skeleton;
+    this.branches = parts.branches;
+    this.canopy = parts.canopy;
+    this.solid = parts.solid;
   }
 
   get id(): string {
@@ -77,8 +64,24 @@ export class Tree extends WorldEntity {
   setDetail(tier: DetailTier): boolean {
     if (tier === this.tier) return false;
     this.tier = tier;
-    this.canopy.setDrawnCount(this.canopy.count * LEAF_SHARE[tier], LEAF_SIZE[tier]);
+    this.dressCanopy();
     return true;
+  }
+
+  /**
+   * How many of its leaves the year leaves on it: 0 bare in winter, 1 in full
+   * leaf. Drawing fewer is free — the leaves are scattered through the buffer,
+   * so a prefix of them is spread through the whole canopy.
+   */
+  setLeafShare(share: number): void {
+    if (Math.abs(share - this.leafShare) < 0.004) return;
+    this.leafShare = share;
+    this.dressCanopy();
+  }
+
+  private dressCanopy(): void {
+    const drawn = this.canopy.count * LEAF_SHARE[this.tier] * this.leafShare;
+    this.canopy.setDrawnCount(drawn, LEAF_SIZE[this.tier]);
   }
 
   /** The trunk, for the grass: none inside it, and short at its foot. */

@@ -15,6 +15,8 @@ export function stepWorld(world: World, seconds: number): void {
   world.weather.update(hours);
   world.wet.update(hours, seconds);
   world.snow.update(hours);
+  const sunUp = dayNight.sunAndMoon.sunHeight;
+  world.seasons.update(seconds, hours, eye, world.snow.depthUnderFoot, sunUp);
   grass.setSnowDepth(world.snow.depthUnderFoot);
   world.lightning.update(hours, seconds);
   // Before the player's own update, which clears any key press nothing took.
@@ -65,6 +67,7 @@ export function showWorldNow(world: World): void {
   world.weather.update(hours);
   world.wet.update(hours, 0);
   world.snow.update(hours);
+  world.seasons.update(0, hours, eye, world.snow.depthUnderFoot, dayNight.sunAndMoon.sunHeight);
   world.grass.setSnowDepth(world.snow.depthUnderFoot);
   world.terrainShade.update(dayNight.sunAndMoon.sunDirection);
   const { sunHeight } = dayNight.sunAndMoon;

@@ -1,3 +1,4 @@
+import { frostSurface } from "../seasons/FrostPlugin";
 import { snowSurface } from "../weather/snow/SnowGroundPlugin";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { Color3 } from "@babylonjs/core/Maths/math.color";
@@ -6,7 +7,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { LEAF_WIND, WOOD_WIND, type TreeWind } from "./TreeWind";
 import { TREE_SPECIES, type TreeSpeciesName } from "./treeSpecies";
 
-export type SpeciesMaterials = { readonly bark: Material; readonly leaf: Material };
+export type SpeciesMaterials = { readonly bark: Material; readonly leaf: StandardMaterial };
 
 /**
  * One bark and one leaf material per species, shared by every tree of that kind.
@@ -27,10 +28,12 @@ export function createTreeMaterials(
     const shape = TREE_SPECIES[species];
     const bark = plainMaterial(scene, `bark-${species}`, shape.bark);
     // Snow settles along the tops of branches, and dusts the leaves however they hang.
+    frostSurface(bark);
     snowSurface(bark);
     wind.applyTo(bark, WOOD_WIND);
 
     const leaf = plainMaterial(scene, `leaf-${species}`, shape.leaf);
+    frostSurface(leaf);
     snowSurface(leaf, true);
     // Leaves are seen from both sides. twoSidedLighting stays off: it flips the
     // normal for the back face, which is right for a solid and wrong here,

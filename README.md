@@ -53,7 +53,7 @@ design.
 | Sound volume         | 0 to 100 percent, 70 by default: every sound together                       |
 | Invert vertical look | flips the mouse                                                             |
 | Date                 | jump to any day of the year; the hour stays                                 |
-| Weather              | for testing: Auto, or hold any kind of weather                              |
+| Weather              | for testing: Auto, or hold any kind of weather; a held kind is saved        |
 | Time of day          | jump the clock, or freeze it                                                |
 | Travel speed         | 1x to 8x walking and running                                                |
 | Render distance      | 300 m to 1200 m: where the fog closes in, and past which nothing is built   |
@@ -591,9 +591,7 @@ end the flash; a check before each drawn frame does.
 ### Not yet
 
 Snow has no height: nothing sinks into it and it builds no banks against
-walls. Leaves stay on the trees all winter and the grass stays green under the
-snow, until the seasons change them (phase 8). Stone, timber and thatch still
-do not darken in the rain.
+walls. Stone, timber and thatch still do not darken in the rain.
 
 ## Sound
 
@@ -992,6 +990,66 @@ strength; with 32 it is 12 of 14, and every one at the other test points.
 Each pixel loops over the list and skips a lamp out of reach with one
 distance test. By day the list is empty and the loop ends at once.
 
+## The growing year
+
+Everything that grows reads one curve of the calendar
+(`src/world/seasons/seasonLook.ts`): how much is in leaf, how far it has
+turned, blossom, leaves falling, how dry and how dormant the grass is, and how
+many flowers are out. Each is a ring of keyframes eased between dates, never a
+step at a month's end — a wood does not come into leaf overnight, and the
+player can jump the clock to any date and must never see the world snap. The
+biggest change anything makes in an hour is 0.005.
+
+| Date        | Trees                          | Grass         | Flowers |
+| ----------- | ------------------------------ | ------------- | ------- |
+| 20 March    | buds break                     | waking        | none    |
+| 10 April    | in leaf, blossom at its height | fresh green   | opening |
+| 15 May      | full leaf                      | deep green    | full    |
+| 10 August   | full leaf                      | driest, straw | full    |
+| 25 October  | turned, half down              | green again   | over    |
+| 15 November | bare                           | going dull    | none    |
+| January     | bare, pines green              | dormant olive | none    |
+
+**A leaf's colour is one number in one material.** Every tree of a kind shares
+one leaf material, so the whole wood turns in four writes a step
+(`leafColours.ts`): summer green mixes to that kind's autumn colour, then
+spring lightens what is left, then the flowers go over both. Oak turns russet,
+birch gold, willow pale yellow. **A pine is green in every month**, and keeps
+every needle.
+
+**A bare tree costs nothing.** Leaves are scattered through the canopy buffer,
+so drawing fewer of them thins the whole canopy evenly, and drawing fewer is a
+single integer (`TreeCanopy.setDrawnCount`). The winter wood is the cheapest
+the wood ever is. The one expensive path — recomposing every leaf matrix — runs
+only when the distance tier changes the leaf size, as before.
+
+**Falling leaves come off real trees** (`LeafFall.ts`): 220 of them at the
+height of the fall, each dropped from the canopy of a tree within 45 m and
+given back to another when it lands, tumbling as it goes. They move on the
+step's seconds, which are real seconds, so they stop with everything else when
+the game is paused.
+
+**The grass is five vertices.** The whole 200,000-blade field is thin
+instances of one blade, so the season's colour is written into that blade's
+five vertex colours and every blade follows for nothing — the same trick the
+sway and the snow burying already use. It is written only when the colour has
+actually moved.
+
+**Wildflowers are hashed from the ground, never stored** (`Wildflowers.ts`):
+every 1.4 m square of ground may carry one, and whether it does, what colour it
+is and which way it faces come from the square itself, as a grass blade's place
+does. Up to 600 stand within 26 m of the player, in one draw call, and the
+meadow is the same every time you walk back. They open across spring, are out
+from May to July, and are gone by September — or under any snow.
+
+**Frost is a function of the moment, not of the date** (`frostAt.ts`): cold
+enough, under a sky clear enough to have lost its heat overnight, and not yet
+burnt off by the sun. A light frost goes soon after sunrise; below −2 °C a hard
+one lies all day. `FrostPlugin` whitens whichever side of a surface faces the
+sky — the same test the snow makes — on the ground, the houses, the stones, the
+bridges and the trees, and it runs before the snow so snow lies over it. Grass
+takes its rime through the blade's vertex colours instead.
+
 ## The island
 
 One island about two kilometres across, with sea to the horizon on every side.
@@ -1284,6 +1342,8 @@ full size after 10 changes in 5 minutes, and a fast one never changes.
 | God rays' occlusion | about 130  | sun up and near the screen                    |
 | Mini-map picture    | about 55   | 20 times a second                             |
 | Rain and snow       | 1 to 3     | only while something falls                    |
+| Wildflowers         | 1          | spring and summer, within 25 m                |
+| Falling leaves      | 1          | autumn, near a tree                           |
 
 `scene.skipPointerMovePicking` is on: Babylon otherwise casts a ray into the
 scene on every mouse move, up to a thousand a second with a gaming mouse, and

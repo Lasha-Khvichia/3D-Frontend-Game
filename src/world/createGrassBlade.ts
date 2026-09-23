@@ -10,8 +10,8 @@ export { BLADE_HEIGHT } from "./grassBladeShape";
 
 // Deep at the root where light does not reach, lighter and slightly yellow at
 // the tip. Cooler and richer than the first pass, which read as astroturf.
-const BASE_COLOUR = [0.09, 0.21, 0.08] as const;
-const TIP_COLOUR = [0.38, 0.62, 0.21] as const;
+export const BASE_COLOUR = [0.09, 0.21, 0.08] as const;
+export const TIP_COLOUR = [0.38, 0.62, 0.21] as const;
 
 /**
  * One grass blade, with its pivot at the base so leaning it is a rotation.

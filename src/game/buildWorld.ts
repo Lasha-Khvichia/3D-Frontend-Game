@@ -7,6 +7,10 @@ import { serveWorldMap } from "../world/map/serveWorldMap";
 import { Boulders } from "../world/rocks/Boulders";
 import { treeDistanceGroup } from "../world/trees/treeDistanceGroup";
 import { TreeWind } from "../world/trees/TreeWind";
+import { Seasons } from "../world/seasons/Seasons";
+import { terrainSoil } from "../world/terrain/terrainSoil";
+import { LeafFall } from "../world/seasons/LeafFall";
+import { Wildflowers } from "../world/seasons/Wildflowers";
 import { Woodland } from "../world/trees/Woodland";
 import { WorldEdge } from "../world/WorldEdge";
 import { WorldStreaming } from "../world/WorldStreaming";
@@ -52,24 +56,41 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
   const worldEdge = new WorldEdge(terrain);
 
   // Grass keeps out of every stone, trunk and wall, and shortens beside them.
-  grass.setBlockers(
-    new GrassBlockerGrid([
-      ...houses.map((house) => rectangleBlocker(house.footprint)),
-      ...woodland.grassBlockers,
-      ...boulders.grassBlockers,
-      ...lanterns.grassBlockers,
-    ]),
-  );
+  const blockers = new GrassBlockerGrid([
+    ...houses.map((house) => rectangleBlocker(house.footprint)),
+    ...woodland.grassBlockers,
+    ...boulders.grassBlockers,
+    ...lanterns.grassBlockers,
+  ]);
+  grass.setBlockers(blockers);
 
-  const followers = [dayNight.light, sky, streaming, wind, grass, smokeWind, village.nightLights];
+  // The growing year: leaf colour, bare winter branches, the grass's colour, flowers.
+  const soil = terrainSoil(terrain);
+  const flowers = new Wildflowers(scene, soil, (x, z) => blockers.grassLeftAt(x, z));
+  const leafFall = new LeafFall(scene, woodland.trees);
+  const seasons = new Seasons(woodland, grass, flowers, leafFall);
+
+  const followers = [
+    dayNight.light,
+    sky,
+    streaming,
+    wind,
+    grass,
+    smokeWind,
+    village.nightLights,
+    seasons,
+  ];
   const weather = buildWeather(scene, land, houses, followers);
   // Rain, wind, leaves, thunder, birds, crickets, creaks and footsteps, all made in code.
   const sound = buildSound(scene, land, houses, woodland.trees, fires.hearths, weather);
   return {
     ...land,
     ...village,
+    flowers,
+    leafFall,
     wind,
     woodland,
+    seasons,
     boulders,
     streaming,
     worldEdge,

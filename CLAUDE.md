@@ -287,6 +287,17 @@ shade height whenever the light has moved half a degree, and
 shadows. Anything on the CPU that needs sunlight at a point (the puddles'
 glint) asks `TerrainShadeMap.lightAt`.
 
+**The growing year is one curve, read afresh every step**
+(`src/world/seasons/`): `seasonLook(totalHours)` gives leaves, turn, blossom,
+fall, dryness, dormancy and flowers, all eased between dates so a clock jump
+never snaps. Leaf colour is **one material per kind** (`leafColours.ts`), a
+bare tree is **a smaller drawn count** on the same canopy buffer, the grass's
+colour is the **five vertices of the shared blade**, and wildflowers are
+**hashed from the square of ground** they stand on, like a grass blade. Frost
+is not on that curve: `frostAt` reads the temperature, the cloud and the sun,
+and `frostSurface(material)` must be called by hand for a surface to take it,
+next to `snowSurface`.
+
 **A merged mesh comes back with its world matrix frozen.** Right for scenery,
 wrong for anything hung on a hinge: frozen means the parent can turn all it
 likes and the mesh will not follow, with no error. Call `unfreezeWorldMatrix()`
@@ -423,6 +434,12 @@ that stands on grass needs a blocker, or blades grow up through it.
 **Nothing pushes the player sideways unless the player asked.** The solver has
 no friction, so gravity on a slope slides you. `PlayerController` restores x and
 z after a move that was grounded and had no horizontal input.
+
+**Phase 8 (nature through the year) is done**: blossom, autumn colours,
+falling leaves, bare winter broadleaves with the pines still green, grass
+colour by season, wildflowers in spring and summer, and frost on cold
+mornings. What is left of the weather plan is phase 9: saving and the
+forecast.
 
 **The village is phased.** Phase 0 (done) is bare shells. Phase 1 (done) is
 stone and timber on the walls, placed on the wall segments so it can never cover
@@ -561,6 +578,7 @@ src/world/weather/wet/  what the rain leaves: wet ground, puddles and their ring
 src/world/weather/snow/  snow that builds and melts, on the ground, roofs and stones, and the trail through it
 src/world/weather/storm/  lightning: when and where it strikes, the flash and the bolt
 src/world/rocks/    loose stones
+src/world/seasons/  the growing year: leaf colour, bare winter, falling leaves, flowers, frost
 src/world/light/    mountains shading the valleys: the worker's sweep, its texture and plugin
 src/world/shadows/  the sun's shadow maps: one box on Low and High, cascades on Far
 src/world/nightLights/  lanterns, lit windows, and the lamp light every material adds

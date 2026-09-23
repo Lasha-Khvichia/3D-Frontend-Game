@@ -2,11 +2,14 @@ import type { Scene } from "@babylonjs/core/scene";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { WorldEntity } from "../../core/WorldEntity";
 import type { GrassBlocker } from "../grassBlockers";
-import { Tree } from "./Tree";
-import { createTreeMaterials } from "./treeMaterials";
+import type { Tree } from "./Tree";
+import { dressTrees } from "./dressTrees";
+import type { SeasonLook } from "../seasons/seasonLook";
+import { createTreeMaterials, type SpeciesMaterials } from "./treeMaterials";
+import type { TreeSpeciesName } from "./treeSpecies";
 import type { TreeWind } from "./TreeWind";
 import { SHADOW_RANGE, tierFor } from "./treeDetail";
-import { TREE_PLACEMENTS } from "./treeLayout";
+import { plantTrees } from "./plantTrees";
 import type { Ground } from "../terrain/Ground";
 import type { ShadowRegistry } from "./ShadowRegistry";
 
@@ -23,6 +26,8 @@ export class Woodland extends WorldEntity {
   /** Trees currently in the shadow map, and how near a tree must be to be in it. */
   private readonly casting = new Set<Tree>();
   private shadowRange = SHADOW_RANGE;
+  /** One bark and one leaf material per kind, so the year recolours a wood in four writes. */
+  private readonly materialsFor: (species: TreeSpeciesName) => SpeciesMaterials;
 
   constructor(
     scene: Scene,
@@ -31,21 +36,9 @@ export class Woodland extends WorldEntity {
     ground: Ground,
   ) {
     super();
-    const materialsFor = createTreeMaterials(scene, wind);
+    this.materialsFor = createTreeMaterials(scene, wind);
 
-    this.trees = TREE_PLACEMENTS.map((spot) => {
-      const materials = materialsFor(spot.species);
-      return new Tree(
-        scene,
-        spot.name,
-        spot.species,
-        spot.x,
-        spot.z,
-        ground.heightAt(spot.x, spot.z),
-        materials.bark,
-        materials.leaf,
-      );
-    });
+    this.trees = plantTrees(scene, this.materialsFor, ground);
   }
 
   get id(): string {
@@ -83,8 +76,9 @@ export class Woodland extends WorldEntity {
     this.shadowRange = metres;
   }
 
-  get leafCount(): number {
-    return this.trees.reduce((total, tree) => total + tree.canopy.count, 0);
+  /** Where the year stands: leaf colour by kind, and how many leaves are on. */
+  setSeason(look: SeasonLook): void {
+    dressTrees(this.trees, this.materialsFor, look);
   }
 
   /** Passed to the grass, so none grows out of a trunk. */
