@@ -20,8 +20,9 @@ import type { ShadowRegistry } from "./ShadowRegistry";
  */
 export class Woodland extends WorldEntity {
   readonly trees: Tree[];
-  /** Trees currently in the shadow map. */
+  /** Trees currently in the shadow map, and how near a tree must be to be in it. */
   private readonly casting = new Set<Tree>();
+  private shadowRange = SHADOW_RANGE;
 
   constructor(
     scene: Scene,
@@ -66,7 +67,7 @@ export class Woodland extends WorldEntity {
       const wantedTier = tierFor(distance, tree.detail);
       if (!changed && wantedTier !== tree.detail) changed = tree.setDetail(wantedTier);
 
-      const wanted = distance < SHADOW_RANGE;
+      const wanted = distance < this.shadowRange;
       if (wanted === this.casting.has(tree)) continue;
       for (const mesh of [tree.branches.mesh, tree.canopy.mesh]) {
         if (wanted) this.shadows.addShadowCaster(mesh);
@@ -77,9 +78,9 @@ export class Woodland extends WorldEntity {
     }
   }
 
-  /** How many trees are in the shadow map right now. */
-  get castingCount(): number {
-    return this.casting.size;
+  /** Metres within which trees cast shadows: as far as the shadows reach. */
+  setShadowRange(metres: number): void {
+    this.shadowRange = metres;
   }
 
   get leafCount(): number {

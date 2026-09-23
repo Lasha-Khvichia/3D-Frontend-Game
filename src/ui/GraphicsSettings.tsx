@@ -1,4 +1,9 @@
-import { SETTINGS_LIMITS, type QualityPreset, type ShadowQuality } from "../settings/gameSettings";
+import {
+  SETTINGS_LIMITS,
+  type CloudQuality,
+  type QualityPreset,
+  type ShadowQuality,
+} from "../settings/gameSettings";
 import { applyQualityPreset, updateSettings } from "../settings/settingsStore";
 import { useGameSettings } from "./useGameSettings";
 import { SliderRow } from "./SliderRow";
@@ -12,11 +17,15 @@ const PRESETS: readonly { value: QualityPreset; label: string }[] = [
   { value: "custom", label: "Custom" },
 ];
 
-/** Off, low and high: the same three steps for shadows and for clouds. */
-const LEVELS: readonly { value: ShadowQuality; label: string }[] = [
+/** Off, low and high for clouds; shadows add Far, which reaches 150 m. */
+const CLOUD_LEVELS: readonly { value: CloudQuality; label: string }[] = [
   { value: "off", label: "Off" },
   { value: "low", label: "Low" },
   { value: "high", label: "High" },
+];
+const SHADOW_LEVELS: readonly { value: ShadowQuality; label: string }[] = [
+  ...CLOUD_LEVELS,
+  { value: "far", label: "Far" },
 ];
 
 export function GraphicsSettings() {
@@ -51,13 +60,13 @@ export function GraphicsSettings() {
       <ChoiceRow
         label="Shadows"
         value={settings.shadowQuality}
-        choices={LEVELS}
+        choices={SHADOW_LEVELS}
         onChange={(shadowQuality) => updateSettings({ shadowQuality })}
       />
       <ChoiceRow
         label="Clouds"
         value={settings.clouds}
-        choices={LEVELS}
+        choices={CLOUD_LEVELS}
         onChange={(clouds) => updateSettings({ clouds })}
       />
     </section>

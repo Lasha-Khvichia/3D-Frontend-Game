@@ -26,19 +26,23 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
   const land = buildLand(scene, canvas);
   const { terrain, dayNight, godRays, grass, player, sky } = land;
   const village = buildVillage(scene, land);
-  const { houses, openings, fires } = village;
+  const { houses, openings, fires, lanterns } = village;
 
   const wind = new TreeWind(scene.getEngine());
   const woodland = new Woodland(scene, wind, dayNight.sunAndMoon, terrain);
   // Loose stones, built only near the player; the god rays are told as they come and go.
   const boulders = new Boulders(scene, terrain, godRays);
 
+  // Lanterns go with their settlement: glass as far as its houses, iron and posts as far as their trim.
+  const houseGroups = houseDistanceGroups(houses, openings.doors, openings.windows, fires.hearths);
+  houseGroups.bodies.push(...lanterns.groups.bodies);
+  houseGroups.details.push(...lanterns.groups.details);
   // What is built, drawn and hidden, by how far away it is. See WorldStreaming.
   const streaming = new WorldStreaming(scene, {
     terrain,
     boulders,
     trees: woodland.trees.map(treeDistanceGroup),
-    houses: houseDistanceGroups(houses, openings.doors, openings.windows, fires.hearths),
+    houses: houseGroups,
   });
 
   // M opens the painted world map; it is drawn the first time, then kept.
@@ -53,10 +57,11 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
       ...houses.map((house) => rectangleBlocker(house.footprint)),
       ...woodland.grassBlockers,
       ...boulders.grassBlockers,
+      ...lanterns.grassBlockers,
     ]),
   );
 
-  const followers = [dayNight.light, sky, streaming, wind, grass, smokeWind];
+  const followers = [dayNight.light, sky, streaming, wind, grass, smokeWind, village.nightLights];
   const weather = buildWeather(scene, land, houses, followers);
   // Rain, wind, leaves, thunder, birds, crickets, creaks and footsteps, all made in code.
   const sound = buildSound(scene, land, houses, woodland.trees, fires.hearths, weather);

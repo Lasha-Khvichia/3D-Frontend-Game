@@ -35,7 +35,7 @@ export function buildWeather(
     weather,
   });
   // And what the rain leaves behind: wet ground and puddles, dry under the roofs.
-  const wet = new WetGround(eye, weather, dayNight, falling.roofs);
+  const wet = new WetGround(eye, weather, dayNight, falling.roofs, land.terrainShade);
   weather.addListener(wet);
   // Snow that builds and melts, the trail through it, and ice on the rivers.
   const snow = new SnowGround(scene, eye, terrain, weather);

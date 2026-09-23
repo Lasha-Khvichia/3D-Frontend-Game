@@ -5,6 +5,7 @@ import { PLAYER_HEIGHT } from "../player/createPlayerBean";
 import { DayNightCycle } from "../world/DayNightCycle";
 import { Meadow } from "../world/Meadow";
 import { SunGodRays } from "../world/SunGodRays";
+import { TerrainShadeMap } from "../world/light/TerrainShadeMap";
 import { Sky } from "../world/sky/Sky";
 import { Terrain } from "../world/terrain/Terrain";
 import { terrainSoil } from "../world/terrain/terrainSoil";
@@ -21,6 +22,8 @@ export function buildLand(scene: Scene, canvas: HTMLCanvasElement) {
   const terrain = new Terrain(scene);
   // What the player walks on: the terrain, with ice to stand on and snow to wade through.
   const winterGround = new WinterGround(terrain);
+  // Mountains shading the valleys, worked out in a worker as the sun moves.
+  const terrainShade = new TerrainShadeMap(scene, terrain.grid);
   const dayNight = new DayNightCycle(scene);
   const { sunAndMoon } = dayNight;
   const miniMap = new MiniMap(scene);
@@ -46,5 +49,16 @@ export function buildLand(scene: Scene, canvas: HTMLCanvasElement) {
 
   // Where the player is, which everything round them follows. Moved in place, never replaced.
   const eye = bean.position;
-  return { terrain, winterGround, dayNight, miniMap, grass, player, eye, godRays, sky };
+  return {
+    terrain,
+    terrainShade,
+    winterGround,
+    dayNight,
+    miniMap,
+    grass,
+    player,
+    eye,
+    godRays,
+    sky,
+  };
 }

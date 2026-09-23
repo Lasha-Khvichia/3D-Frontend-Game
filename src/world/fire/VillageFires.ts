@@ -4,8 +4,10 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
+import { insideFootprint, type Footprint } from "../footprint";
 import type { House } from "../houses/buildHouse";
 import { createSoftDotTexture } from "./createSoftDotTexture";
+import { fireFlicker } from "./fireFlicker";
 import { Hearth } from "./Hearth";
 import { placeHearth } from "./placeHearth";
 
@@ -33,7 +35,11 @@ const LIGHT_INTENSITY = 0.85;
  */
 export class VillageFires {
   readonly hearths: Hearth[];
-  private readonly light: PointLight;
+  /** The one firelight, for the shadows cast inside the house it is lit in. */
+  readonly light: PointLight;
+  /** The house the player stands in, by its place in the list; -1 outside every house. */
+  houseInside = -1;
+  private readonly floors: readonly Footprint[];
   private flickerTime = 0;
 
   constructor(scene: Scene, houses: readonly House[]) {
@@ -41,6 +47,7 @@ export class VillageFires {
     material.diffuseColor = new Color3(0.44, 0.42, 0.39);
     material.specularColor = Color3.Black();
     const texture = createSoftDotTexture(scene, "ember");
+    this.floors = houses.map((house) => house.footprint);
 
     this.hearths = houses.map(
       (house) =>
@@ -68,16 +75,17 @@ export class VillageFires {
     this.flickerTime += seconds;
     let nearest: Hearth | null = null;
     let nearestDistance = Infinity;
-
     for (const hearth of this.hearths) {
       const distance = Vector3.Distance(player, hearth.firePoint);
       hearth.setFireRunning(distance < FIRE_RADIUS);
       hearth.setSmokeRunning(distance < SMOKE_RADIUS);
-      if (distance < nearestDistance) {
-        nearestDistance = distance;
-        nearest = hearth;
-      }
+      if (distance < nearestDistance) [nearest, nearestDistance] = [hearth, distance];
     }
+    // Inside a house its own fire is the one lit, even with a neighbour's
+    // nearer through the gable wall.
+    this.houseInside = this.floors.findIndex((floor) => insideFootprint(floor, player.x, player.z));
+    const own = this.hearths[this.houseInside];
+    if (own) [nearest, nearestDistance] = [own, Vector3.Distance(player, own.firePoint)];
 
     if (!nearest || nearestDistance > LIGHT_RANGE) {
       this.light.intensity = 0;
@@ -85,14 +93,6 @@ export class VillageFires {
     }
     this.light.position.copyFrom(nearest.firePoint);
     this.light.position.y += 0.35;
-    this.light.intensity = LIGHT_INTENSITY * this.flicker();
-  }
-
-  /**
-   * Two waves at unrelated speeds. One would read as a pulse; two never repeat
-   * often enough for the eye to catch the pattern.
-   */
-  private flicker(): number {
-    return 0.82 + 0.1 * Math.sin(this.flickerTime * 11.3) + 0.08 * Math.sin(this.flickerTime * 4.1);
+    this.light.intensity = LIGHT_INTENSITY * fireFlicker(this.flickerTime);
   }
 }

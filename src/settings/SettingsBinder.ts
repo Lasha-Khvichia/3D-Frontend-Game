@@ -6,9 +6,10 @@ import type { SunGodRays } from "../world/SunGodRays";
 import type { WorldStreaming } from "../world/WorldStreaming";
 import type { Sky } from "../world/sky/Sky";
 import type { SoundScape } from "../audio/SoundScape";
-import type { SnowGround } from "../world/weather/snow/SnowGround";
-import type { WetGround } from "../world/weather/wet/WetGround";
 import type { Weather } from "../world/weather/Weather";
+import type { Woodland } from "../world/trees/Woodland";
+import { SHADOW_RANGE } from "../world/trees/treeDetail";
+import { FAR_SHADOW_REACH } from "../world/shadows/farSunShadows";
 import { MAX_PIXEL_RATIO } from "../core/createEngine";
 import { publishStats, subscribeToCommands } from "../ui/bridge";
 import { readSettings, subscribeToSettings } from "./settingsStore";
@@ -23,9 +24,10 @@ export type SettingsTargets = {
   readonly streaming: WorldStreaming;
   readonly sky: Sky;
   readonly weather: Weather;
-  readonly wet: WetGround;
-  readonly snow: SnowGround;
   readonly sound: SoundScape;
+  readonly woodland: Woodland;
+  /** Brings everything the clock decides up to date at once: no step runs while paused. */
+  readonly followClock: () => void;
 };
 
 /**
@@ -49,13 +51,9 @@ export class SettingsBinder {
         targets.weather.force(command.kind === "auto" ? null : command.kind);
         publishStats({ weatherHeld: command.kind });
       } else return;
-      // The menu is open, so the game is paused: the weather and the sky must
-      // follow now, not on resume.
-      targets.weather.update(targets.dayNight.totalHours);
-      targets.wet.update(targets.dayNight.totalHours, 0);
-      targets.snow.update(targets.dayNight.totalHours);
-      targets.dayNight.refresh();
-      targets.sky.repaint();
+      // The menu is open, so the game is paused: the weather, the sky and the
+      // lamps must follow now, not on resume.
+      targets.followClock();
     });
     this.apply(readSettings());
   }
@@ -85,6 +83,8 @@ export class SettingsBinder {
     godRays.setEnabled(settings.sunEffects);
     dayNight.sunAndMoon.setGlareVisible(settings.sunEffects);
     dayNight.sunAndMoon.setShadowQuality(settings.shadowQuality);
+    const far = settings.shadowQuality === "far";
+    this.targets.woodland.setShadowRange(far ? FAR_SHADOW_REACH : SHADOW_RANGE);
     sky.setQuality(settings.clouds);
     dayNight.setClockFrozen(settings.clockFrozen);
   }

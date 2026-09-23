@@ -1,4 +1,5 @@
-export type ShadowQuality = "off" | "low" | "high";
+/** Far adds cascades out to 150 m, for strong machines; no preset picks it. */
+export type ShadowQuality = "off" | "low" | "high" | "far";
 export type CloudQuality = "off" | "low" | "high";
 export type QualityPreset = "low" | "medium" | "high" | "custom";
 

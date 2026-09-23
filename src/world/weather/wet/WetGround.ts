@@ -30,6 +30,7 @@ export class WetGround implements WeatherListener {
     private readonly weather: Weather,
     private readonly dayNight: DayNightCycle,
     private readonly roofs: NearRoofs,
+    private readonly shade: { lightAt(x: number, z: number, y: number): number },
   ) {}
 
   setWeather(state: Readonly<WeatherState>): void {
@@ -59,8 +60,10 @@ export class WetGround implements WeatherListener {
     const { sunAndMoon } = this.dayNight;
     const sunUp = sunAndMoon.sunHeight > 0.02;
     wetField.toSun.copyFrom(sunUp ? sunAndMoon.sunDirection : sunAndMoon.moonDirection);
-    wetField.sunStrength = sunUp
-      ? lightIntensity
-      : MOONLIGHT * Math.max(0, sunAndMoon.moonHeight * 4);
+    const { x, y, z } = this.eye;
+    // No glint off water the mountain's shadow is over.
+    wetField.sunStrength =
+      (sunUp ? lightIntensity : MOONLIGHT * Math.max(0, sunAndMoon.moonHeight * 4)) *
+      this.shade.lightAt(x, z, y);
   }
 }

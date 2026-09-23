@@ -1,212 +1,81 @@
-import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
+import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { Scene } from "@babylonjs/core/scene";
-import { moonDirectionAt, sunDirectionAt } from "./celestialPath";
-import { CelestialGlow } from "./CelestialGlow";
-import { createMoonTexture } from "./createMoonTexture";
-import { createSunGlare, type SunGlare } from "./createSunGlare";
-import { SunShadows } from "./SunShadows";
-import { CELESTIAL_DISTANCE, createCelestialDisc, type CelestialDisc } from "./createCelestialDisc";
-import type { TimeOfDayLighting } from "./timeOfDayPalette";
 import type { ShadowQuality } from "../settings/gameSettings";
-import { smoothStep } from "./blend";
-import { paintSunDisc } from "./paintSunDisc";
+import { CelestialBodies, type BodyShares } from "./CelestialBodies";
+import type { CelestialGlow } from "./CelestialGlow";
+import { SkyLights } from "./SkyLights";
+import { SkyPlaces } from "./SkyPlaces";
+import type { TimeOfDayLighting } from "./timeOfDayPalette";
 
 /**
- * 0.53 degrees across, which is the sun's real angular size from Earth. It is
- * a pinpoint on purpose: the glare and the god rays carry the effect, not the
- * disc. Both are sized as angles, so moving them further out changes nothing.
- */
-const SUN_DIAMETER = CELESTIAL_DISTANCE * 0.00925;
-const MOON_DIAMETER = CELESTIAL_DISTANCE * 0.0975;
-
-/** Multiplies the palette intensity to get the sun's directional strength. */
-const SUN_SHARE = 1.1;
-const MOON_LIGHT_MAX = 0.42;
-
-/** Height where a body's light starts and finishes fading at the horizon. */
-const HORIZON_FADE_START = -0.05;
-const HORIZON_FADE_END = 0.15;
-/** Lifts the whole moon texture. Emissive texture is added, not multiplied. */
-const MOON_TEXTURE_LEVEL = 1.15;
-const MOON_LIGHT_COLOUR: readonly [number, number, number] = [0.55, 0.65, 0.95];
-
-type BodyShares = { readonly sun: number; readonly moon: number };
-
-/**
- * The sun and the moon: a directional light and a visible disc each.
+ * The sun and the moon: where they stand (`SkyPlaces`), their lights and
+ * shadows (`SkyLights`), and their discs (`CelestialBodies`).
  *
  * Both orbit continuously and are never hidden. Below the horizon they keep
  * travelling under the platform, so the cycle reads as one unbroken orbit.
- *
  * The sun's arc follows the date: high and long in summer, low and short in
  * winter. The moon runs on a 24 h 50 min lunar day against the sun's 24 h, so
  * it slips later every night and drifts through the whole cycle in 29.5 days.
  */
-export class SunAndMoon {
-  private readonly sunLight: DirectionalLight;
-  private readonly moonLight: DirectionalLight;
-  private readonly shadows: SunShadows;
-  private readonly sunDisc: CelestialDisc;
-  private readonly sunGlare: SunGlare;
-  private readonly moonDisc: CelestialDisc;
-  private readonly towardSun = new Vector3(0, 1, 0);
-  private readonly towardMoon = new Vector3(0, 1, 0);
-  private sunUp = 0;
-  private moonUp = 0;
-  /** The halos, dimmed by cloud. */
-  readonly glow: CelestialGlow;
+export class SunAndMoon extends SkyPlaces {
+  private readonly lights: SkyLights;
+  private readonly bodies: CelestialBodies;
   /** Where the player is. The sky is drawn around them, not around the origin. */
   private focus: Vector3 | null = null;
 
   constructor(scene: Scene) {
-    this.sunLight = new DirectionalLight("sun-light", new Vector3(0, -1, 0), scene);
-    this.sunLight.specular = Color3.Black();
-
-    this.moonLight = new DirectionalLight("moon-light", new Vector3(0, -1, 0), scene);
-    this.moonLight.diffuse = new Color3(...MOON_LIGHT_COLOUR);
-    this.moonLight.specular = Color3.Black();
-
-    this.shadows = new SunShadows(this.sunLight);
-
-    this.sunDisc = createCelestialDisc(scene, { name: "sun-disc", diameter: SUN_DIAMETER });
-    this.sunGlare = createSunGlare(scene);
-    this.moonDisc = createCelestialDisc(scene, { name: "moon-disc", diameter: MOON_DIAMETER });
-    // Babylon ADDS the emissive texture to the emissive colour. Black here is
-    // what lets the dark maria in the texture actually read as dark.
-    this.moonDisc.material.emissiveColor.set(0, 0, 0);
-    const surface = createMoonTexture(scene);
-    surface.level = MOON_TEXTURE_LEVEL;
-    this.moonDisc.material.emissiveTexture = surface;
-
-    // The sky is not in the haze. Fog is depth-based, and these sit 1,390 m
-    // out, so without this the sun fades to sky colour and disappears.
-    this.sunDisc.material.fogEnabled = false;
-    this.sunGlare.material.fogEnabled = false;
-    this.moonDisc.material.fogEnabled = false;
-    this.glow = new CelestialGlow(scene, this.sunDisc.mesh, this.moonDisc.mesh);
-    // Under the clouds, not over them: drawn before the cloud veil.
-    this.sunGlare.mesh.alphaIndex = -1;
+    super();
+    this.lights = new SkyLights(scene);
+    this.bodies = new CelestialBodies(scene);
   }
 
-  /**
-   * Dims each body by the cloud in front of it (`CloudedBodies`): `seen` for
-   * the discs and glare, drawn behind the cloud veil; `glow` for the halos.
-   */
+  /** The halos, dimmed by cloud. */
+  get glow(): CelestialGlow {
+    return this.bodies.glow;
+  }
+
+  /** Dims each body by the cloud in front of it (`CloudedBodies`). */
   setCloudCover(glow: BodyShares, seen: BodyShares): void {
-    this.glow.setCloudCover(glow.sun, glow.moon);
-    this.sunGlare.material.alpha = seen.sun;
-    this.sunDisc.mesh.visibility = seen.sun;
-    this.moonDisc.mesh.visibility = seen.moon;
-  }
-
-  get sunDirection(): Vector3 {
-    return this.towardSun;
-  }
-
-  get moonDirection(): Vector3 {
-    return this.towardMoon;
-  }
-
-  /** Height of the sun, -1 below the platform and 1 overhead. */
-  get sunHeight(): number {
-    return this.towardSun.y;
-  }
-
-  /** Height of the moon, -1 below the platform and 1 overhead. */
-  get moonHeight(): number {
-    return this.towardMoon.y;
+    this.bodies.setCloudCover(glow, seen);
   }
 
   /** The starburst. Switched off with the rest of the sun effects. */
   setGlareVisible(visible: boolean): void {
-    this.sunGlare.mesh.setEnabled(visible);
-  }
-
-  setShadowQuality(quality: ShadowQuality): void {
-    this.shadows.setQuality(quality);
+    this.bodies.setGlareVisible(visible);
   }
 
   /** The sun disc, which the god rays use as their emitter. */
-  get sunMesh(): CelestialDisc["mesh"] {
-    return this.sunDisc.mesh;
+  get sunMesh(): CelestialBodies["sunMesh"] {
+    return this.bodies.sunMesh;
+  }
+
+  setShadowQuality(quality: ShadowQuality): void {
+    this.lights.shadows.setQuality(quality);
   }
 
   /**
-   * Keeps the shadow frustum, and the sky itself, centred on this point.
-   *
-   * The discs used to hang 800 m from the world origin. That reads correctly
-   * on a 200 m map, where the player is never far from the middle of it, and
-   * wrongly on a 2 km one: walk a kilometre and the sun swings across the sky
-   * with you, because you closed a real fraction of the distance to it. Real
-   * bodies are far enough away that walking changes nothing, so the sky is
-   * carried along instead.
+   * Keeps the shadows, and the sky itself, centred on this point. Real bodies
+   * are far enough away that walking changes nothing, so the sky is carried
+   * along: hung from the origin, a kilometre's walk swung the sun across it.
    */
   setShadowFocus(point: Vector3): void {
     this.focus = point;
-    this.shadows.setFocus(point);
+    this.lights.shadows.setFocus(point);
   }
 
-  /** Anything added here casts a shadow from the sun. */
-  removeShadowCaster(mesh: AbstractMesh): void {
-    this.shadows.removeCaster(mesh);
-  }
-
+  /** Anything added here casts a shadow from the sun, and from the moon. */
   addShadowCaster(mesh: AbstractMesh): void {
-    this.shadows.addCaster(mesh);
+    this.lights.shadows.addCaster(mesh);
   }
 
-  /** Compass bearing of the sun in radians, 0 north, clockwise. */
-  get sunBearing(): number {
-    return Math.atan2(this.towardSun.x, this.towardSun.z);
-  }
-
-  /** Compass bearing of the moon in radians, 0 north, clockwise. */
-  get moonBearing(): number {
-    return Math.atan2(this.towardMoon.x, this.towardMoon.z);
-  }
-
-  /** How much of the sun is up, 0 to 1, eased across the horizon. */
-  get sunAboveHorizon(): number {
-    return this.sunUp;
-  }
-
-  /** How much of the moon is up, 0 to 1, eased across the horizon. */
-  get moonAboveHorizon(): number {
-    return this.moonUp;
-  }
-
-  /** Puts both bodies where they stand at this moment of the calendar. */
-  place(totalHours: number): void {
-    sunDirectionAt(totalHours, this.towardSun);
-    moonDirectionAt(totalHours, this.towardMoon);
-    this.sunUp = smoothStep(HORIZON_FADE_START, HORIZON_FADE_END, this.towardSun.y);
-    this.moonUp = smoothStep(HORIZON_FADE_START, HORIZON_FADE_END, this.towardMoon.y);
+  removeShadowCaster(mesh: AbstractMesh): void {
+    this.lights.shadows.removeCaster(mesh);
   }
 
   /** Lights the world from where `place` put them, in this step's colours. */
   shine(lighting: TimeOfDayLighting): void {
-    // A directional light points the way light travels, which is from the body
-    // toward the world. That is the opposite of where the body sits.
-    this.sunLight.direction.copyFrom(this.towardSun).scaleInPlace(-1);
-    this.moonLight.direction.copyFrom(this.towardMoon).scaleInPlace(-1);
-
-    this.sunLight.diffuse.copyFrom(lighting.lightColor);
-    this.sunLight.intensity = lighting.lightIntensity * SUN_SHARE * this.sunUp;
-    // Moonlight is real but invisible next to daylight.
-    this.moonLight.intensity = MOON_LIGHT_MAX * this.moonUp * (1 - this.sunUp);
-
-    this.shadows.update(this.sunUp);
-
-    this.sunDisc.mesh.position.copyFrom(this.towardSun).scaleInPlace(CELESTIAL_DISTANCE);
-    this.moonDisc.mesh.position.copyFrom(this.towardMoon).scaleInPlace(CELESTIAL_DISTANCE);
-    if (this.focus) {
-      this.sunDisc.mesh.position.addInPlace(this.focus);
-      this.moonDisc.mesh.position.addInPlace(this.focus);
-    }
-    this.sunGlare.mesh.position.copyFrom(this.sunDisc.mesh.position);
-    paintSunDisc(this.sunDisc.material.emissiveColor, this.towardSun.y);
+    this.lights.shine(lighting, this.towardSun, this.towardMoon, this.sunUp, this.moonUp);
+    this.bodies.place(this.towardSun, this.towardMoon, this.focus);
   }
 }

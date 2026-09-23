@@ -61,7 +61,7 @@ design.
 | Render resolution    | 50 to 100 percent. **50% draws a quarter of the pixels**                    |
 | Auto resolution      | on: drops to as low as 70% of that while frames run slower than 60 a second |
 | Sun rays and glare   | the most expensive thing on screen                                          |
-| Shadows              | off / low / high                                                            |
+| Shadows              | off / low / high / far: far reaches 150 m, softer, at about twice the cost  |
 | Clouds               | off / low / high: real 3D clouds, traced at a quarter or half resolution    |
 
 Settings persist in `localStorage` and are merged onto the defaults on load, so
@@ -942,6 +942,56 @@ Three numbers decide how dark night is. All are named constants:
 The ground's `diffuseColor` matters as much as any of them. A near-black ground
 reads as unlit no matter how strong the light is.
 
+### Lanterns and lit windows
+
+**52 lanterns** (`src/world/nightLights/`): one beside every door, 12 on posts
+down both sides of the village street, and 3 round each hamlet green. A door
+lantern hangs 2.1 m up, on whichever side of the door has more wall before a
+corner or an open shutter. Posts stand 2.2 m in from the doorsteps and at
+least 3 m from any door. They are solid, keep the grass off, and cast sun
+shadows. Each settlement's lanterns are three meshes — iron, posts, glass —
+and go with its houses: the glass as far as the houses are seen, the iron and
+posts only as far as their trim.
+
+| What              | When                                                                          |
+| ----------------- | ----------------------------------------------------------------------------- |
+| Lanterns          | from dusk (sun under 0.1) to dawn, and by day once storm darkness passes 0.8  |
+| A house's windows | from its own dusk (sun under 0 to 0.08) until its own bedtime, 22:00 to 24:00 |
+| Nothing           | after midnight, the windows; every house is asleep                            |
+
+Each house's dusk, bedtime and colour of light are hashed from its name, so
+the village goes dark one house at a time and the same way every night.
+**Every shutter starts shut, and the glow shows through the cracks** — the
+1.2 cm between planks and the 2.5 cm round the edges. It is one unlit sheet
+per lit window (`WindowGlow`), thin instances in one draw call, 5 cm inside
+the wall's outer face. It has no back, so from inside the room the window
+looks out on the night.
+
+**None of it is a Babylon light.** The scene is at its four, and a fifth
+silently stops one of the others being used. `NightLights` picks the lamps
+nearest the eye each step — the lanterns, and the light each lit window spills
+outside — into a list of 32 that every standard material reads
+(`LampLightPlugin`, registered in `main.ts` before the world is built). The
+shader adds their light after the scene's own: surface colour, facing, and a
+fall-off to nothing at 7 m for a lantern and 3.5 m for a window. A shut
+window spills a quarter of an open one's light.
+
+- **A lamp on a wall lights nothing behind that wall's face**, so a door
+  lantern does not light the room. Inside a house, light from every lamp not
+  on its own walls stops at the wall facing it.
+- **No shadows from lamps.** A lantern's light passes through a post or a
+  person; at a few metres of warm glow the eye does not catch it.
+- **Swapping in and out is faded.** Each lamp fades over the last 6 m before
+  the edge of what is chosen, so the one that drops out as the player walks
+  goes at no strength. A window's spill counts as 4 m further off than it is,
+  so it gives way to a lantern.
+
+Why 32: in the middle of the village street 65 lamps are within 40 m. With 16,
+only 4 of the 14 lanterns lighting ground within 15 m of the eye were at full
+strength; with 32 it is 12 of 14, and every one at the other test points.
+Each pixel loops over the list and skips a lamp out of reach with one
+distance test. By day the list is empty and the loop ends at once.
+
 ## The island
 
 One island about two kilometres across, with sea to the horizon on every side.
@@ -1226,6 +1276,9 @@ full size after 10 changes in 5 minutes, and a fast one never changes.
 | ------------------- | ---------- | --------------------------------------------- |
 | Main view           | about 390  | every frame                                   |
 | Sun shadow map      | 132        | while the sun is up                           |
+| Far shadow cascades | about 500  | Far only, while the sun is up                 |
+| Fire shadow map     | about 114  | only inside the house whose fire is lit       |
+| Mountain shade      | none       | a worker, about every 2 s while the sun moves |
 | Halo (glow layer)   | about 150  | view only, sun or moon up and near the screen |
 | God rays' occlusion | about 130  | sun up and near the screen                    |
 | Mini-map picture    | about 55   | 20 times a second                             |
@@ -1647,7 +1700,8 @@ player can only ever be in one room, so nine of them would light nothing anybody
 could see.
 
 That takes the scene to **4 lights: ambient, sun, moon, firelight.** Exactly the
-limit. A fifth would silently stop one of them being used.
+limit. A fifth would silently stop one of them being used. Lanterns and lit
+windows are added by a shader instead (see Night lighting).
 
 ### Standing in the fire
 
@@ -1915,7 +1969,7 @@ forty-four trees that is nearly all of them. Trees are added to and removed from
 the map as they come within 32 m: **one tree in the map instead of forty-four**.
 
 That needed new plumbing — the sun's shadow map (`SunAndMoon`) could take a
-caster but never let one go.
+caster but never let one go. On Far the range is 150 m, the cascades' reach.
 
 ### Every branch is solid, trunk to twig
 
@@ -2181,13 +2235,74 @@ Speeds and sizes live in `src/player/PlayerController.ts` and
 
 ## Shadows
 
-Cast by the sun only, onto the ground and the grass. The player bean is the
-caster; add more with `dayNight.addShadowCaster(mesh)`.
+Four kinds, each paid for only where it shows:
 
-The shadow map is switched **off while the sun is below the horizon**. It is a
-whole extra render of every caster, and nothing is lit by the sun then anyway.
+| Kind              | What casts, onto what                                     | Where                                 |
+| ----------------- | --------------------------------------------------------- | ------------------------------------- |
+| Sun, Low and High | houses, doors, chimneys, bridges, trees, lanterns, player | a fixed 48 m box round the player     |
+| Sun, Far          | the same, and trees out to 150 m                          | three cascades to 150 m               |
+| Mountains         | the island itself, onto everything                        | the whole island, from a map          |
+| Firelight         | the house the player is in, and the player                | only while standing inside that house |
 
-Four traps, all of which fail silently:
+The sun's shadow map is switched **off while the sun is below the horizon**.
+It is a whole extra render of every caster, and nothing is lit by the sun then
+anyway. Every map is redrawn every frame while it is on — never every second
+frame, which was tried and turned down.
+
+### Low, High and Far
+
+Low and High are one shadow map, 512 or 1024 across, over a **fixed 48 m** box
+centred on the player (`shadows/nearSunShadows.ts`). Not auto-fitted: refitting
+resizes it as casters come and go, and sharpness pops as it does. Trees join
+the map as they come within 32 m.
+
+Far is Babylon's `CascadedShadowGenerator` (`shadows/farSunShadows.ts`): three
+1024 maps, sharp near the eye and coarser out to 150 m, stabilised so edges do
+not swim as the view turns. Trees cast within 150 m on Far
+(`Woodland.setShadowRange`). The box the casters must fit in is ours, 190 m
+round the player; left to Babylon it grows to hold every house on the island,
+and the depth precision near the eye goes with it. `SunShadows` keeps the
+casters and hands them to the new generator when the level changes.
+
+| Draw calls, sun up | High | Far   |
+| ------------------ | ---- | ----- |
+| Village from 80 m  | 395  | 907   |
+| In among houses    | 762  | 1,272 |
+
+**The cascades are built with no camera.** Babylon keys a shadow generator by
+the camera it was given, and one given the player's camera casts nothing in the
+orbit view or the mini-map. With none, it follows whichever camera draws.
+
+### Mountains shade the valleys
+
+The terrain is not in any shadow map: it is too big, and a 150 m map cannot see
+a mountain 2 km away. Instead a worker (`light/terrainShade.worker.ts`) sweeps
+the height grid at 8 m, 385 × 385 cells, from the side facing the light, and
+works out each cell's **shade height**: the height below which that spot is in
+the terrain's shadow. One visit per cell, 2 to 6 ms.
+
+It runs again when the light has moved half a degree, about every 2 real
+seconds, and the answer goes to the GPU as a texture packed two bytes a height
+(about 590 KB). `TerrainShadePlugin`, on every standard material, dims **only
+the directional lights** below that height, fading over 4 m, the way the cloud
+shadows do — so a tree's own shadow fades inside a mountain's. Against a brute
+force march through the grid, the sweep agrees at 98.5 to 99.6% of points,
+with 0 to 10 in 10,000 wrongly shaded. `WetGround` asks the same map on the CPU,
+so puddles do not glint in a valley the sun cannot reach.
+
+### Firelight shadows
+
+`FireShadows` puts a 512 cube map on the one firelight: six pictures, one each
+way, filtered with Poisson sampling, the only soft filter a cube map has. It
+runs **only while the player stands inside the house whose fire is lit**, and
+draws only that house — walls, roof, door, shutters, hearth — and the player.
+Inside the hall that is 114 more draw calls (6 × 19); outside every house it
+is none. From outside, the walls hide the room anyway.
+
+Inside a house, its own fire is the one lit, even with a neighbour's nearer
+through the gable wall.
+
+### Traps, all silent
 
 - **`shadowGenerator` does not import its own scene component.** Without
   `import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent"` the
@@ -2202,12 +2317,10 @@ Four traps, all of which fail silently:
   active camera's, here 0.1 to 2000 — which turned a bias of 0.0008 into **1.6
   metres** of offset. A directional light also starts at the world origin, which
   is underground, so its shadow camera has to be parked up-sun of whatever it is
-  meant to be shadowing.
-
-Quality lives in `src/world/SunShadows.ts`: map size, the two biases, and how
-dark the shadow gets. The shadow box is a **fixed 48 m** centred on the player,
-not auto-fitted: refitting resizes it as casters come and go, and sharpness pops
-as it does.
+  meant to be shadowing. The firelight sets its own, 0.05 to 9 m.
+- **Switching a light's shadows on or off recompiles** every material that
+  light reaches, the first time each way. The sun does it at dawn and dusk, and
+  the firelight the first time the player walks into a house.
 
 ## World map
 

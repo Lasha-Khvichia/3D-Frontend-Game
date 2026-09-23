@@ -1,10 +1,12 @@
 import "./styles/base.css";
 import { GameRuntime } from "./core/GameRuntime";
 import { buildWorld } from "./game/buildWorld";
-import { showOpeningWorld, stepWorld } from "./game/stepWorld";
+import { showOpeningWorld, showWorldNow, stepWorld } from "./game/stepWorld";
 import { createMainScene } from "./scenes/createMainScene";
 import { SettingsBinder } from "./settings/SettingsBinder";
 import { mountOverlay } from "./ui/mountOverlay";
+import { registerTerrainShade } from "./world/light/TerrainShadePlugin";
+import { registerLampLight } from "./world/nightLights/LampLightPlugin";
 import { registerCloudShadows } from "./world/sky/CloudShadowPlugin";
 import { registerHeightMist } from "./world/weather/HeightMistPlugin";
 
@@ -26,6 +28,8 @@ const scene = runtime.loadScene(createMainScene);
 // Before any material exists: Babylon only gives a registered plugin to
 // materials made after it, and every standard material gets cloud shadows.
 registerCloudShadows();
+registerTerrainShade();
+registerLampLight();
 registerHeightMist();
 
 // Every system in the world, built and wired to each other (src/game/).
@@ -40,9 +44,9 @@ const settings = new SettingsBinder({
   streaming: world.streaming,
   sky: world.sky,
   weather: world.weather,
-  wet: world.wet,
-  snow: world.snow,
   sound: world.sound,
+  woodland: world.woodland,
+  followClock: () => showWorldNow(world),
 });
 
 // After the settings, which carry the render distance.
@@ -60,6 +64,8 @@ if (import.meta.hot) {
     settings.dispose();
     world.boulders.dispose();
     world.terrain.dispose();
+    world.terrainShade.dispose();
+    world.fireShadows.dispose();
     world.miniMap.dispose();
     world.player.dispose();
     runtime.dispose();

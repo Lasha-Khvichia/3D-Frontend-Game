@@ -1,4 +1,5 @@
 import { publishPrompt } from "../ui/bridge";
+import { cloudShadowField } from "../world/sky/cloudShadowField";
 import type { World } from "./buildWorld";
 
 /**
@@ -25,6 +26,7 @@ export function stepWorld(world: World, seconds: number): void {
   world.falling.update(eye);
   sky.update(seconds, eye);
   godRays.setCloudCover(sky.sunlightThrough);
+  world.terrainShade.update(cloudShadowField.toward);
   world.miniMap.update(
     seconds,
     player.controller.bean,
@@ -33,6 +35,9 @@ export function stepWorld(world: World, seconds: number): void {
   );
   godRays.update(dayNight.sunAndMoon.sunDirection);
   world.fires.update(seconds, eye);
+  world.fireShadows.update(world.fires.houseInside);
+  const { sunHeight } = dayNight.sunAndMoon;
+  world.nightLights.update(seconds, dayNight.currentHour, sunHeight, eye, world.fires.houseInside);
   world.wind.update(seconds);
   world.woodland.update(eye);
   grass.update(seconds, eye);
@@ -45,14 +50,25 @@ export function stepWorld(world: World, seconds: number): void {
  * round the player.
  */
 export function showOpeningWorld(world: World): void {
+  world.streaming.prime(world.eye);
+  world.falling.update(world.eye);
+  showWorldNow(world);
+}
+
+/**
+ * Everything the clock decides, brought up to date at once: at the opening,
+ * and when the menu moves the time, the date or the weather while paused.
+ */
+export function showWorldNow(world: World): void {
   const { dayNight, eye } = world;
   const hours = dayNight.totalHours;
-  world.streaming.prime(eye);
-  world.falling.update(eye);
   world.weather.update(hours);
   world.wet.update(hours, 0);
   world.snow.update(hours);
   world.grass.setSnowDepth(world.snow.depthUnderFoot);
+  world.terrainShade.update(dayNight.sunAndMoon.sunDirection);
+  const { sunHeight } = dayNight.sunAndMoon;
+  world.nightLights.update(0, dayNight.currentHour, sunHeight, eye, world.fires.houseInside);
   dayNight.refresh();
   world.sky.repaint();
 }

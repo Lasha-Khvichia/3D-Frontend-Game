@@ -171,8 +171,14 @@ Snow went white on the ground and stayed brown on every roof. Change
 `diffuseColor` as well.
 
 **`RegisterMaterialPlugin` only reaches materials created after it.** The cloud
-shadows are registered at the top of `main.ts`, before the terrain; register
-later and everything already built has no shadows, with no error.
+shadows, mountain shade, lamp light and ground mist are registered at the top
+of `main.ts`, before the terrain; register later and everything already built
+goes without, with no error.
+
+**A shadow generator given a camera casts nothing in any other view.** Babylon
+keys generators by camera, and the cascades once built with the player's
+camera left the orbit view and the mini-map with no shadows. The sun's
+cascades and the fire's cube map are built with none.
 
 **A single sheet of geometry has no back.** A wall is a solid box so its inside
 face renders normally, but a roof is one surface: without
@@ -258,9 +264,28 @@ every frame. `scene.activeCameras` holds only the view, and the code that
 means "the view" reads `activeCameras[0]`.
 
 **The scene is at its light budget: 4.** Ambient, sun, moon, and the single
-firelight that moves to whichever hearth the player is nearest. A standard
-material only considers four at once, so a fifth light would silently stop one
-of the others being used. Move the shared light rather than adding another.
+firelight that moves to whichever hearth the player is nearest — or the hearth
+of the house they stand in. A standard material only considers four at once,
+so a fifth light would silently stop one of the others being used. Move the
+shared light rather than adding another. **Lanterns and lit windows are not
+lights** (`src/world/nightLights/`): `NightLights` puts the 32 nearest into
+`lampField` each step and `LampLightPlugin` adds their light in every standard
+material's shader. A lamp on a wall stops at that wall's face, and inside a
+house every other lamp stops at its walls, or the rooms glow from the street.
+
+**The firelight casts shadows only inside its own house** (`FireShadows`): a
+cube map is six renders, so it runs only while the player stands in the house
+whose fire is lit, and draws only that house and the player. The sun's map is
+redrawn every frame while on; **never every second frame** — Nick turned that
+down. Far shadows are cascades out to 150 m (`src/world/shadows/`), and trees
+cast within whatever range the level has (`Woodland.setShadowRange`).
+
+**Mountains shade the valleys from a map, not a shadow map**
+(`src/world/light/`): a worker sweeps the height grid at 8 m for each cell's
+shade height whenever the light has moved half a degree, and
+`TerrainShadePlugin` dims only the directional lights below it, like the cloud
+shadows. Anything on the CPU that needs sunlight at a point (the puddles'
+glint) asks `TerrainShadeMap.lightAt`.
 
 **A merged mesh comes back with its world matrix frozen.** Right for scenery,
 wrong for anything hung on a hinge: frozen means the parent can turn all it
@@ -536,6 +561,9 @@ src/world/weather/wet/  what the rain leaves: wet ground, puddles and their ring
 src/world/weather/snow/  snow that builds and melts, on the ground, roofs and stones, and the trail through it
 src/world/weather/storm/  lightning: when and where it strikes, the flash and the bolt
 src/world/rocks/    loose stones
+src/world/light/    mountains shading the valleys: the worker's sweep, its texture and plugin
+src/world/shadows/  the sun's shadow maps: one box on Low and High, cascades on Far
+src/world/nightLights/  lanterns, lit windows, and the lamp light every material adds
 src/game/      the world built and wired together, and the order it steps in
 src/audio/     every sound, made in code with Web Audio; footsteps/ by the ground underfoot
 src/player/    the bean, its camera, controls, collisions, footing, head bob
