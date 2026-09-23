@@ -1,6 +1,8 @@
 import "./styles/base.css";
 import { GameRuntime } from "./core/GameRuntime";
 import { buildWorld } from "./game/buildWorld";
+import { GameSave } from "./game/GameSave";
+import { restoreSave } from "./game/restoreSave";
 import { showOpeningWorld, showWorldNow, stepWorld } from "./game/stepWorld";
 import { createMainScene } from "./scenes/createMainScene";
 import { SettingsBinder } from "./settings/SettingsBinder";
@@ -49,10 +51,18 @@ const settings = new SettingsBinder({
   followClock: () => showWorldNow(world),
 });
 
+// Where the player left off, before the first frame is drawn.
+restoreSave(world);
+const { bean, camera } = world.player.controller;
+const save = new GameSave(world.dayNight, world.weather, bean, camera);
+
 // After the settings, which carry the render distance.
 showOpeningWorld(world);
 
-runtime.setSimulationStep((fixedDeltaSeconds) => stepWorld(world, fixedDeltaSeconds));
+runtime.setSimulationStep((fixedDeltaSeconds) => {
+  stepWorld(world, fixedDeltaSeconds);
+  save.update(fixedDeltaSeconds);
+});
 
 // Every drawn frame, between the steps: the view glides and the mouse turns it.
 runtime.setFrameUpdate((progress) => world.player.present(progress));

@@ -990,6 +990,37 @@ strength; with 32 it is 12 of 14, and every one at the other test points.
 Each pixel loops over the list and skips a lamp out of reach with one
 distance test. By day the list is empty and the loop ends at once.
 
+## Saving, and tomorrow's weather
+
+**A saved game is four numbers**: the clock, any weather the menu is holding,
+and where the player stands and faces (`src/settings/saveStore.ts`, its own
+`localStorage` key beside the settings). Everything else — the weather, the
+snow, the wet ground, the sky, the growing year, every lit window in the
+village — is a function of the hour, so restoring the hour brings all of it
+back exactly as it was left.
+
+- It is written every 20 real seconds, and again when the tab is hidden or
+  closed, which is the last moment a browser allows (`GameSave`).
+- The clock is restored where the day and night are built
+  (`DayNightCycle({ startHours })`), before anything reads it, so the wet and
+  snow trails replay from the restored date rather than jumping to it.
+- The player is put back with `teleportTo` and the held weather with
+  `Weather.force`, both before the first frame is drawn (`restoreSave`).
+- Storage that throws — a private window, storage turned off — is caught and
+  ignored: the game runs, it simply will not come back where it left off.
+
+Not saved, deliberately: the trodden snow trail (576 KB of typed array, far
+too big for `localStorage`, and it would be wrong against a new position),
+which doors and shutters were left open, and whether the game was paused.
+
+**The forecast is not a guess.** `forecastFor(day)` runs the same functions of
+the date the day itself will run (`sampleWeather`, `dayPlans`), sampling every
+hour from 05:00 to 22:00 and naming the day by the worst of it, with the
+climate's high and low. Checked over a year: it says rain on exactly the 365
+days out of 365 that turn out wet or dry — it cannot disagree with what turns
+up, because it is the same arithmetic. It is published once a day and shown in
+the stats panel as "Tomorrow".
+
 ## The growing year
 
 Everything that grows reads one curve of the calendar

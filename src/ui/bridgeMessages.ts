@@ -1,5 +1,6 @@
 import type { RenderBackend } from "../core/createEngine";
 import { dateAt, type CalendarDate } from "../world/calendar/calendar";
+import type { Forecast } from "../world/weather/forecast";
 import type { WeatherKind } from "../world/weather/weatherKinds";
 
 /** Everything the game publishes to React. Game -> React, one way. */
@@ -19,6 +20,8 @@ export type GameStats = {
   weather: string;
   /** The weather the menu is holding, for testing; "auto" lets it run. */
   weatherHeld: WeatherKind | "auto";
+  /** What tomorrow brings, worked out from the date. */
+  forecast: Forecast | null;
   /** The mini-map only exists in first person. */
   firstPerson: boolean;
   /** True while the pause menu is up and the world is frozen. */
@@ -51,6 +54,7 @@ export const EMPTY_STATS: GameStats = {
   airTemperature: 0,
   weather: "",
   weatherHeld: "auto",
+  forecast: null,
   firstPerson: true,
   paused: true,
   interactionPrompt: "",

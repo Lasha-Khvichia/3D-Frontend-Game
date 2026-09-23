@@ -438,8 +438,9 @@ z after a move that was grounded and had no horizontal input.
 **Phase 8 (nature through the year) is done**: blossom, autumn colours,
 falling leaves, bare winter broadleaves with the pines still green, grass
 colour by season, wildflowers in spring and summer, and frost on cold
-mornings. What is left of the weather plan is phase 9: saving and the
-forecast.
+mornings. Phase 9 (done) is saving and the forecast: the clock, a held
+weather and the player's place are kept in the browser, and tomorrow's weather
+is read ahead from the same functions of the date.
 
 **The village is phased.** Phase 0 (done) is bare shells. Phase 1 (done) is
 stone and timber on the walls, placed on the wall segments so it can never cover
@@ -561,6 +562,15 @@ the code that reads them.
 **Settings are one-way**: the menu writes `settingsStore`, `SettingsBinder` pushes
 into the running game, nothing writes back. Bump `STORAGE_KEY` when a default
 changes in a way a saved file must not override.
+
+**The saved game is a separate channel from the settings** (`saveStore.ts`,
+its own key): the game writes it, the game reads it at boot. It holds only
+what the date cannot rebuild — the clock, a held weather, and where the player
+stands — because everything else is a function of the hour. The clock must be
+restored **where `DayNightCycle` is built** (`buildLand`), not jumped to
+afterwards, or the wet and snow trails replay from the wrong date. The
+forecast (`forecast.ts`) runs the same functions of the date the day will run,
+so it can never disagree with the weather that arrives.
 
 ## Layout
 

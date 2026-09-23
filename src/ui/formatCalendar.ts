@@ -5,6 +5,7 @@ import {
   type CalendarDate,
   type Season,
 } from "../world/calendar/calendar";
+import type { Forecast } from "../world/weather/forecast";
 
 /** 13.5 becomes "13:30". */
 export function formatClock(hours: number): string {
@@ -28,6 +29,13 @@ export function formatDayOfYear(dayOfYear: number): string {
 export function formatDayOfYearShort(dayOfYear: number): string {
   const date = dateAt(dayOfYear * HOURS_PER_DAY);
   return `${date.dayOfMonth} ${MONTHS[date.month]?.name.slice(0, 3) ?? ""}`;
+}
+
+/** "Rain, 12 °C to 4 °C". */
+export function formatForecast(forecast: Forecast): string {
+  const high = formatTemperature(forecast.high);
+  const low = formatTemperature(forecast.low);
+  return `${forecast.name}, ${high} to ${low}`;
 }
 
 /** "Spring". */

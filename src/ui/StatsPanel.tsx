@@ -1,5 +1,11 @@
 import { useGameStats } from "./useGameStats";
-import { formatClock, formatDate, formatSeason, formatTemperature } from "./formatCalendar";
+import {
+  formatClock,
+  formatDate,
+  formatForecast,
+  formatSeason,
+  formatTemperature,
+} from "./formatCalendar";
 import { SeasonDot } from "./SeasonDot";
 
 export function StatsPanel() {
@@ -20,6 +26,8 @@ export function StatsPanel() {
       <dd>{stats.weather}</dd>
       <dt>Air</dt>
       <dd>{formatTemperature(stats.airTemperature)}</dd>
+      <dt>Tomorrow</dt>
+      <dd>{stats.forecast ? formatForecast(stats.forecast) : "—"}</dd>
       <dt>Backend</dt>
       <dd>{stats.backend}</dd>
       <dt>FPS</dt>

@@ -3,6 +3,7 @@ import type { House } from "../world/houses/buildHouse";
 import { attachPrecipitation } from "../world/weather/precipitation/attachPrecipitation";
 import { SnowGround } from "../world/weather/snow/SnowGround";
 import { Lightning } from "../world/weather/storm/Lightning";
+import { ForecastReport } from "../world/weather/ForecastReport";
 import { Weather } from "../world/weather/Weather";
 import type { WeatherListener } from "../world/weather/weatherState";
 import { WetGround } from "../world/weather/wet/WetGround";
@@ -49,5 +50,8 @@ export function buildWeather(
   });
   for (const mesh of lightning.meshes) godRays.excludeFromOcclusion(mesh);
 
-  return { weather, falling, wet, snow, lightning };
+  // What tomorrow brings, from the same function of the date the day will run.
+  const forecast = new ForecastReport(eye);
+
+  return { weather, falling, wet, snow, lightning, forecast };
 }

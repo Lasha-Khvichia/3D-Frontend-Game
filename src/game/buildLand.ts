@@ -2,6 +2,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { MiniMap } from "../minimap/MiniMap";
 import { attachPlayer } from "../player/attachPlayer";
 import { PLAYER_HEIGHT } from "../player/createPlayerBean";
+import { readSave } from "../settings/saveStore";
 import { DayNightCycle } from "../world/DayNightCycle";
 import { Meadow } from "../world/Meadow";
 import { SunGodRays } from "../world/SunGodRays";
@@ -24,7 +25,10 @@ export function buildLand(scene: Scene, canvas: HTMLCanvasElement) {
   const winterGround = new WinterGround(terrain);
   // Mountains shading the valleys, worked out in a worker as the sun moves.
   const terrainShade = new TerrainShadeMap(scene, terrain.grid);
-  const dayNight = new DayNightCycle(scene);
+  // The saved clock, if there is one: everything that is a function of the
+  // hour — weather, snow, wet ground, sky — comes back with it.
+  const saved = readSave();
+  const dayNight = new DayNightCycle(scene, saved ? { startHours: saved.totalHours } : {});
   const { sunAndMoon } = dayNight;
   const miniMap = new MiniMap(scene);
   const grass = new Meadow(scene, terrainSoil(terrain));

@@ -13,6 +13,7 @@ export function stepWorld(world: World, seconds: number): void {
   dayNight.advance(seconds);
   const hours = dayNight.totalHours;
   world.weather.update(hours);
+  world.forecast.update(hours);
   world.wet.update(hours, seconds);
   world.snow.update(hours);
   const sunUp = dayNight.sunAndMoon.sunHeight;
@@ -65,6 +66,7 @@ export function showWorldNow(world: World): void {
   const { dayNight, eye } = world;
   const hours = dayNight.totalHours;
   world.weather.update(hours);
+  world.forecast.update(hours);
   world.wet.update(hours, 0);
   world.snow.update(hours);
   world.seasons.update(0, hours, eye, world.snow.depthUnderFoot, dayNight.sunAndMoon.sunHeight);
