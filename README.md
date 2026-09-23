@@ -2479,7 +2479,10 @@ inside the key press, which is the only moment the browser allows it. The
 pause menu keeps out of the way while the map is up.
 
 It is a flat map on old paper, painted from the island itself the first time
-you open it — about half a second, once:
+you open it — about half a second, once. The roads are drawn on it as a
+mapmaker would: each run cased in ink, the country roads brown and the
+village street stone grey, laid **under** the houses and trees so the symbols
+sit on top of them (`drawMapRoads`).
 
 - the sea in a blue-green wash, with ripples ruled round the shore at every
   3 m of depth, and the coast as a thin ink line

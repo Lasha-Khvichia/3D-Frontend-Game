@@ -1,4 +1,5 @@
 import type { Terrain } from "../terrain/Terrain";
+import { drawMapRoads } from "./drawMapRoads";
 import { drawMapSymbols } from "./drawMapSymbols";
 import { MAP_HALF_EXTENT, MAP_PIXELS } from "./mapFrame";
 import { mapLabels, type MapLabel } from "./mapLabels";
@@ -27,6 +28,8 @@ export function paintWorldMap(terrain: Terrain): WorldMapPicture {
   const context = canvas.getContext("2d");
   if (!context) throw new Error("the browser gave no 2D canvas for the world map");
   paintMapGround(context, terrain);
+  // Under the houses and trees: a road runs past them, not over them.
+  drawMapRoads(context);
   drawMapSymbols(context, terrain.rivers.bridges);
   painted = { canvas, labels: mapLabels(), halfExtent: MAP_HALF_EXTENT };
   return painted;
