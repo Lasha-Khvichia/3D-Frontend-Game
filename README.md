@@ -21,6 +21,16 @@ releases it in every browser and cannot be intercepted, so the key players press
 anyway is the one that works. Resume, or a click anywhere on the world, takes it
 back.
 
+**The menu is a drawer.** It comes in from off screen left, leans 20 degrees,
+and rests against the left edge, which leaves the rest of the screen as world
+you can click to resume. Only `transform` and `opacity` move, so the browser
+never lays the page out again over a canvas that is drawing every frame. The
+stats panel crosses to the other corner while it is up, through `:has` in the
+stylesheet rather than React state. A tilt has a cost: a settings row 376 px
+wide drops 137 px from its left end to its right, so a label and its value sit
+well apart on screen. `prefers-reduced-motion` keeps the lean and drops the
+journey.
+
 **A browser that refuses the mouse says so in the menu.** The request can be
 turned down — pointer lock blocked for the page in the browser's site settings,
 or asked for too soon after Escape — and it used to be swallowed. The menu then
