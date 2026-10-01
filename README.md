@@ -1551,6 +1551,15 @@ edges (`roadGrassBlockers`).
 middle of it, and meet a hamlet just outside the ring its cottages stand in,
 at the gap nearest the way the road comes from.
 
+**Nothing is scattered into a road.** Trees and stones both ask
+`awayFromRoad` how far they stand from the nearest road's edge, and both are
+placed after the roads so there is something to ask: a trunk keeps 2.5 m off
+the edge, a stone 1 m clear of its own reach. The wood is therefore worked
+out on the first ask (`treePlacements()`) rather than when its file loads,
+because the roads are found while the terrain is built. Before this, five of
+the forty-four trees and eight of the four hundred and twenty stones stood in
+a road.
+
 ### The village street is cobbled
 
 5,771 stones, each a six-sided tapered block bedded into the ground with

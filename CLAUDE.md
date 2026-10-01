@@ -432,6 +432,11 @@ for water at nine places: a river narrower than a square hides between fewer.
 Roads leave the village at the ends of its street and stop outside a hamlet's
 ring of cottages, which keeps them out of people's houses. The village
 street's cobbles are thin instances hashed from the ground, like the grass.
+**Anything scattered over the island asks `awayFromRoad` (`offTheRoad.ts`) and
+is placed after the roads** — trees and stones both do. The wood is worked out
+on the first call to `treePlacements()`, never when its file loads, for that
+reason: a scatter that runs at import time is told there are no roads, with no
+error.
 
 **Every rock is two meshes**, built only near the player: a smooth one to look
 at, with no collision, and an invisible upright prism to bump into

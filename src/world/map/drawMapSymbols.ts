@@ -1,6 +1,6 @@
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { ALL_HOUSES } from "../houses/settlements";
-import { TREE_PLACEMENTS } from "../trees/treeLayout";
+import { treePlacements } from "../trees/treeLayout";
 import { drawMapFurniture } from "./drawMapFurniture";
 import { METRES_PER_PIXEL, toMapPixel } from "./mapFrame";
 
@@ -23,7 +23,7 @@ export function drawMapSymbols(context: CanvasRenderingContext2D, bridges: reado
     context.fillRect(px - width / 2, py - depth / 2, width, depth);
     context.strokeRect(px - width / 2, py - depth / 2, width, depth);
   }
-  for (const spot of TREE_PLACEMENTS) {
+  for (const spot of treePlacements()) {
     const { px, py } = toMapPixel(spot.x, spot.z);
     context.fillStyle = CROWN;
     context.beginPath();
