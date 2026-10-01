@@ -67,7 +67,11 @@ resolution to as little as 70% while frames run slow; README "Frame rate" has
 the measured costs of every pass.
 
 Pause is pointer lock: the game is paused whenever the browser does not have the
-mouse. **A refused lock must never be silent** — the menu stays up either way,
+mouse. The menu is a left drawer with **two levels**: four big leaning names
+(`menuSections.ts`), then one section's rows (`OpenSection`). A settings
+component renders rows only — its name and its wrapper belong to the menu. The
+leaning band behind it is wider than the drawer, which hides what runs past its
+sides; nothing readable leans except those four names. **A refused lock must never be silent** — the menu stays up either way,
 so `reportPause` publishes the browser's reason and the pause menu prints it
 under the title, above the fold. Swallowing it looks exactly like a game that
 will not start. The world map (`M`) uses the same rule — it lets go of the mouse to

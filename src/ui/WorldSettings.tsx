@@ -26,8 +26,7 @@ export function WorldSettings() {
   const { timeOfDayHours, date, weatherHeld } = useGameStats();
 
   return (
-    <section className="menu__section">
-      <h3 className="menu__heading">World</h3>
+    <>
       <SliderRow
         label="Date"
         value={date.dayOfYear}
@@ -55,19 +54,12 @@ export function WorldSettings() {
         onChange={(clockFrozen) => updateSettings({ clockFrozen })}
       />
       <SliderRow
-        label="Travel speed"
-        value={settings.travelSpeed}
-        {...SETTINGS_LIMITS.travelSpeed}
-        format={(value) => `${value.toFixed(1)}x`}
-        onChange={(travelSpeed) => updateSettings({ travelSpeed })}
-      />
-      <SliderRow
         label="Render distance"
         value={settings.renderDistance}
         {...SETTINGS_LIMITS.renderDistance}
         format={(value) => `${value} m`}
         onChange={(renderDistance) => updateSettings({ renderDistance })}
       />
-    </section>
+    </>
   );
 }

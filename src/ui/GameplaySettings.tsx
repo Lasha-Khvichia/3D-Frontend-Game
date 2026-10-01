@@ -4,12 +4,12 @@ import { useGameSettings } from "./useGameSettings";
 import { SliderRow } from "./SliderRow";
 import { ToggleRow } from "./ToggleRow";
 
-export function ComfortSettings() {
+/** How the game feels to play: the view, the mouse, the walk. */
+export function GameplaySettings() {
   const settings = useGameSettings();
 
   return (
-    <section className="menu__section">
-      <h3 className="menu__heading">Comfort</h3>
+    <>
       <SliderRow
         label="Field of view"
         value={settings.fieldOfView}
@@ -24,6 +24,11 @@ export function ComfortSettings() {
         format={(value) => `${value.toFixed(2)}x`}
         onChange={(mouseSensitivity) => updateSettings({ mouseSensitivity })}
       />
+      <ToggleRow
+        label="Invert vertical look"
+        value={settings.invertLook}
+        onChange={(invertLook) => updateSettings({ invertLook })}
+      />
       <SliderRow
         label="Head bob"
         value={settings.headBobStrength}
@@ -32,17 +37,12 @@ export function ComfortSettings() {
         onChange={(headBobStrength) => updateSettings({ headBobStrength })}
       />
       <SliderRow
-        label="Sound volume"
-        value={settings.soundVolume}
-        {...SETTINGS_LIMITS.soundVolume}
-        format={(value) => (value === 0 ? "Off" : `${Math.round(value * 100)}%`)}
-        onChange={(soundVolume) => updateSettings({ soundVolume })}
+        label="Travel speed"
+        value={settings.travelSpeed}
+        {...SETTINGS_LIMITS.travelSpeed}
+        format={(value) => `${value.toFixed(1)}x`}
+        onChange={(travelSpeed) => updateSettings({ travelSpeed })}
       />
-      <ToggleRow
-        label="Invert vertical look"
-        value={settings.invertLook}
-        onChange={(invertLook) => updateSettings({ invertLook })}
-      />
-    </section>
+    </>
   );
 }

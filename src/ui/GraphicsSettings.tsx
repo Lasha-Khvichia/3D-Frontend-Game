@@ -32,8 +32,7 @@ export function GraphicsSettings() {
   const settings = useGameSettings();
 
   return (
-    <section className="menu__section">
-      <h3 className="menu__heading">Graphics</h3>
+    <>
       <ChoiceRow
         label="Quality"
         value={settings.qualityPreset}
@@ -69,6 +68,6 @@ export function GraphicsSettings() {
         choices={CLOUD_LEVELS}
         onChange={(clouds) => updateSettings({ clouds })}
       />
-    </section>
+    </>
   );
 }

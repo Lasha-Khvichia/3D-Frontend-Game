@@ -76,52 +76,82 @@
 .menu {
   position: absolute;
   inset: 0;
-  display: grid;
-  /* Held against the left edge: the panel comes in from that side, and the
-     rest of the screen stays world you can click to resume. */
-  place-items: center start;
-  padding-left: clamp(28px, 10vw, 170px);
-  /* Click-through on purpose, so clicking the world resumes. */
+  /* Click-through on purpose, so clicking the world beside the drawer resumes. */
   pointer-events: none;
-  background: radial-gradient(ellipse at center, rgb(5 7 14 / 45%), rgb(5 7 14 / 78%));
+  background: radial-gradient(ellipse at center, rgb(5 7 14 / 40%), rgb(5 7 14 / 74%));
   animation: menu-dim 0.26s ease-out both;
 }
 
-/* Leaning 20 degrees the other way, and sliding in from off screen left.
-   A leaning panel needs more room than it covers: at 20 degrees a 420 x 550
-   panel wants 660 px of height and 583 px of width. That is why it is shorter
-   and narrower than the upright one was, and why the left padding is wide
-   enough for the bottom corner that swings out past it. */
-.menu__panel {
-  width: min(420px, calc(100vw - 160px));
-  max-height: calc(100vh - 170px);
-  overflow-y: auto;
-  padding: 20px 22px 18px;
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-left: 3px solid rgb(232 96 60 / 72%);
-  border-radius: 12px;
-  background: linear-gradient(158deg, rgb(19 23 35 / 97%), rgb(8 10 17 / 97%));
-  box-shadow:
-    0 22px 70px rgb(0 0 0 / 62%),
-    -14px 0 40px rgb(232 96 60 / 10%);
-  transform: rotate(20deg);
-  transform-origin: center;
-  /* Only transform and opacity move, so the browser never repaints the panel
-     while it travels — which matters over a WebGL canvas drawing every frame. */
-  will-change: transform, opacity;
+/* The drawer: upright, floor to ceiling, hard against the left edge, and it
+   hides whatever runs past its sides. That clipping is the whole trick — the
+   band behind the settings is far wider than this box, so its left and right
+   ends are cut away and only its slanted top and bottom show. */
+.menu__drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(430px, calc(100vw - 40px));
+  overflow: hidden;
+  /* Transform and opacity only, so the browser never lays the page out again
+     over a canvas that is drawing every frame. */
   animation: menu-slide-in 0.42s cubic-bezier(0.22, 1.16, 0.36, 1) both;
   pointer-events: auto;
 }
 
+/* Wider than its parent on purpose. At 20 degrees a slanted end falls 157 px
+   across the drawer's 430, so the ends are held well inside it and the sides
+   well outside. The bottom is held low: the buttons are pinned down there and
+   must sit on the band, not on bare world beside it. */
+.menu__band {
+  position: absolute;
+  top: 104px;
+  right: -80%;
+  bottom: 24px;
+  left: -80%;
+  border-top: 3px solid rgb(232 96 60 / 70%);
+  border-bottom: 3px solid rgb(232 96 60 / 70%);
+  background: linear-gradient(158deg, rgb(19 23 35 / 97%), rgb(8 10 17 / 97%));
+  box-shadow: 0 0 70px rgb(0 0 0 / 60%);
+  transform: rotate(20deg);
+  pointer-events: none;
+}
+
+/* Everything readable rides above the band, and none of it leans. */
+.menu__top,
+.menu__scroll,
+.menu__foot {
+  position: relative;
+  z-index: 1;
+}
+
+.menu__top {
+  padding: 124px 24px 0;
+}
+
+.menu__scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 24px 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Stays put while the settings scroll behind it: the way out of the menu is
+   never a thing you have to go looking for. */
+.menu__foot {
+  padding: 10px 24px 72px;
+}
+
 @keyframes menu-slide-in {
   from {
-    transform: translateX(calc(-100% - 160px)) rotate(20deg);
-    opacity: 0;
+    transform: translateX(-100%);
   }
 
   to {
-    transform: translateX(0) rotate(20deg);
-    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -135,12 +165,20 @@
   }
 }
 
-/* The lean and the travel are decoration. Anyone who has asked their system to
-   stop moving things gets the panel in place, still leaning, with no journey. */
+/* The journey is decoration. Anyone who has asked their system to stop moving
+   things gets the drawer in place, band and all, with no travel. */
 @media (prefers-reduced-motion: reduce) {
   .menu,
-  .menu__panel {
+  .menu__drawer {
     animation: none;
+  }
+
+  .menu__list,
+  .menu__name > span,
+  .menu__open .menu__back,
+  .menu__open .menu__open-name,
+  .menu__open .menu__rows > * {
+    transition: none;
   }
 }
 
@@ -152,17 +190,163 @@
   text-transform: uppercase;
 }
 
-.menu__section {
-  margin-top: 18px;
+/* ---- level one: the four names ---- */
+
+.menu__list {
+  display: flex;
+  flex-direction: column;
+  transition:
+    opacity 0.18s ease-in,
+    transform 0.18s ease-in;
 }
 
-.menu__heading {
-  margin: 0 0 8px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+/* They step aside before the section arrives: React cannot animate an element
+   it has already removed, so the leaving is played first and the swap waits. */
+.menu__list[data-leaving="true"] {
+  opacity: 0;
+  transform: translateX(-44px);
+}
+
+/* A rotated box keeps the room it had upright, so each name is given the
+   height its leaning word needs: GRAPHICS is about 215 px across at 32 px, and
+   20 degrees drops its last letter 74 px below its first. */
+.menu__name {
+  height: 108px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu__name[data-short="true"] {
+  height: 76px;
+}
+
+.menu__name > span {
+  display: inline-block;
+  color: rgb(255 255 255 / 88%);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.5;
+  text-shadow: 0 2px 10px rgb(0 0 0 / 70%);
+  transform: rotate(20deg);
+  transform-origin: 0 0;
+  transition:
+    color 0.15s ease-out,
+    transform 0.2s ease-out;
+}
+
+.menu__name:hover > span,
+.menu__name:focus-visible > span {
+  color: #ffb49c;
+  transform: rotate(20deg) translateX(10px);
+}
+
+/* ---- level two: one section, opened ---- */
+
+.menu__back {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: rgb(255 255 255 / 55%);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.menu__back:hover {
+  color: #ffb49c;
+}
+
+/* Arrives first: up from where it stood in the list, straightening as it goes.
+   It is still a button, so the name you clicked is also the way back. */
+.menu__open-name {
+  display: block;
+  margin: 2px 0 14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgb(255 255 255 / 92%);
+  font: inherit;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-align: left;
+  text-shadow: 0 2px 10px rgb(0 0 0 / 70%);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.menu__open-name:hover {
+  color: #ffb49c;
+}
+
+/* The arrival. Everything starts where `.menu__open` leaves it and travels to
+   where `[data-arrived="true"]` puts it, which is nowhere — the rest position
+   is the plain one. */
+.menu__open .menu__back,
+.menu__open .menu__rows > * {
+  opacity: 0;
+  transform: translateX(-26px);
+  transition:
+    opacity 0.26s ease-out,
+    transform 0.26s ease-out;
+}
+
+.menu__open .menu__open-name {
+  transform-origin: 0 0;
+  opacity: 0;
+  transform: translateY(46px) rotate(20deg);
+  transition:
+    opacity 0.26s ease-out,
+    transform 0.26s cubic-bezier(0.22, 1.1, 0.36, 1);
+}
+
+.menu__open[data-arrived="true"] .menu__back,
+.menu__open[data-arrived="true"] .menu__open-name,
+.menu__open[data-arrived="true"] .menu__rows > * {
+  opacity: 1;
+  transform: none;
+}
+
+/* The name leads and each row follows the one above it, so the section fills
+   rather than appears. Seven covers every row any section has. */
+.menu__open .menu__open-name {
+  transition-delay: 0.04s;
+}
+
+.menu__open .menu__rows > *:nth-child(1) {
+  transition-delay: 0.18s;
+}
+
+.menu__open .menu__rows > *:nth-child(2) {
+  transition-delay: 0.22s;
+}
+
+.menu__open .menu__rows > *:nth-child(3) {
+  transition-delay: 0.26s;
+}
+
+.menu__open .menu__rows > *:nth-child(4) {
+  transition-delay: 0.3s;
+}
+
+.menu__open .menu__rows > *:nth-child(5) {
+  transition-delay: 0.34s;
+}
+
+.menu__open .menu__rows > *:nth-child(6) {
+  transition-delay: 0.38s;
+}
+
+.menu__open .menu__rows > *:nth-child(n + 7) {
+  transition-delay: 0.42s;
 }
 
 .setting {

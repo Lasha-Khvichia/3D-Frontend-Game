@@ -21,15 +21,32 @@ releases it in every browser and cannot be intercepted, so the key players press
 anyway is the one that works. Resume, or a click anywhere on the world, takes it
 back.
 
-**The menu is a drawer.** It comes in from off screen left, leans 20 degrees,
-and rests against the left edge, which leaves the rest of the screen as world
-you can click to resume. Only `transform` and `opacity` move, so the browser
-never lays the page out again over a canvas that is drawing every frame. The
-stats panel crosses to the other corner while it is up, through `:has` in the
-stylesheet rather than React state. A tilt has a cost: a settings row 376 px
-wide drops 137 px from its left end to its right, so a label and its value sit
-well apart on screen. `prefers-reduced-motion` keeps the lean and drops the
-journey.
+**The menu is a drawer with two levels.** It comes in from off screen left and
+stands floor to ceiling against that edge, 430 px wide, which leaves the rest
+of the screen as world you can click to resume. Behind it is a band wider than
+the drawer, leaning 20 degrees; the drawer hides what runs past its sides, so
+only the band's slanted ends show. Nothing readable leans except the four
+names.
+
+Level one is those names — **Gameplay, Graphics, World, Sound** — as big
+buttons, and nothing else. Clicking one steps the four aside, then the section
+arrives: its name rises to the top and straightens out of its lean, and the
+rows follow it in 40 ms apart. Back is both a Back line and the name itself.
+
+Resume and Reset are pinned at the foot and never scroll away. Only `transform`
+and `opacity` move, so the browser never lays the page out again over a canvas
+that is drawing every frame. The stats panel crosses to the other corner while
+the menu is up, through `:has` in the stylesheet rather than React state, and
+`prefers-reduced-motion` drops every journey.
+
+The arrival is a transition thrown by an attribute set 20 ms after the section
+mounts (`OpenSection`), not a keyframe. A keyframe starts when the element is
+inserted, which is before the browser has drawn the state it should start from.
+
+**The arrival could not be measured here.** In headless Chrome on SwiftShader
+every animation begun after the first synthetic click sits `pending`, start
+time `null`, for ever — a bare `div.animate()` as surely as these rules. The
+structure below is measured; the movement has to be judged in a real browser.
 
 **A browser that refuses the mouse says so in the menu.** The request can be
 turned down — pointer lock blocked for the page in the browser's site settings,
