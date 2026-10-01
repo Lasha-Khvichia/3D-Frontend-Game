@@ -21,6 +21,14 @@ releases it in every browser and cannot be intercepted, so the key players press
 anyway is the one that works. Resume, or a click anywhere on the world, takes it
 back.
 
+**A browser that refuses the mouse says so in the menu.** The request can be
+turned down — pointer lock blocked for the page in the browser's site settings,
+or asked for too soon after Escape — and it used to be swallowed. The menu then
+stayed up with nothing on screen to explain it, which reads as a game that will
+not start at all. The reason the browser gave is now printed directly under the
+title (`reportPause`, `PlayerInput.onPointerLockRefused`), above the fold, and
+it clears the moment the mouse is granted.
+
 Pausing freezes the simulation and keeps rendering, so the world stays on screen
 behind the menu. The fixed-step accumulator is reset on pause, or the time spent
 in the menu would replay as a burst of steps on resume.

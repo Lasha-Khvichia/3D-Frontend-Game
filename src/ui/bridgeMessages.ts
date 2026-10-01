@@ -26,6 +26,8 @@ export type GameStats = {
   firstPerson: boolean;
   /** True while the pause menu is up and the world is frozen. */
   paused: boolean;
+  /** Why the browser refused the mouse, or "" when it has not. */
+  pointerLockRefused: string;
   /** What the player can do with whatever they are standing next to. */
   interactionPrompt: string;
   /** A message the world has for the player, shown large for a few seconds. */
@@ -57,6 +59,7 @@ export const EMPTY_STATS: GameStats = {
   forecast: null,
   firstPerson: true,
   paused: true,
+  pointerLockRefused: "",
   interactionPrompt: "",
   notice: "",
   playerPose: null,

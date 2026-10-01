@@ -52,8 +52,15 @@ export class PlayerInput {
     this.onPointerLockChange?.(this.isPointerLocked);
   };
 
+  private readonly handlePointerLockError = (): void => {
+    this.onPointerLockRefused?.("The browser would not give up the mouse.");
+  };
+
   /** Fires whenever the browser grabs or releases the mouse. */
   onPointerLockChange: ((locked: boolean) => void) | null = null;
+
+  /** Fires when the browser refuses the mouse, with whatever reason it gave. */
+  onPointerLockRefused: ((reason: string) => void) | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener("keydown", this.handleKeyDown);
@@ -62,6 +69,7 @@ export class PlayerInput {
     window.addEventListener("pointermove", this.handlePointerMove);
     canvas.addEventListener("click", this.handleCanvasClick);
     document.addEventListener("pointerlockchange", this.handlePointerLockChange);
+    document.addEventListener("pointerlockerror", this.handlePointerLockError);
   }
 
   get isPointerLocked(): boolean {
@@ -71,10 +79,16 @@ export class PlayerInput {
   /** Must be called inside a real click, or the browser refuses the lock. */
   requestPointerLock(): void {
     if (!this.pointerLockWanted) return;
-    // Refused if asked too soon after Escape, or with no key or click behind
-    // it. Harmless: the pause menu stays up and the next click asks again.
+    // Refused if asked too soon after Escape, with no key or click behind it,
+    // or because the browser blocks pointer lock for this page. The pause menu
+    // stays up either way, so the reason is reported rather than swallowed:
+    // a silent refusal leaves no way into the game and nothing to read.
     const asked = this.canvas.requestPointerLock() as Promise<void> | undefined;
-    asked?.catch(() => undefined);
+    asked?.catch((error: unknown) => {
+      this.onPointerLockRefused?.(
+        error instanceof Error && error.message ? error.message : "The browser refused the mouse.",
+      );
+    });
   }
 
   /** 1 forward, -1 back. */
@@ -130,6 +144,7 @@ export class PlayerInput {
     window.removeEventListener("pointermove", this.handlePointerMove);
     this.canvas.removeEventListener("click", this.handleCanvasClick);
     document.removeEventListener("pointerlockchange", this.handlePointerLockChange);
+    document.removeEventListener("pointerlockerror", this.handlePointerLockError);
   }
 
   private axis(positive: readonly string[], negative: readonly string[]): number {

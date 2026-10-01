@@ -12,7 +12,7 @@ import { useMapOpen } from "./worldMapOpen";
  * behind the panel resumes as well as the button does.
  */
 export function PauseMenu() {
-  const { paused } = useGameStats();
+  const { paused, pointerLockRefused } = useGameStats();
   // The world map pauses the game too, and it is what should show.
   const mapOpen = useMapOpen();
   if (!paused || mapOpen) return null;
@@ -21,6 +21,15 @@ export function PauseMenu() {
     <div className="menu">
       <div className="menu__panel">
         <h2 className="menu__title">Paused</h2>
+        {/* Directly under the title on purpose. The panel scrolls, and a
+            message at the foot of it is below the fold on most screens —
+            which is no better than the silence it replaces. */}
+        {pointerLockRefused ? (
+          <p className="menu__refused">
+            {pointerLockRefused} The game cannot start without it. Allow pointer lock for this page
+            in your browser&rsquo;s site settings, then click the world again.
+          </p>
+        ) : null}
         <ComfortSettings />
         <WorldSettings />
         <GraphicsSettings />

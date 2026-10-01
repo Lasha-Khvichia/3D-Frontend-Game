@@ -197,6 +197,19 @@
   opacity: 0.45;
 }
 
+/* Shown in the hint's place when the browser refuses the mouse: without it a
+   refusal is silent and the menu looks like a game that will not start. */
+.menu__refused {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border: 1px solid rgb(255 138 101 / 45%);
+  border-radius: 6px;
+  background: rgb(255 138 101 / 10%);
+  color: #ffbfa8;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 /* Sits just under the middle of the screen, where the eye already is. */
 .overlay__prompt {
   position: absolute;

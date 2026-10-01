@@ -67,7 +67,10 @@ resolution to as little as 70% while frames run slow; README "Frame rate" has
 the measured costs of every pass.
 
 Pause is pointer lock: the game is paused whenever the browser does not have the
-mouse. The world map (`M`) uses the same rule — it lets go of the mouse to
+mouse. **A refused lock must never be silent** — the menu stays up either way,
+so `reportPause` publishes the browser's reason and the pause menu prints it
+under the title, above the fold. Swallowing it looks exactly like a game that
+will not start. The world map (`M`) uses the same rule — it lets go of the mouse to
 pause, and hides the pause menu while it is open. Pausing freezes the simulation, keeps rendering, and resets the loop
 accumulator so menu time does not replay as a burst of steps.
 
