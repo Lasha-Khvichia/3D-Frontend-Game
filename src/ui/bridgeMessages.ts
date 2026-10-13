@@ -29,6 +29,10 @@ export type GameStats = {
   paused: boolean;
   /** Why the game could not start at all, or "" when it did. */
   startFailure: string;
+  /** The player's health, 0 to 100, in whole points. */
+  health: number;
+  /** True while the player is knocked out and the screen goes black. */
+  blackout: boolean;
   /** Why the browser refused the mouse, or "" when it has not. */
   pointerLockRefused: string;
   /** What the player can do with whatever they are standing next to. */
@@ -70,6 +74,8 @@ export const EMPTY_STATS: GameStats = {
   firstPerson: true,
   paused: true,
   startFailure: "",
+  health: 100,
+  blackout: false,
   pointerLockRefused: "",
   interactionPrompt: "",
   notice: "",

@@ -854,3 +854,55 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
 }
+
+/* Health: a strip just above the bar, framed in walnut like the slots. */
+.health {
+  position: absolute;
+  bottom: 82px;
+  left: 50%;
+  width: 236px;
+  height: 11px;
+  border: 2px solid var(--walnut);
+  border-radius: 6px;
+  background: rgb(46 29 17 / 75%);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 45%);
+  overflow: hidden;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.health__left {
+  height: 100%;
+  background: linear-gradient(180deg, #c84a33, #8f2a18);
+  transition: width 0.25s ease-out;
+}
+
+.health[data-low="true"] .health__left {
+  background: linear-gradient(180deg, #9c2412, #5e1408);
+}
+
+/* Going down: to black in 1.3 s, and back in 1.6 s once you wake. Over
+   everything, and click-through, so it never traps the mouse. */
+.blackout {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #000;
+  opacity: 0;
+  transition: opacity 1.6s ease-in;
+  pointer-events: none;
+}
+
+.blackout[data-dark="true"] {
+  opacity: 1;
+  transition: opacity 1.3s ease-out;
+}
+
+.blackout__words {
+  color: rgb(239 226 196 / 70%);
+  font-family: var(--serif);
+  font-size: 18px;
+  font-style: italic;
+  letter-spacing: 0.06em;
+}

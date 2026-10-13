@@ -8,6 +8,7 @@ import { PlayerInput } from "./PlayerInput";
 import { NO_ITEM_KEYS, takeItemKeys } from "./itemKeys";
 import type { Player } from "./Player";
 import { WheelSteps } from "./wheelSteps";
+import { ClickPresses } from "./clickPresses";
 import { reportPause } from "./reportPause";
 import type { Ground } from "../world/terrain/Ground";
 
@@ -36,6 +37,7 @@ export function attachPlayer(
 
   const input = new PlayerInput(canvas);
   const wheel = new WheelSteps(canvas);
+  const clicks = new ClickPresses(canvas);
   const controller = new PlayerController(scene, input, ground);
   const switcher = new CameraSwitcher(
     scene,
@@ -59,7 +61,8 @@ export function attachPlayer(
       open: switcher.isFirstPerson && input.consumePress(OPEN_KEY),
       lock: switcher.isFirstPerson && input.consumePress(LOCK_KEY),
     }),
-    takeItemKeys: () => (switcher.isFirstPerson ? takeItemKeys(input, wheel) : NO_ITEM_KEYS),
+    takeItemKeys: () =>
+      switcher.isFirstPerson ? takeItemKeys(input, wheel, clicks) : NO_ITEM_KEYS,
     walkShare: () => (input.forward !== 0 || input.strafe !== 0 ? 1 : 0),
     update(fixedDeltaSeconds: number): void {
       if (input.consumePress(TOGGLE_VIEW_KEY)) {
@@ -78,6 +81,7 @@ export function attachPlayer(
       unsubscribeCommands();
       input.dispose();
       wheel.dispose();
+      clicks.dispose();
     },
   };
 }

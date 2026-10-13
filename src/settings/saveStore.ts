@@ -18,6 +18,8 @@ export type SaveFile = {
    * a save written before there was any farming still loads.
    */
   readonly tilled?: readonly number[];
+  /** Boars killed and not yet back, by id, with the hour each died. */
+  readonly boarDeaths?: Readonly<Record<string, number>>;
   /** Every slot the player is carrying, and which of the bar is in hand. */
   readonly carrying?: { readonly slots: readonly Stack[]; readonly chosen: number };
 };

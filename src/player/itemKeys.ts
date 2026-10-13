@@ -1,6 +1,7 @@
 import { HOTBAR_SLOTS } from "../items/slots";
 import type { PlayerInput } from "./PlayerInput";
 import type { WheelSteps } from "./wheelSteps";
+import type { ClickPresses } from "./clickPresses";
 
 /** What the player asked of what they are carrying, this step. */
 export type ItemKeys = {
@@ -10,10 +11,17 @@ export type ItemKeys = {
   readonly scroll: number;
   /** L: move the lantern between the left hand and the belt. */
   readonly lantern: boolean;
+  /** The left mouse button: swing what is in hand. */
+  readonly attack: boolean;
 };
 
 /** Nothing asked for: the steps where the player is not in the world. */
-export const NO_ITEM_KEYS: ItemKeys = { chooseSlot: null, scroll: 0, lantern: false };
+export const NO_ITEM_KEYS: ItemKeys = {
+  chooseSlot: null,
+  scroll: 0,
+  lantern: false,
+  attack: false,
+};
 
 /**
  * The keys that work the inventory, read once per step and consumed.
@@ -23,7 +31,11 @@ export const NO_ITEM_KEYS: ItemKeys = { chooseSlot: null, scroll: 0, lantern: fa
  * on the React side, like the world map, because it has to work while the game
  * is paused and no step is running to hear it.
  */
-export function takeItemKeys(input: PlayerInput, wheel: WheelSteps): ItemKeys {
+export function takeItemKeys(
+  input: PlayerInput,
+  wheel: WheelSteps,
+  clicks: ClickPresses,
+): ItemKeys {
   let chooseSlot: number | null = null;
   for (let slot = 0; slot < HOTBAR_SLOTS; slot += 1) {
     if (input.consumePress(`Digit${slot + 1}`)) chooseSlot = slot;
@@ -32,6 +44,7 @@ export function takeItemKeys(input: PlayerInput, wheel: WheelSteps): ItemKeys {
     chooseSlot,
     scroll: wheel.take(),
     lantern: input.consumePress("KeyL"),
+    attack: clicks.take(),
   };
 }
 

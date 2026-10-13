@@ -5,8 +5,8 @@ import type { World } from "./buildWorld";
 const FORWARD = Vector3.Forward();
 
 /**
- * What the player's hands are doing: the bar, a shutter within reach, and the
- * ground they are aiming at.
+ * What the player's hands are doing to the world: a shutter within reach, or
+ * the ground they are aiming at.
  *
  * A shutter is offered the key first, so standing at a window opens it rather
  * than ploughing the doorstep. Runs before the player's own update, which
@@ -15,7 +15,6 @@ const FORWARD = Vector3.Forward();
 export function workTheGround(world: World, seconds: number): string {
   const { player, eye } = world;
   const keys = player.takeOpeningKeys();
-  world.carrying.update(seconds, player.takeItemKeys(), player.walkShare());
   const atAnOpening = world.openings.update(seconds, eye, keys);
   if (atAnOpening) return atAnOpening;
   const facing = player.controller.camera.getDirection(FORWARD);

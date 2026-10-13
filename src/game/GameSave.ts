@@ -5,6 +5,8 @@ import { clearSave, writeSave } from "../settings/saveStore";
 import { subscribeToCommands } from "../ui/bridge";
 import { tilledKeys } from "../world/farm/tilledField";
 import type { Carrying } from "../items/Carrying";
+import { boarDeaths } from "../world/creatures/boarReturn";
+import type { Boars } from "../world/creatures/Boars";
 import type { DayNightCycle } from "../world/DayNightCycle";
 import type { Weather } from "../world/weather/Weather";
 
@@ -35,6 +37,7 @@ export class GameSave {
     private readonly bean: AbstractMesh,
     private readonly camera: Camera,
     private readonly carrying: Carrying,
+    private readonly boars: Boars,
   ) {
     const keep = (): void => this.keep();
     window.addEventListener("pagehide", keep);
@@ -82,6 +85,7 @@ export class GameSave {
       },
       tilled: tilledKeys(),
       carrying: this.carrying.saved,
+      boarDeaths: boarDeaths(this.boars.all),
     });
   }
 }

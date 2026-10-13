@@ -1,4 +1,5 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Inventory } from "../../items/Inventory";
 
 /**
@@ -76,4 +77,13 @@ export function swayAt(seconds: number, walkShare: number): Vector3 {
   const depth = 0.012 * walkShare;
   sway.set(Math.sin(pace) * depth, Math.abs(Math.cos(pace)) * depth * -1.4, 0);
   return sway;
+}
+
+/** Shows a held thing in its place this step, or hides it when it has none. */
+export function show(node: TransformNode, place: HandPlace | null, sway: Vector3): void {
+  node.setEnabled(place !== null);
+  if (!place) return;
+  node.position.copyFrom(place.at).addInPlace(sway);
+  node.rotation.copyFrom(place.turn);
+  node.scaling.setAll(place.scale);
 }

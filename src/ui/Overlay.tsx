@@ -3,6 +3,8 @@ import { InteractionPrompt } from "./InteractionPrompt";
 import { WorldNotice } from "./WorldNotice";
 import { MiniMap } from "./MiniMap";
 import { BagScreen } from "./BagScreen";
+import { BlackoutScreen } from "./BlackoutScreen";
+import { HealthBar } from "./HealthBar";
 import { Crosshair } from "./Crosshair";
 import { Hotbar } from "./Hotbar";
 import { PauseMenu } from "./PauseMenu";
@@ -40,10 +42,12 @@ export function Overlay() {
       <WorldNotice />
       <MiniMap />
       <Crosshair />
+      <HealthBar />
       <Hotbar />
       <BagScreen />
       <PauseMenu />
       <WorldMap />
+      <BlackoutScreen />
       <StartFailure />
     </div>
   );

@@ -135,6 +135,22 @@ export class PlayerController {
     this.headBob.setStrength(strength);
   }
 
+  /**
+   * Thrown back by a blow, away along (`awayX`, `awayZ`).
+   *
+   * The player is lifted off the ground with the speed, so the air carries it:
+   * on the ground the legs set the speed every step and would cancel a shove
+   * at once. The move still goes through the collision solver like any other,
+   * so a blow can never put you inside a wall or a stone.
+   */
+  knockBack(awayX: number, awayZ: number, speed: number, lift: number): void {
+    const length = Math.hypot(awayX, awayZ) || 1;
+    this.velocity.x = (awayX / length) * speed;
+    this.velocity.z = (awayZ / length) * speed;
+    this.verticalSpeed = lift;
+    this.grounded = false;
+  }
+
   get isGrounded(): boolean {
     return this.grounded;
   }

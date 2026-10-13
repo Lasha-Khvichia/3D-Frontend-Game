@@ -466,6 +466,15 @@ too. **The waist** (`Waist.ts`) is a frame on the camera turned back by the
 camera's tilt each drawn frame; anything worn on the body hangs from it, not
 from the camera.
 
+**Boars live at seeded dens and only near you** (`src/world/creatures/`):
+`boarDens` is worked out on first use, after the roads exist, like the wood.
+Only boars within 220 m step or draw; all of them are three thin-instance
+templates updated in place. Combat is distance and bearing, never picking. A
+blow moves the player through `PlayerController.knockBack`, which lifts them so
+the air physics carry the speed — never set the player's position for a shove.
+The save keeps boar deaths only; `topUpKit` gives an older save anything added
+to the starting kit since.
+
 **What the player carries is one flat array** (`src/items/`): the bar, the bag,
 the off hand and the belt are ranges of it, so one rule moves anything
 anywhere. `Carrying` owns both the slots and what is drawn in the hands, and

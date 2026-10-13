@@ -25,6 +25,14 @@ export const ITEM_KINDS: Record<string, ItemKind> = {
     mark: "HOE",
     tint: "#5a3a20",
   },
+  sword: {
+    id: "sword",
+    name: "Sword",
+    maxStack: 1,
+    hand: "main",
+    mark: "SWD",
+    tint: "#3d4650",
+  },
   lantern: {
     id: "lantern",
     name: "Lantern",

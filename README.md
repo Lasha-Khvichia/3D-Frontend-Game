@@ -1609,6 +1609,49 @@ game, with the left-hand and belt slots placed on the body where those things
 really are; from behind, so your left is on the left of the picture. The
 satchel is oiled leather with stitched pockets and a brass buckle.
 
+## Wild boars, and the sword
+
+**Six dens across the wild country**, scattered from a seeded stream so they
+are in the same places every load and marked on the world map: each at least
+120 m past a settlement's own ground, 30 m off any road, on dry, gentle, inland
+ground. Each keeps two to four boars that root and wander within 34 m of it.
+
+**The easiest enemy, by design.** A calm boar backs away if you come within
+9 m and stops at 15. Cut it and it turns and charges at 6.4 m/s; a charge that
+lands sends it back a few paces before it comes again, so a fight is about
+timing. Below 30 % of its health it runs. It will not follow you into water
+deeper than 20 cm, nor up a slope steeper than about 24 degrees.
+
+|                 |                                                                    |
+| --------------- | ------------------------------------------------------------------ |
+| A boar's health | 60: three cuts                                                     |
+| A sword cut     | 25, within 3.1 m and 55 degrees either side of where you look      |
+| A charge        | 25 of your 100, and throws you back                                |
+| Healing         | none for 5 s after a blow, then 4 a second                         |
+| At nothing      | you black out and wake in the village at 08:00, keeping everything |
+| A killed boar   | back at its den at 06:00 the next day                              |
+
+**The sword swings on the left mouse button**, once each half second at most,
+and bites once per swing — on the step it crosses the middle of its arc, in
+simulation seconds, so a slow frame cannot skip the hit and pausing holds a
+swing where it is. The cut is worked out by distance and bearing, not by
+picking meshes: nothing about a boar is pickable.
+
+**Forty boars cost three draw calls.** A boar is a body, a leg drawn four
+times and a pair of tusks, each a thin-instance template; the buffers are made
+once at full size and updated in place each step. Only boars within 220 m of
+the player move or are drawn.
+
+**A blow throws you through the air, not along the ground.** On the ground
+your legs set your speed every step and would cancel a shove at once, so a
+charge lifts you a little with the speed; the move still goes through the
+collision solver, so a blow cannot put you inside a wall.
+
+**What the save keeps:** which boars are dead and when, so a den you cleared
+is still empty when you come back the same evening. Where a living boar
+wanders is not kept. A save from before the sword gets the sword, in the first
+free slot, without anything the player arranged being moved.
+
 ## Starting over
 
 **Start over from the first day**, under the pause menu's buttons, wipes the

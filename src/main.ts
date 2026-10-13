@@ -61,7 +61,7 @@ const settings = new SettingsBinder({
 // Where the player left off, before the first frame is drawn.
 restoreSave(world);
 const { bean, camera } = world.player.controller;
-const save = new GameSave(world.dayNight, world.weather, bean, camera, world.carrying);
+const save = new GameSave(world.dayNight, world.weather, bean, camera, world.carrying, world.boars);
 
 // After the settings, which carry the render distance.
 showOpeningWorld(world);

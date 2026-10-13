@@ -10,6 +10,7 @@ export const CONTROLS: readonly { readonly keys: string; readonly does: string }
   { keys: "Shift", does: "Run" },
   { keys: "Space", does: "Jump" },
   { keys: "Mouse", does: "Look around" },
+  { keys: "Left click", does: "Swing the sword, when it is in your hand" },
   { keys: "1 – 8", does: "Choose a slot on the bar" },
   { keys: "Wheel", does: "Step along the bar, either way" },
   { keys: "Tab", does: "Open the bag, and close it" },
