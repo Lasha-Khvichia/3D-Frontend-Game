@@ -147,6 +147,13 @@ And **an effect layer's `camera` option does not stop it being merged onto
 every camera's picture**: switch `isEnabled` before each camera draws. Both
 passes redraw the whole world, silently, for nothing on screen.
 
+**The god rays' ratio must be two numbers, never one.** Given a single
+number, `VolumetricLightScatteringPostProcess` sizes both its tracing pass and
+the step that lays the rays over the finished frame by it — so at 0.5 every
+pixel went through a half-size buffer whenever the sun was near the view, and
+the whole screen blurred and turned to blocks. `{ passRatio, postProcessRatio }`
+traces small and composites at full size.
+
 **`thinInstanceGetWorldMatrices()` caches its answer.** Reading it before and
 after a change returns the first snapshot twice and reports that nothing
 happened. Read it once, after the change.

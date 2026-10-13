@@ -8,7 +8,7 @@ import { createBoarParts, HIPS } from "./createBoarParts";
 const MOST = 40;
 /** How far a leg swings at a trot, and how far a rooting boar dips its head. */
 const STRIDE = 0.55;
-const ROOTING = 0.16;
+const ROOTING = 0.24;
 /** A dead boar lies on its side. */
 const FALLEN = 1.45;
 
@@ -59,7 +59,9 @@ export class BoarHerd {
     const count = Math.min(boars.length, MOST);
     for (let index = 0; index < count; index += 1) {
       const boar = boars[index]!;
-      const rooting = boar.mood === "root" ? ROOTING : 0;
+      // Rooting is a nose working the ground: down, up, down, never held still.
+      const rooting =
+        boar.mood === "root" ? ROOTING * (0.55 + 0.45 * Math.sin(boar.moodTime * 6.5)) : 0;
       const fallen = boar.alive ? 0 : FALLEN;
       Quaternion.RotationYawPitchRollToRef(boar.heading, rooting, fallen, turn);
       at.set(boar.x, boar.y + (boar.alive ? Math.abs(Math.sin(boar.gait)) * 0.03 : 0.25), boar.z);
@@ -70,7 +72,7 @@ export class BoarHerd {
         const swing = boar.alive
           ? Math.sin(boar.gait + (foot === 0 || foot === 3 ? 0 : Math.PI)) * STRIDE
           : 0;
-        Matrix.RotationXToRef(swing * Math.min(1, boar.speed / 2), hip);
+        Matrix.RotationXToRef(swing * Math.min(1, boar.speed / 1.4), hip);
         hip.setTranslationFromFloats(x, y, z);
         hip.multiplyToRef(root, leg);
         leg.copyToArray(this.legs, (index * 4 + foot) * 16);

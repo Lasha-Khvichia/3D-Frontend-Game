@@ -8,8 +8,8 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import type { Scene } from "@babylonjs/core/scene";
 import { isNearView } from "./isNearView";
 
-/** Half resolution. Rays are soft, so the shafts cost half as much for free. */
-const RENDER_RATIO = 0.5;
+/** Traced at half size, laid over the frame at full size. One number sets both, and 0.5 blurred the whole screen near the sun. */
+const RENDER_RATIO = { passRatio: 0.5, postProcessRatio: 1 };
 /** Steps taken along each ray. More is smoother and slower. */
 const SAMPLES = 60;
 /** The look of the shafts. Exposure is scaled down by cloud across the sun. */

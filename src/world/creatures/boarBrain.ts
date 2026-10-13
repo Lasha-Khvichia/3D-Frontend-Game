@@ -1,14 +1,14 @@
 import type { Boar } from "./Boar";
 
 /** Metres: nearer than this a calm boar backs away; past this it stops. */
-const WARY_AT = 9;
-const SAFE_AT = 15;
+const WARY_AT = 12;
+const SAFE_AT = 18;
 /** Metres past which an angry boar gives up the chase. */
 const CHASE_LIMIT = 30;
 /** Metres round its den a calm boar wanders. */
 const HOME_RANGE = 34;
 /** Metres per second for each way a boar moves. */
-const PACE = { walk: 1.1, back: 2.3, charge: 6.4, recover: 1.8, flee: 5.6 } as const;
+const PACE = { walk: 1.7, back: 3.2, charge: 6.4, recover: 1.8, flee: 5.6 } as const;
 
 /**
  * What a boar decides to do this step, given where you are.
@@ -61,9 +61,9 @@ export function thinkFor(
     const far = random() * HOME_RANGE;
     boar.targetX = boar.den.x + Math.sin(angle) * far;
     boar.targetZ = boar.den.z + Math.cos(angle) * far;
-    return boar.setMood("wander", 9 + random() * 6);
+    return boar.setMood("wander", 6 + random() * 4);
   }
-  settle(boar, 3 + random() * 5);
+  settle(boar, 1.5 + random() * 3);
 }
 
 /** Calms down and roots where it stands. */

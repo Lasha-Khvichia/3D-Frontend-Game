@@ -3,9 +3,9 @@ import type { HandPlace } from "./handPlaces";
 
 /** At rest: in the right hand, point up and a little forward, ready. */
 export const SWORD_REST: HandPlace = {
-  at: new Vector3(0.3, -0.3, 0.66),
-  turn: new Vector3(0.35, 0, -0.3),
-  scale: 0.62,
+  at: new Vector3(0.31, -0.36, 0.72),
+  turn: new Vector3(0.62, -0.42, -0.4),
+  scale: 0.58,
 };
 
 const at = new Vector3();
