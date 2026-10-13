@@ -445,6 +445,15 @@ on the first call to `treePlacements()`, never when its file loads, for that
 reason: a scatter that runs at import time is told there are no roads, with no
 error.
 
+**What the player carries is one flat array** (`src/items/`): the bar, the bag,
+the off hand and the belt are ranges of it, so one rule moves anything
+anywhere. `Carrying` owns both the slots and what is drawn in the hands, and
+tells React only when something moves — never every step. Held meshes are
+**parented to the camera**, which is what gives them the between-step smoothing
+for free, and they must be kept off the god rays' occlusion pass or they blot
+out the sun. **A carried lantern is not a fifth light**: it goes into
+`lampField` like every other lamp, with its place written each step.
+
 **Broken ground is the first thing the clock cannot rebuild**
 (`src/world/farm/`). Everything else — weather, snow, wet ground, seasons — is
 a function of the date and is never stored; a tilled square is not, so

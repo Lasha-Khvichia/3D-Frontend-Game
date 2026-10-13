@@ -1,6 +1,7 @@
 import type { RenderBackend } from "../core/createEngine";
 import { dateAt, type CalendarDate } from "../world/calendar/calendar";
 import type { Forecast } from "../world/weather/forecast";
+import type { Stack } from "../items/slots";
 import type { WeatherKind } from "../world/weather/weatherKinds";
 
 /** Everything the game publishes to React. Game -> React, one way. */
@@ -32,6 +33,10 @@ export type GameStats = {
   interactionPrompt: string;
   /** A message the world has for the player, shown large for a few seconds. */
   notice: string;
+  /** Every slot the player is carrying, bar then bag then off hand then belt. */
+  inventory: readonly Stack[];
+  /** Which slot of the bar the main hand holds. */
+  chosenSlot: number;
   /** Where the player stands and faces, published when the world map opens. */
   playerPose: { readonly x: number; readonly z: number; readonly yaw: number } | null;
 };
@@ -43,7 +48,9 @@ export type OverlayCommand =
   | { readonly type: "set-date"; readonly dayOfYear: number }
   | { readonly type: "set-weather"; readonly kind: WeatherKind | "auto" }
   | { readonly type: "resume" }
-  | { readonly type: "open-map" };
+  | { readonly type: "open-map" }
+  | { readonly type: "choose-slot"; readonly slot: number }
+  | { readonly type: "move-item"; readonly from: number; readonly to: number };
 
 export const EMPTY_STATS: GameStats = {
   backend: "unknown",
@@ -62,5 +69,7 @@ export const EMPTY_STATS: GameStats = {
   pointerLockRefused: "",
   interactionPrompt: "",
   notice: "",
+  inventory: [],
+  chosenSlot: 0,
   playerPose: null,
 };

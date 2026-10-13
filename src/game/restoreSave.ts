@@ -18,6 +18,8 @@ export function restoreSave(world: World): void {
   world.player.controller.teleportTo(save.player.x, save.player.z, save.player.yaw);
   // Before the soil is first laid, which happens in `showOpeningWorld`.
   restoreTilled(save.tilled ?? []);
+  // A save written before there was anything to carry keeps its starting kit.
+  if (save.carrying) world.carrying.restore(save.carrying.slots, save.carrying.chosen);
   if (save.held !== "auto") {
     world.weather.force(save.held);
     publishStats({ weatherHeld: save.held });

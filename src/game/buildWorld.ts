@@ -12,6 +12,8 @@ import { Wildflowers } from "../world/seasons/Wildflowers";
 import { Woodland } from "../world/trees/Woodland";
 import { WorldEdge } from "../world/WorldEdge";
 import { WorldStreaming } from "../world/WorldStreaming";
+import { Carrying } from "../items/Carrying";
+import { STARTING_KIT } from "../items/startingKit";
 import { Farming } from "../world/farm/Farming";
 import { blockGrass } from "./blockGrass";
 import { buildLand } from "./buildLand";
@@ -34,22 +36,20 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
 
   const wind = new TreeWind(scene.getEngine());
   const woodland = new Woodland(scene, wind, dayNight.sunAndMoon, terrain);
-  // Loose stones, built only near the player; the god rays are told as they come and go.
+  // Loose stones, built near the player; the god rays hear as they come and go.
   const boulders = new Boulders(scene, terrain, godRays);
 
-  // Lanterns go with their settlement: glass as far as its houses, iron and posts as far as their trim.
+  // Lanterns go with their settlement: glass as far as the houses, iron as far as the trim.
   const houseGroups = houseDistanceGroups(houses, openings.doors, openings.windows, fires.hearths);
   houseGroups.bodies.push(...lanterns.groups.bodies);
   houseGroups.details.push(...lanterns.groups.details);
   // The cobbled street goes with the village it paves.
   houseGroups.bodies.push({ x: -3, z: 30, radius: 60, nodes: [village.cobbles.mesh] });
-  // What is built, drawn and hidden, by how far away it is. See WorldStreaming.
   const trees = woodland.trees.map(treeDistanceGroup);
   const streaming = new WorldStreaming(scene, { terrain, boulders, trees, houses: houseGroups });
 
   // M opens the painted world map; it is drawn the first time, then kept.
   serveWorldMap(terrain, player.controller.bean, player.controller.camera);
-
   // Wade too far out to sea and you are put back on the beach.
   const worldEdge = new WorldEdge(terrain);
 
@@ -60,22 +60,17 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
   // Breaking ground: it adds a blocker per square, so it shares that grid.
   const farming = new Farming(scene, terrain, grass, blockers);
 
+  const carrying = new Carrying(scene, player.controller.camera, godRays);
+  carrying.start(STARTING_KIT);
+
   // The growing year: leaf colour, bare winter branches, the grass's colour, flowers.
   const soil = terrainSoil(terrain);
   const flowers = new Wildflowers(scene, soil, (x, z) => blockers.grassLeftAt(x, z));
   const leafFall = new LeafFall(scene, woodland.trees);
   const seasons = new Seasons(woodland, grass, flowers, leafFall);
 
-  const followers = [
-    dayNight.light,
-    sky,
-    streaming,
-    wind,
-    grass,
-    smokeWind,
-    village.nightLights,
-    seasons,
-  ];
+  const followers = [dayNight.light, sky, streaming, wind, grass, smokeWind, seasons];
+  followers.push(village.nightLights);
   const weather = buildWeather(scene, land, houses, followers);
   // Rain, wind, leaves, thunder, birds, crickets, creaks and footsteps, all made in code.
   const sound = buildSound(scene, land, houses, woodland.trees, fires.hearths, weather);
@@ -89,6 +84,7 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
     seasons,
     boulders,
     farming,
+    carrying,
     streaming,
     worldEdge,
     ...weather,
