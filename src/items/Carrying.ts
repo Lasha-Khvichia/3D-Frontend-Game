@@ -2,11 +2,12 @@ import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { HeldItems } from "../player/hands/HeldItems";
-import type { ItemKeys } from "../player/itemKeys";
+import { slotAsked, type ItemKeys } from "../player/itemKeys";
 import { publishStats, subscribeToCommands } from "../ui/bridge";
 import type { SunGodRays } from "../world/SunGodRays";
 import { Inventory } from "./Inventory";
-import { BELT, OFF_HAND, type Stack } from "./slots";
+import type { Stack } from "./slots";
+import { toggleLantern } from "./toggleLantern";
 
 /**
  * What the player is carrying, and what is drawn in their hands.
@@ -61,12 +62,18 @@ export class Carrying {
   }
 
   update(seconds: number, keys: ItemKeys, walkShare: number): void {
-    if (keys.chooseSlot !== null && keys.chooseSlot !== this.inventory.chosenSlot) {
-      this.inventory.choose(keys.chooseSlot);
+    const next = slotAsked(this.inventory.chosenSlot, keys);
+    if (next !== this.inventory.chosenSlot) {
+      this.inventory.choose(next);
       this.publish();
     }
-    if (keys.lantern && this.inventory.move(OFF_HAND, BELT)) this.publish();
+    if (keys.lantern && toggleLantern(this.inventory)) this.publish();
     this.held.update(seconds, this.inventory, walkShare);
+  }
+
+  /** Once per drawn frame: what hangs from the waist stays level as you look about. */
+  present(): void {
+    this.held.present();
   }
 
   /** Every slot and which one is chosen, for the save. */

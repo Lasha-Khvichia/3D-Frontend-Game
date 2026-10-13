@@ -4,6 +4,7 @@ import { useGameStats } from "./useGameStats";
 import { MENU_SECTIONS } from "./menuSections";
 import { OpenSection } from "./OpenSection";
 import { SectionButton } from "./SectionButton";
+import { StartOver } from "./StartOver";
 import { useSectionDrill } from "./useSectionDrill";
 import { useBagOpen } from "./bagOpen";
 import { useMapOpen } from "./worldMapOpen";
@@ -73,10 +74,11 @@ export function PauseMenu() {
               Resume
             </button>
             <button type="button" className="menu__button" onClick={resetSettings}>
-              Reset to defaults
+              Default settings
             </button>
           </div>
           <p className="menu__hint">Escape pauses. Click the world or Resume to play.</p>
+          <StartOver />
         </div>
       </div>
     </div>

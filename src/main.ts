@@ -65,7 +65,11 @@ runtime.setSimulationStep((fixedDeltaSeconds) => {
 });
 
 // Every drawn frame, between the steps: the view glides and the mouse turns it.
-runtime.setFrameUpdate((progress) => world.player.present(progress));
+runtime.setFrameUpdate((progress) => {
+  world.player.present(progress);
+  // After the camera has turned, so the waist can be turned back level.
+  world.carrying.present();
+});
 
 runtime.start();
 

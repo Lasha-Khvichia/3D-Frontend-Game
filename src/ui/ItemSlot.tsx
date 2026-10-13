@@ -41,7 +41,7 @@ export function ItemSlot({
       onClick={() => onChoose?.(slot)}
     >
       {kind ? (
-        <span className="slot__mark" style={{ color: kind.tint }}>
+        <span className="slot__mark" style={{ ["--tint" as string]: kind.tint }}>
           {kind.mark}
         </span>
       ) : (

@@ -11,6 +11,7 @@ export const CONTROLS: readonly { readonly keys: string; readonly does: string }
   { keys: "Space", does: "Jump" },
   { keys: "Mouse", does: "Look around" },
   { keys: "1 – 8", does: "Choose a slot on the bar" },
+  { keys: "Wheel", does: "Step along the bar, either way" },
   { keys: "Tab", does: "Open the bag, and close it" },
   { keys: "L", does: "Move the lantern between your hand and your belt" },
   { keys: "E", does: "Open and close shutters. Break the ground you are aiming at" },

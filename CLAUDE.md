@@ -451,6 +451,15 @@ on the first call to `treePlacements()`, never when its file loads, for that
 reason: a scatter that runs at import time is told there are no roads, with no
 error.
 
+**The menus share one palette**, colour tokens on `.overlay` in
+`overlay.css` (parchment, walnut, ink, brass). New overlay UI uses them, not
+fresh colours. **Starting over reloads the page** after `GameSave` has stopped
+writing — it saves on `pagehide`, and a reload would otherwise write the game
+straight back. Anything new that is kept in the browser must be cleared there
+too. **The waist** (`Waist.ts`) is a frame on the camera turned back by the
+camera's tilt each drawn frame; anything worn on the body hangs from it, not
+from the camera.
+
 **What the player carries is one flat array** (`src/items/`): the bar, the bag,
 the off hand and the belt are ranges of it, so one rule moves anything
 anywhere. `Carrying` owns both the slots and what is drawn in the hands, and

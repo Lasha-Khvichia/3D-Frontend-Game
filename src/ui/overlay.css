@@ -78,7 +78,7 @@
   inset: 0;
   /* Click-through on purpose, so clicking the world beside the drawer resumes. */
   pointer-events: none;
-  background: radial-gradient(ellipse at center, rgb(5 7 14 / 40%), rgb(5 7 14 / 74%));
+  background: radial-gradient(ellipse at 70% 50%, rgb(24 14 6 / 30%), rgb(24 14 6 / 68%));
   animation: menu-dim 0.26s ease-out both;
 }
 
@@ -95,6 +95,8 @@
   flex-direction: column;
   width: min(430px, calc(100vw - 40px));
   overflow: hidden;
+  color: var(--ink);
+  font-family: var(--serif);
   /* Transform and opacity only, so the browser never lays the page out again
      over a canvas that is drawing every frame. */
   animation: menu-slide-in 0.42s cubic-bezier(0.22, 1.16, 0.36, 1) both;
@@ -111,10 +113,18 @@
   right: -80%;
   bottom: 24px;
   left: -80%;
-  border-top: 3px solid rgb(232 96 60 / 70%);
-  border-bottom: 3px solid rgb(232 96 60 / 70%);
-  background: linear-gradient(158deg, rgb(19 23 35 / 97%), rgb(8 10 17 / 97%));
-  box-shadow: 0 0 70px rgb(0 0 0 / 60%);
+  /* A walnut edge with a brass line inside it, along both slanted ends. */
+  border-top: 7px solid var(--walnut);
+  border-bottom: 7px solid var(--walnut);
+  /* Parchment with a little age in it: a warm wash, darker toward the edges. */
+  background:
+    radial-gradient(ellipse at 50% 40%, rgb(255 250 235 / 55%), transparent 60%),
+    radial-gradient(ellipse at 50% 120%, rgb(150 110 60 / 22%), transparent 55%),
+    linear-gradient(170deg, var(--parchment), var(--parchment-deep));
+  box-shadow:
+    inset 0 3px 0 var(--brass),
+    inset 0 -3px 0 var(--brass),
+    0 0 60px rgb(0 0 0 / 55%);
   transform: rotate(20deg);
   pointer-events: none;
 }
@@ -137,6 +147,8 @@
   padding: 6px 24px 0;
   overflow-x: hidden;
   overflow-y: auto;
+  scrollbar-color: var(--walnut-soft) transparent;
+  scrollbar-width: thin;
 }
 
 /* Stays put while the settings scroll behind it: the way out of the menu is
@@ -184,9 +196,10 @@
 
 .menu__title {
   margin: 0 0 4px;
+  color: var(--walnut);
   font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -195,6 +208,8 @@
 .menu__list {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  padding-bottom: 56px;
   transition:
     opacity 0.18s ease-in,
     transform 0.18s ease-in;
@@ -207,34 +222,35 @@
   transform: translateX(-44px);
 }
 
-/* A rotated box keeps the room it had upright, so each name is given the
-   height its leaning word needs: GRAPHICS is about 215 px across at 32 px, and
-   20 degrees drops its last letter 74 px below its first. */
+/* The whole name leans, not just the word inside it, so where you can click
+   leans with what you can read. Leaning boxes stacked one above another are
+   parallel bands: each needs only its own upright height, however long the
+   word, and five fit where four did not. The list keeps room at the foot for
+   the last word's tail, which leans down past its own box. */
 .menu__name {
-  height: 108px;
+  display: block;
+  width: max-content;
+  height: 54px;
   padding: 0;
   border: 0;
   background: none;
   color: inherit;
   font: inherit;
   text-align: left;
+  transform: rotate(20deg);
+  transform-origin: 0 0;
   cursor: pointer;
-}
-
-.menu__name[data-short="true"] {
-  height: 76px;
 }
 
 .menu__name > span {
   display: inline-block;
-  color: rgb(255 255 255 / 88%);
+  color: var(--ink);
   font-size: 32px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  text-shadow: 0 2px 10px rgb(0 0 0 / 70%);
-  transform: rotate(20deg);
-  transform-origin: 0 0;
+  /* Pressed into the page, not floating over it. */
+  text-shadow: 0 1px 0 rgb(255 250 235 / 70%);
   transition:
     color 0.15s ease-out,
     transform 0.2s ease-out;
@@ -242,8 +258,9 @@
 
 .menu__name:hover > span,
 .menu__name:focus-visible > span {
-  color: #ffb49c;
-  transform: rotate(20deg) translateX(10px);
+  color: var(--brass-deep);
+  /* Along the lean, because the button it sits in is leaning. */
+  transform: translateX(10px);
 }
 
 /* ---- level two: one section, opened ---- */
@@ -252,16 +269,16 @@
   padding: 4px 0;
   border: 0;
   background: none;
-  color: rgb(255 255 255 / 55%);
+  color: var(--ink-soft);
   font: inherit;
   font-size: 12px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
 }
 
 .menu__back:hover {
-  color: #ffb49c;
+  color: var(--brass-deep);
 }
 
 /* Arrives first: up from where it stood in the list, straightening as it goes.
@@ -272,19 +289,19 @@
   padding: 0;
   border: 0;
   background: none;
-  color: rgb(255 255 255 / 92%);
+  color: var(--ink);
   font: inherit;
   font-size: 32px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-align: left;
-  text-shadow: 0 2px 10px rgb(0 0 0 / 70%);
+  text-shadow: 0 1px 0 rgb(255 250 235 / 70%);
   text-transform: uppercase;
   cursor: pointer;
 }
 
 .menu__open-name:hover {
-  color: #ffb49c;
+  color: var(--brass-deep);
 }
 
 /* The arrival. Everything starts where `.menu__open` leaves it and travels to
@@ -359,25 +376,25 @@
 }
 
 .setting__label {
-  opacity: 0.8;
+  color: var(--ink);
 }
 
 .setting__value {
+  color: var(--ink-soft);
   text-align: right;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.6;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 .setting__slider {
   width: 100%;
-  accent-color: #e8603c;
+  accent-color: var(--brass-deep);
 }
 
 .setting__toggle {
   justify-self: start;
   width: 16px;
   height: 16px;
-  accent-color: #e8603c;
+  accent-color: var(--brass-deep);
 }
 
 .setting__choices {
@@ -388,22 +405,23 @@
 .setting__choice {
   flex: 1;
   padding: 4px 6px;
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 5px;
-  background: transparent;
-  color: inherit;
+  border: 1px solid rgb(74 47 28 / 35%);
+  border-radius: 4px;
+  background: rgb(255 250 235 / 35%);
+  color: var(--ink);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
 }
 
 .setting__choice:hover {
-  background: rgb(255 255 255 / 8%);
+  background: rgb(255 250 235 / 75%);
 }
 
 .setting__choice.is-active {
-  border-color: #e8603c;
-  background: rgb(232 96 60 / 22%);
+  border-color: var(--walnut);
+  background: var(--walnut);
+  color: var(--parchment);
 }
 
 .menu__actions {
@@ -415,29 +433,40 @@
 .menu__button {
   flex: 1;
   padding: 9px 12px;
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 7px;
-  background: rgb(255 255 255 / 6%);
-  color: inherit;
+  border: 1px solid var(--walnut-deep);
+  border-radius: 5px;
+  /* Planed wood: lighter on top, a highlight along the upper edge. */
+  background: linear-gradient(180deg, var(--walnut-soft), var(--walnut));
+  box-shadow:
+    inset 0 1px 0 rgb(255 230 190 / 25%),
+    0 2px 0 var(--walnut-deep);
+  color: var(--parchment);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
+  letter-spacing: 0.06em;
   cursor: pointer;
 }
 
 .menu__button:hover {
-  background: rgb(255 255 255 / 12%);
+  background: linear-gradient(180deg, #7d5737, var(--walnut-soft));
 }
 
 .menu__button.is-primary {
-  border-color: #e8603c;
-  background: rgb(232 96 60 / 26%);
+  border-color: var(--brass-deep);
+  background: linear-gradient(180deg, var(--brass-bright), var(--brass));
+  box-shadow:
+    inset 0 1px 0 rgb(255 245 210 / 60%),
+    0 2px 0 var(--brass-deep);
+  color: var(--ink);
+  font-weight: 700;
 }
 
 .menu__hint {
   margin: 10px 0 0;
+  color: var(--ink-soft);
   font-size: 11px;
+  font-style: italic;
   text-align: center;
-  opacity: 0.45;
 }
 
 /* Shown under the title when the browser refuses the mouse: without it a
@@ -445,11 +474,11 @@
 .menu__refused {
   margin: 12px 0 0;
   padding: 8px 10px;
-  border: 1px solid rgb(255 138 101 / 45%);
-  border-radius: 6px;
-  background: rgb(255 138 101 / 10%);
-  color: #ffbfa8;
-  font-size: 11px;
+  border: 1px solid rgb(140 45 25 / 45%);
+  border-radius: 4px;
+  background: rgb(160 50 30 / 10%);
+  color: #7a2a16;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -627,19 +656,26 @@
   height: 52px;
   place-items: center;
   padding: 0;
-  border: 1px solid rgb(255 255 255 / 16%);
-  border-radius: 8px;
-  background: rgb(10 13 20 / 68%);
-  color: inherit;
+  border: 2px solid var(--walnut);
+  border-radius: 6px;
+  background: linear-gradient(170deg, var(--parchment), var(--parchment-deep));
+  box-shadow:
+    inset 0 0 0 1px var(--parchment-edge),
+    0 2px 6px rgb(0 0 0 / 45%);
+  color: var(--ink);
   font: inherit;
   pointer-events: auto;
   cursor: pointer;
+  transition: transform 0.12s ease-out;
 }
 
 .slot[data-chosen="true"] {
-  border-color: #e8603c;
-  background: rgb(232 96 60 / 22%);
-  box-shadow: 0 0 0 1px rgb(232 96 60 / 45%);
+  border-color: var(--brass-deep);
+  box-shadow:
+    inset 0 0 0 1px var(--brass-bright),
+    0 0 0 2px var(--brass),
+    0 4px 10px rgb(0 0 0 / 50%);
+  transform: translateY(-3px);
 }
 
 .slot[data-filled="false"] {
@@ -647,70 +683,27 @@
 }
 
 .slot__mark {
+  color: var(--tint, var(--ink));
+  font-family: var(--serif);
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
 
 .slot__empty {
+  color: var(--ink-soft);
+  font-family: var(--serif);
   font-size: 11px;
-  opacity: 0.3;
+  opacity: 0.55;
 }
 
 .slot__count {
   position: absolute;
   right: 4px;
   bottom: 2px;
+  color: var(--ink);
   font-size: 10px;
-  opacity: 0.8;
-}
-
-/* The bag. Click-through behind the panel, like the pause menu. */
-.bag {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgb(5 7 14 / 62%);
-  pointer-events: none;
-}
-
-.bag__panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: min(420px, calc(100vw - 32px));
-  padding: 18px 20px;
-  border: 1px solid rgb(255 255 255 / 12%);
-  border-radius: 12px;
-  background: rgb(11 14 22 / 96%);
-  pointer-events: auto;
-}
-
-.bag__title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.bag__worn,
-.bag__grid {
-  display: grid;
-  gap: 6px;
-  grid-template-columns: repeat(2, 52px);
-}
-
-.bag__grid {
-  grid-template-columns: repeat(6, 52px);
-}
-
-.bag__hint {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.5;
-  opacity: 0.5;
+  font-weight: 700;
 }
 
 /* One key and what it does, in the menu's Controls section. */
@@ -724,16 +717,21 @@
 }
 
 .keyrow__keys {
-  padding: 2px 0;
-  color: #ffb49c;
+  justify-self: start;
+  padding: 1px 7px;
+  border: 1px solid var(--parchment-edge);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--parchment-deep);
+  color: var(--walnut);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
 }
 
 .keyrow__does {
+  color: var(--ink);
   line-height: 1.45;
-  opacity: 0.8;
 }
 
 /* The aiming mark: a ring with a dot in it, dark-rimmed so it reads on snow
@@ -764,4 +762,50 @@
   background: rgb(255 255 255 / 85%);
   box-shadow: 0 0 2px rgb(0 0 0 / 70%);
   content: "";
+}
+
+/* The palette the menu, the bar and the bag share: a farmer's ledger. Cream
+   parchment, walnut frames, brown ink, and brass for whatever is chosen. One
+   place, so a colour is changed once. */
+.overlay {
+  --walnut: #4a2f1c;
+  --walnut-deep: #2e1d11;
+  --walnut-soft: #6b4a2f;
+  --leather: #5c3a22;
+  --leather-deep: #3f2716;
+  --parchment: #efe2c4;
+  --parchment-deep: #e3d0a6;
+  --parchment-edge: #cdb27c;
+  --ink: #3b2716;
+  --ink-soft: #6b5034;
+  --brass: #c9973f;
+  --brass-bright: #e2b763;
+  --brass-deep: #94681f;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+
+/* Starting over: a quiet line under the buttons, not a third button beside
+   them. Red-brown and underlined once it is waiting for the second click. */
+.menu__start-over {
+  display: block;
+  margin: 8px auto 0;
+  padding: 2px 4px;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.menu__start-over:hover {
+  color: #7a2a16;
+}
+
+.menu__start-over[data-armed="true"] {
+  color: #8a2a12;
+  font-weight: 700;
+  text-decoration: underline solid;
 }

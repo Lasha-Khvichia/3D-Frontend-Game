@@ -8,6 +8,7 @@ import type { SunGodRays } from "../../world/SunGodRays";
 import { createHoe } from "./createHoe";
 import { createLantern, type HeldLantern } from "./createLantern";
 import { restPlaces, swayAt } from "./handPlaces";
+import { Waist } from "./Waist";
 
 /** After the world and after the aiming mark, so nothing is ever drawn over your hands. */
 const IN_HAND = 2;
@@ -27,23 +28,34 @@ const IN_HAND = 2;
 export class HeldItems {
   private readonly hoe: Mesh;
   private readonly lantern: HeldLantern;
+  private readonly waist: Waist;
   private seconds = 0;
 
   /** Where the lantern hangs in the world, for the lamps the shaders are given. */
   readonly lampPlace = new Vector3();
 
-  constructor(scene: Scene, camera: Camera, godRays: SunGodRays) {
+  constructor(
+    scene: Scene,
+    private readonly camera: Camera,
+    godRays: SunGodRays,
+  ) {
     this.hoe = createHoe(scene);
     this.lantern = createLantern(scene);
+    this.waist = new Waist(scene, camera as Camera & { rotation: { x: number; z: number } });
     this.hoe.parent = camera;
     this.lantern.root.parent = camera;
-    for (const node of [this.hoe, ...this.lantern.root.getChildMeshes()]) {
+    for (const node of [this.hoe, ...this.lantern.root.getChildMeshes(), ...this.waist.belt]) {
       node.isPickable = false;
       node.checkCollisions = false;
       node.receiveShadows = false;
       node.renderingGroupId = IN_HAND;
       godRays.excludeFromOcclusion(node);
     }
+  }
+
+  /** Once per drawn frame, after the camera has been turned: keeps the waist level. */
+  present(): void {
+    this.waist.present();
   }
 
   /** The flame's own material, for whoever decides how brightly it burns. */
@@ -69,6 +81,8 @@ export class HeldItems {
       this.hoe.scaling.setAll(places.hoe.scale);
     }
     if (places.lantern) {
+      // On the belt it hangs from the waist; in the hand, from the camera.
+      this.lantern.root.parent = places.onBelt ? this.waist.node : this.camera;
       this.lantern.root.position.copyFrom(places.lantern.at).addInPlace(sway);
       this.lantern.root.rotation.copyFrom(places.lantern.turn);
       this.lantern.root.scaling.setAll(places.lantern.scale);

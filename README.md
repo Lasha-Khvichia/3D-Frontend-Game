@@ -1595,6 +1595,33 @@ because the roads are found while the terrain is built. Before this, five of
 the forty-four trees and eight of the four hundred and twenty stones stood in
 a road.
 
+## The look of the menus
+
+**Parchment and walnut.** The pause menu, the bar and the bag share one
+palette, held as colour tokens on `.overlay` (`--parchment`, `--walnut`,
+`--ink`, `--brass` and their shades): cream parchment, walnut frames, brown
+ink, brass for whatever is chosen. Change a colour there, once. Headings are
+set in the system's book serif — Iowan Old Style, Palatino or Georgia, which
+every desktop already has — so there is no web font to download.
+
+**The bag is a satchel beside a figure.** You, from behind as you are in the
+game, with the left-hand and belt slots placed on the body where those things
+really are; from behind, so your left is on the left of the picture. The
+satchel is oiled leather with stitched pockets and a brass buckle.
+
+## Starting over
+
+**Start over from the first day**, under the pause menu's buttons, wipes the
+saved game and loads the page again: the clock back to 1 March, the field
+unbroken, the starting kit. Two clicks, because there is no undo — the first
+only asks, and settles back after four seconds. Settings are kept.
+
+The page is loaded again rather than every system being reset in place,
+because almost everything is built from the clock and the save at boot and
+none of it has a reset of its own. Writing the save is stopped first: the game
+also saves when the page goes away, and a reload is the page going away, so
+without the stop it writes itself straight back over the empty save.
+
 ## What you carry
 
 **Eight slots on a bar, a bag behind it, and two places a thing is worn.** The
@@ -1607,8 +1634,18 @@ same rule wherever it moves from and to. The bar, the bag, the hand and the
 belt are ranges of it, not separate stores.
 
 **Both hands are drawn.** A hoe in the right, a lantern in the left — or on the
-belt, which still lights the ground and leaves the hand free. `L` moves it
-between the two. Held things are parented to the camera itself, so they inherit
+belt, which still lights the ground and leaves the hand free. `L` finds the
+lantern wherever it is — hand, bar or satchel — and hangs it on the belt;
+pressed again, it comes up into the hand. The mouse wheel steps along the bar,
+counting a notch per hundred pixels of travel and never more than one notch
+per event, so a trackpad's flurry of tiny events does not race past every slot.
+
+**The belt is worn at the waist.** It hangs from a frame that is parented to
+the camera — so it is smoothed with everything else — and turned back every
+drawn frame by exactly the camera's tilt and roll. It follows your body's turn
+but not your head's: look down and it is below you, look up and it does not
+swing up after your eyes. A lantern on the belt hangs from the same frame, at
+the left hip. Held things are parented to the camera itself, so they inherit
 the smoothing it already gets between simulation steps rather than having that
 written twice.
 

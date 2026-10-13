@@ -28,10 +28,14 @@ const LANTERN_HAND: HandPlace = {
   turn: new Vector3(0, 0, 0.06),
   scale: 0.72,
 };
-/** Clipped to the belt: lower, further back, and tipped by the hip. */
+/**
+ * Hung on the belt at the left hip, in the waist's frame rather than the
+ * camera's: it stays at your side when you look about, and you see it by
+ * looking down, as you would.
+ */
 const LANTERN_BELT: HandPlace = {
-  at: new Vector3(-0.27, -0.46, 0.6),
-  turn: new Vector3(0.12, 0, 0.26),
+  at: new Vector3(-0.2, -0.77, 0.06),
+  turn: new Vector3(0, 0.35, 0),
   scale: 0.72,
 };
 
@@ -49,6 +53,7 @@ const sway = new Vector3();
 export function restPlaces(inventory: Inventory): {
   hoe: HandPlace | null;
   lantern: HandPlace | null;
+  onBelt: boolean;
 } {
   const main = inventory.mainHand;
   const inHand = inventory.offHand?.id === "lantern" || main?.id === "lantern";
@@ -56,6 +61,7 @@ export function restPlaces(inventory: Inventory): {
   return {
     hoe: main?.id === "hoe" ? HOE_HAND : null,
     lantern: inHand ? LANTERN_HAND : onBelt ? LANTERN_BELT : null,
+    onBelt: !inHand && onBelt,
   };
 }
 

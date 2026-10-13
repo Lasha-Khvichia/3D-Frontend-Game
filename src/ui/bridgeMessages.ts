@@ -50,7 +50,8 @@ export type OverlayCommand =
   | { readonly type: "resume" }
   | { readonly type: "open-map" }
   | { readonly type: "choose-slot"; readonly slot: number }
-  | { readonly type: "move-item"; readonly from: number; readonly to: number };
+  | { readonly type: "move-item"; readonly from: number; readonly to: number }
+  | { readonly type: "reset-game" };
 
 export const EMPTY_STATS: GameStats = {
   backend: "unknown",

@@ -11,7 +11,7 @@ export type ItemKind = {
   readonly hand: Hand;
   /** Two or three letters for its slot until there are pictures. */
   readonly mark: string;
-  /** The slot's tint, so a full bar can be read at a glance. */
+  /** The slot's tint on parchment, so a full bar can be read at a glance. */
   readonly tint: string;
 };
 
@@ -23,7 +23,7 @@ export const ITEM_KINDS: Record<string, ItemKind> = {
     maxStack: 1,
     hand: "main",
     mark: "HOE",
-    tint: "#8a6a3f",
+    tint: "#5a3a20",
   },
   lantern: {
     id: "lantern",
@@ -31,7 +31,7 @@ export const ITEM_KINDS: Record<string, ItemKind> = {
     maxStack: 1,
     hand: "off",
     mark: "LMP",
-    tint: "#e0a24a",
+    tint: "#94681f",
   },
 };
 

@@ -1,7 +1,8 @@
 import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
-import { writeSave } from "../settings/saveStore";
+import { clearSave, writeSave } from "../settings/saveStore";
+import { subscribeToCommands } from "../ui/bridge";
 import { tilledKeys } from "../world/farm/tilledField";
 import type { Carrying } from "../items/Carrying";
 import type { DayNightCycle } from "../world/DayNightCycle";
@@ -25,6 +26,8 @@ const EVERY = 20;
 export class GameSave {
   private since = 0;
   private readonly facing = new Vector3();
+  /** Set by a reset: nothing is written again before the page goes. */
+  private forgotten = false;
 
   constructor(
     private readonly dayNight: DayNightCycle,
@@ -38,6 +41,24 @@ export class GameSave {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") keep();
     });
+    subscribeToCommands((command) => {
+      if (command.type === "reset-game") this.startOver();
+    });
+  }
+
+  /**
+   * Wipes the saved game and loads the page again, so every system is built
+   * fresh: the clock back to 1 March, the field unbroken, the starting kit.
+   *
+   * Writing is stopped first. The save is also written when the page goes
+   * away, and a reload is the page going away — without the stop, the game
+   * would write itself straight back over the empty save. The settings are
+   * kept: they are how you like to play, not how far you have got.
+   */
+  private startOver(): void {
+    this.forgotten = true;
+    clearSave();
+    window.location.reload();
   }
 
   /** Every step. Saving is cheap, but not sixty times a second cheap. */
@@ -49,6 +70,7 @@ export class GameSave {
   }
 
   private keep(): void {
+    if (this.forgotten) return;
     this.camera.getDirectionToRef(Vector3.Forward(), this.facing);
     writeSave({
       totalHours: this.dayNight.totalHours,
