@@ -10,15 +10,22 @@ export type SaveFile = {
   /** A weather held from the menu, or "auto". */
   readonly held: WeatherKind | "auto";
   readonly player: { readonly x: number; readonly z: number; readonly yaw: number };
+  /**
+   * Every square of ground that has been broken, packed one to a number.
+   *
+   * The first thing in this file the clock cannot work out again. Optional, so
+   * a save written before there was any farming still loads.
+   */
+  readonly tilled?: readonly number[];
 };
 
 /**
  * The saved game, kept in the browser beside the settings but on its own key.
  *
- * It is four numbers, because the weather, the snow, the wet ground and the
- * sky are all functions of the clock: restore the hour and they come back by
- * themselves. What cannot be worked out is where the player stood and what
- * the menu was holding.
+ * Almost all of it is four numbers, because the weather, the snow, the wet
+ * ground and the sky are all functions of the clock: restore the hour and
+ * they come back by themselves. What cannot be worked out is where the player
+ * stood, what the menu was holding, and which squares of ground they broke.
  *
  * Reading and writing are wrapped: a private window, or storage turned off,
  * throws rather than returning null, and a game that cannot save must still

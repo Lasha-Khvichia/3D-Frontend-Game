@@ -445,6 +445,16 @@ on the first call to `treePlacements()`, never when its file loads, for that
 reason: a scatter that runs at import time is told there are no roads, with no
 error.
 
+**Broken ground is the first thing the clock cannot rebuild**
+(`src/world/farm/`). Everything else — weather, snow, wet ground, seasons — is
+a function of the date and is never stored; a tilled square is not, so
+`tilledField` keeps it and the save carries it. Soil is **thin instances, not
+painted into the terrain**: the finest terrain vertex is every 4 m and a farm
+square is 1 m, so there is nothing to paint on, and no patch has to be rebuilt
+while the game runs. Adding a grass blocker while playing goes through
+`GrassBlockerGrid.add` and `Meadow.refreshArea`, never `setBlockers`, which
+rewrites all 200,000 blades.
+
 **Every rock is two meshes**, built only near the player: a smooth one to look
 at, with no collision, and an invisible upright prism to bump into
 (`createRockCollider.ts`) — plumb sides, level top, no material. A smooth rock made a bad solid: the solver slides the

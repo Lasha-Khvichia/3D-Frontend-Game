@@ -21,7 +21,11 @@ export function stepWorld(world: World, seconds: number): void {
   grass.setSnowDepth(world.snow.depthUnderFoot);
   world.lightning.update(hours, seconds);
   // Before the player's own update, which clears any key press nothing took.
-  publishPrompt(world.openings.update(seconds, eye, player.takeOpeningKeys()));
+  // A shutter within reach is offered the key first, so standing at a window
+  // opens it rather than ploughing the doorstep.
+  const keys = player.takeOpeningKeys();
+  const atAnOpening = world.openings.update(seconds, eye, keys);
+  publishPrompt(atAnOpening || world.farming.update(eye, keys.open, world.snow.depthUnderFoot));
   player.update(seconds);
   world.worldEdge.update(seconds, player.controller);
   world.strides.update(seconds);
@@ -54,6 +58,7 @@ export function stepWorld(world: World, seconds: number): void {
  */
 export function showOpeningWorld(world: World): void {
   world.streaming.prime(world.eye);
+  world.farming.prime(world.eye);
   world.falling.update(world.eye);
   showWorldNow(world);
 }

@@ -1595,6 +1595,51 @@ because the roads are found while the terrain is built. Before this, five of
 the forty-four trees and eight of the four hundred and twenty stones stood in
 a road.
 
+## Breaking ground
+
+**Farming starts with the soil.** `E` on open ground breaks the square under
+your feet, which is then drawn as worked earth and stays broken for good.
+
+A square is one metre. Where it has been broken is the **first thing in this
+game the clock cannot work out again**: the weather, the snow, the wet ground
+and the seasons are all functions of the date and are never stored, but a
+square is tilled because somebody tilled it. `tilledField` holds them, packed
+one to a number, and they go into the save.
+
+**Soil is geometry, not paint.** Roads are painted into the terrain's own
+vertex colours, which costs nothing — but the finest terrain vertex is every
+4 m, and a farm square is 1 m, so there is nothing to paint it on. Each square
+is instead a thin instance of one ridged tile, all of them in a single draw
+call, the way the cobbles and the wildflowers are drawn. That also means no
+terrain patch ever has to be rebuilt while you play.
+
+Only the squares within 140 m of the eye are laid, and they are laid again
+every 12 m the player moves. A field on the far side of the island is still
+remembered; it is simply not drawn, the same rule the stones follow.
+
+| A square cannot be broken       | Because                                |
+| ------------------------------- | -------------------------------------- |
+| under more than 8 cm of snow    | the ground beneath is frozen hard      |
+| in standing water               | you cannot plough water                |
+| within 1.2 m of the waterline   | too close to the water                 |
+| within 40 m of the coast        | nothing grows in beach sand            |
+| on a rise over 0.15 per metre   | too steep to work, about eight degrees |
+| within 1 m of a road's edge     | that is the road                       |
+| inside a settlement's clearance | somebody else's ground                 |
+
+The tile is a unit square ridged into four furrows with a skirt hanging from
+every edge. The skirt is what lets a flat tile sit on ground that is not flat:
+across a square on the steepest slope tilling allows, a corner is 7 cm off the
+middle, and without a skirt the daylight shows underneath. Its winding was
+checked against `CreateBox`, 0 of 52 triangles wound outward against the box's
+0 of 12.
+
+Grass is kept off a broken square by a blocker like any other, but adding one
+must not rewrite all 200,000 blades: `GrassBlockerGrid.add` sorts the new
+blocker in and `Meadow.refreshArea` rewrites only the blades standing over it.
+
+**Nothing grows yet.** Seeds, growth off the clock and harvesting come next.
+
 ### The village street is cobbled
 
 5,771 stones, each a six-sided tapered block bedded into the ground with

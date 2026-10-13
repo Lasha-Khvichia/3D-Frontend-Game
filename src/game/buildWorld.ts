@@ -12,6 +12,7 @@ import { Wildflowers } from "../world/seasons/Wildflowers";
 import { Woodland } from "../world/trees/Woodland";
 import { WorldEdge } from "../world/WorldEdge";
 import { WorldStreaming } from "../world/WorldStreaming";
+import { Farming } from "../world/farm/Farming";
 import { blockGrass } from "./blockGrass";
 import { buildLand } from "./buildLand";
 import { buildSound } from "./buildSound";
@@ -43,12 +44,8 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
   // The cobbled street goes with the village it paves.
   houseGroups.bodies.push({ x: -3, z: 30, radius: 60, nodes: [village.cobbles.mesh] });
   // What is built, drawn and hidden, by how far away it is. See WorldStreaming.
-  const streaming = new WorldStreaming(scene, {
-    terrain,
-    boulders,
-    trees: woodland.trees.map(treeDistanceGroup),
-    houses: houseGroups,
-  });
+  const trees = woodland.trees.map(treeDistanceGroup);
+  const streaming = new WorldStreaming(scene, { terrain, boulders, trees, houses: houseGroups });
 
   // M opens the painted world map; it is drawn the first time, then kept.
   serveWorldMap(terrain, player.controller.bean, player.controller.camera);
@@ -56,9 +53,12 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
   // Wade too far out to sea and you are put back on the beach.
   const worldEdge = new WorldEdge(terrain);
 
-  // Grass keeps out of every stone, trunk, wall and road, and shortens beside them.
+  // Grass keeps out of every stone, trunk, wall and road, shortening beside them.
   const blockers = blockGrass(houses, woodland, boulders, lanterns);
   grass.setBlockers(blockers);
+
+  // Breaking ground: it adds a blocker per square, so it shares that grid.
+  const farming = new Farming(scene, terrain, grass, blockers);
 
   // The growing year: leaf colour, bare winter branches, the grass's colour, flowers.
   const soil = terrainSoil(terrain);
@@ -88,6 +88,7 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
     woodland,
     seasons,
     boulders,
+    farming,
     streaming,
     worldEdge,
     ...weather,
