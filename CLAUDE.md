@@ -381,7 +381,13 @@ order is what puts a cloud in front of the sun and behind a mountain; move any
 one of them and a cloud goes behind the sun or in front of the land. The domes
 must stay out of the glow layer and the god-ray pass, or they black the sun
 out of both — and the halo, being added after the picture is finished, is
-dimmed by hand (`CelestialGlow`) or it shines through overcast.
+dimmed by hand (`CelestialGlow`) or it shines through overcast. **Only the sun and the
+moon bloom.** The glow pass switches on only while one of them is near the
+view, so anything else emissive that bloomed — a lantern's glass, a lit window,
+the aiming mark — flared up when you faced the sun and went out when you
+turned away. Every other mesh is drawn into the pass black: it still hides a
+halo, it never makes one. Do not use Babylon's include list for this — a mesh
+left off it is not drawn at all, and the mountains stop hiding the sun.
 
 **Clouds are traced at reduced resolution into a target, then laid in.** The
 march (`CloudPass`) runs before the scene is drawn, for the first active
