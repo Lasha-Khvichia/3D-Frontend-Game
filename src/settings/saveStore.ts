@@ -1,3 +1,4 @@
+import type { Stack } from "../items/slots";
 import type { WeatherKind } from "../world/weather/weatherKinds";
 
 /** Bumped when a save from an older build can no longer be trusted. */
@@ -17,6 +18,8 @@ export type SaveFile = {
    * a save written before there was any farming still loads.
    */
   readonly tilled?: readonly number[];
+  /** Every slot the player is carrying, and which of the bar is in hand. */
+  readonly carrying?: { readonly slots: readonly Stack[]; readonly chosen: number };
 };
 
 /**

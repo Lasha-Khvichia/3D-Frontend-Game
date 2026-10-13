@@ -5,6 +5,7 @@ import { subscribeToCommands } from "../ui/bridge";
 import { CameraSwitcher, type MiniMapView } from "./CameraSwitcher";
 import { PlayerController } from "./PlayerController";
 import { PlayerInput } from "./PlayerInput";
+import { NO_ITEM_KEYS, takeItemKeys, type ItemKeys } from "./itemKeys";
 import { reportPause } from "./reportPause";
 import type { Ground } from "../world/terrain/Ground";
 
@@ -12,9 +13,8 @@ import type { Ground } from "../world/terrain/Ground";
 const TOGGLE_VIEW_KEY = "KeyC";
 /** Held to lift the mini-map camera from behind you to straight overhead. */
 const OVERHEAD_MAP_KEY = "KeyT";
-/** Opens and closes shutters. */
+/** Opens shutters and breaks ground; bars a door from inside, bolts a window. */
 const OPEN_KEY = "KeyE";
-/** Bars a door from inside, bolts a window. */
 const LOCK_KEY = "KeyF";
 
 export type Player = {
@@ -28,6 +28,10 @@ export type Player = {
    * key cannot fire a step late.
    */
   takeOpeningKeys(): { readonly open: boolean; readonly lock: boolean };
+  /** The number keys and the lantern key, each true once per press. */
+  takeItemKeys(): ItemKeys;
+  /** 1 while the player is asking to move, 0 while they stand still. */
+  walkShare(): number;
   update(fixedDeltaSeconds: number): void;
   /** Once per drawn frame: smooths the view between steps. See `PlayerController.present`. */
   present(progress: number): void;
@@ -73,6 +77,8 @@ export function attachPlayer(
       open: switcher.isFirstPerson && input.consumePress(OPEN_KEY),
       lock: switcher.isFirstPerson && input.consumePress(LOCK_KEY),
     }),
+    takeItemKeys: () => (switcher.isFirstPerson ? takeItemKeys(input) : NO_ITEM_KEYS),
+    walkShare: () => (input.forward !== 0 || input.strafe !== 0 ? 1 : 0),
     update(fixedDeltaSeconds: number): void {
       if (input.consumePress(TOGGLE_VIEW_KEY)) {
         switcher.toggle();

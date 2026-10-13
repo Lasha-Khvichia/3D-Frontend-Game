@@ -15,9 +15,10 @@ const HALF = SOIL_CELL / 2;
  * Breaking ground: the square under the player's feet, and the soil drawn on
  * every square already broken.
  *
- * The hoe is the player's own two hands for now — `E` on open ground, the same
- * key that works a shutter. The shutters are offered the key first, so
- * standing at a window still opens it rather than ploughing the doorstep.
+ * `E` breaks the square underfoot, the same key that works a shutter. The
+ * shutters are offered it first, so standing at a window still opens it rather
+ * than ploughing the doorstep — and the hoe has to be in your hand, because
+ * nobody breaks ground with their fingers.
  */
 export class Farming {
   readonly soil: TilledGround;
@@ -37,15 +38,17 @@ export class Farming {
   }
 
   /** Returns the line to show the player, or an empty string for nothing to say. */
-  update(eye: Vector3, pressed: boolean, snowDepth: number): string {
+  update(eye: Vector3, pressed: boolean, snowDepth: number, holdingHoe: boolean): string {
     this.soil.update(eye);
     const x = eye.x;
     const z = eye.z;
-    if (canTillAt(this.ground, x, z, snowDepth)) {
-      if (pressed) this.breakGround(eye);
-      return pressed ? "" : "E  break the ground";
+    if (!canTillAt(this.ground, x, z, snowDepth)) {
+      return whyNotTillable(this.ground, x, z, snowDepth);
     }
-    return whyNotTillable(this.ground, x, z, snowDepth);
+    // Nobody breaks ground with their hands.
+    if (!holdingHoe) return "You need a hoe for that";
+    if (pressed) this.breakGround(eye);
+    return pressed ? "" : "E  break the ground";
   }
 
   private breakGround(eye: Vector3): void {

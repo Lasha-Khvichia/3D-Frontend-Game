@@ -1,12 +1,12 @@
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { fireFlicker } from "../fire/fireFlicker";
-import type { Footprint } from "../footprint";
 import type { House } from "../houses/buildHouse";
 import type { ShutteredWindow } from "../openings/ShutteredWindow";
 import type { WeatherListener, WeatherState } from "../weather/weatherState";
 import type { Lanterns } from "./buildLanterns";
 import { chooseLamps, type LampSource } from "./chooseLamps";
+import { burnCarried, heldLamp, lanternFlicker } from "./heldLamp";
+import { wallsOf } from "./houseWalls";
 import { houseEvening, lanternsLit, windowsLit } from "./houseEvenings";
 import { lanternLamps, windowLamps } from "./lampSources";
 import type { WindowGlow } from "./WindowGlow";
@@ -30,6 +30,8 @@ export class NightLights implements WeatherListener {
   private readonly lanterns: LampSource[];
   private readonly spills: LampSource[];
   private readonly lamps: LampSource[];
+  /** The player's own lantern. Always in the list, black until one is carried. */
+  private readonly held = heldLamp();
   private readonly evenings;
   private readonly houseOf: number[];
   private readonly lit: boolean[];
@@ -47,15 +49,26 @@ export class NightLights implements WeatherListener {
     this.houseOf = windows.map((window) => houseNamed(window.opening.houseName));
     this.lanterns = lanternLamps(places);
     this.spills = windowLamps(windows, this.houseOf);
-    this.lamps = [...this.lanterns, ...this.spills];
+    this.lamps = [...this.lanterns, ...this.spills, this.held];
   }
 
   setWeather(state: Readonly<WeatherState>): void {
     this.darkness = state.darkness;
   }
 
-  /** `home` is the house the player stands in, or -1. */
-  update(seconds: number, hour: number, sunHeight: number, eye: Vector3, home: number): void {
+  /**
+   * `home` is the house the player stands in, or -1. `carried` is where the
+   * player's own lantern hangs, or null when none is out.
+   */
+  update(
+    seconds: number,
+    hour: number,
+    sunHeight: number,
+    eye: Vector3,
+    home: number,
+    carried: Vector3 | null = null,
+    flame: { emissiveColor: Color3 } | null = null,
+  ): void {
     this.seconds += seconds;
     const lit = lanternsLit(sunHeight, this.darkness);
     const glass = GLASS_OUT + (1 - GLASS_OUT) * lit * lanternFlicker(this.seconds);
@@ -76,20 +89,10 @@ export class NightLights implements WeatherListener {
       const strength = this.lit[spill.house] ? WINDOW_STRENGTH * open : 0;
       spill.glow.copyFrom(this.evenings[spill.house]!.glow).scaleInPlace(strength);
     });
-    chooseLamps(this.lamps, eye, this.walls(home), home);
+    // A carried lantern burns like any other, and lights from where it hangs.
+    const strength = LANTERN_STRENGTH * lit * lanternFlicker(this.seconds + 1.7);
+    burnCarried(this.held, carried, LANTERN_LIGHT, strength);
+    if (flame) LANTERN_LIGHT.scaleToRef(glass, flame.emissiveColor);
+    chooseLamps(this.lamps, eye, wallsOf(this.houses, home), home);
   }
-
-  /** The outside of a house's walls, which the light from lamps elsewhere stops at. */
-  private walls(home: number): Footprint | null {
-    const house = this.houses[home];
-    if (!house) return null;
-    const { centreX: x, centreZ: z, blueprint: size } = house;
-    const [halfX, halfZ] = [size.width / 2, size.depth / 2];
-    return { minX: x - halfX, maxX: x + halfX, minZ: z - halfZ, maxZ: z + halfZ };
-  }
-}
-
-/** A flame behind glass: the fire's flicker, gentler. */
-function lanternFlicker(seconds: number): number {
-  return 0.92 + 0.45 * (fireFlicker(seconds * 0.8) - 0.82);
 }

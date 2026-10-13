@@ -607,3 +607,108 @@
 .season-dot--winter {
   --season-colour: #9fd3f0;
 }
+
+/* The eight slots along the foot of the screen. Pointer-transparent except
+   the slots themselves, so clicking past them still resumes the game. */
+.hotbar {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  display: flex;
+  gap: 6px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.slot {
+  position: relative;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 8px;
+  background: rgb(10 13 20 / 68%);
+  color: inherit;
+  font: inherit;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.slot[data-chosen="true"] {
+  border-color: #e8603c;
+  background: rgb(232 96 60 / 22%);
+  box-shadow: 0 0 0 1px rgb(232 96 60 / 45%);
+}
+
+.slot[data-filled="false"] {
+  cursor: default;
+}
+
+.slot__mark {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.slot__empty {
+  font-size: 11px;
+  opacity: 0.3;
+}
+
+.slot__count {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* The bag. Click-through behind the panel, like the pause menu. */
+.bag {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(5 7 14 / 62%);
+  pointer-events: none;
+}
+
+.bag__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 18px 20px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 12px;
+  background: rgb(11 14 22 / 96%);
+  pointer-events: auto;
+}
+
+.bag__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.bag__worn,
+.bag__grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, 52px);
+}
+
+.bag__grid {
+  grid-template-columns: repeat(6, 52px);
+}
+
+.bag__hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.5;
+}

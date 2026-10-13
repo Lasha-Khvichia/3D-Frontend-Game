@@ -5,6 +5,7 @@ import { MENU_SECTIONS } from "./menuSections";
 import { OpenSection } from "./OpenSection";
 import { SectionButton } from "./SectionButton";
 import { useSectionDrill } from "./useSectionDrill";
+import { useBagOpen } from "./bagOpen";
 import { useMapOpen } from "./worldMapOpen";
 
 /**
@@ -21,10 +22,11 @@ import { useMapOpen } from "./worldMapOpen";
  */
 export function PauseMenu() {
   const { paused, pointerLockRefused } = useGameStats();
-  // The world map pauses the game too, and it is what should show.
+  // The world map and the bag pause the game too, and each is what should show.
   const mapOpen = useMapOpen();
+  const bagOpen = useBagOpen();
   const drill = useSectionDrill<string>();
-  if (!paused || mapOpen) return null;
+  if (!paused || mapOpen || bagOpen) return null;
 
   const opened = MENU_SECTIONS.find((section) => section.name === drill.open);
 

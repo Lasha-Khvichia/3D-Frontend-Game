@@ -5,7 +5,14 @@ const RIGHT_KEYS = ["KeyD", "ArrowRight"] as const;
 const RUN_KEYS = ["ShiftLeft", "ShiftRight"] as const;
 
 /** Keys whose browser behaviour would fight the game. */
-const BROWSER_DEFAULT_KEYS = new Set(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+const BROWSER_DEFAULT_KEYS = new Set([
+  "Space",
+  "Tab",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+]);
 
 /**
  * Keyboard and mouse for the player.

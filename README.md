@@ -1595,6 +1595,39 @@ because the roads are found while the terrain is built. Before this, five of
 the forty-four trees and eight of the four hundred and twenty stones stood in
 a road.
 
+## What you carry
+
+**Eight slots on a bar, a bag behind it, and two places a thing is worn.** The
+number keys choose a slot on the bar, Tab opens the bag, and dragging moves
+anything anywhere. The off hand and the belt take only what is carried in the
+left hand, which today means the lantern.
+
+It is one flat array (`Inventory`), so every rule about moving a thing is the
+same rule wherever it moves from and to. The bar, the bag, the hand and the
+belt are ranges of it, not separate stores.
+
+**Both hands are drawn.** A hoe in the right, a lantern in the left — or on the
+belt, which still lights the ground and leaves the hand free. `L` moves it
+between the two. Held things are parented to the camera itself, so they inherit
+the smoothing it already gets between simulation steps rather than having that
+written twice.
+
+They are drawn smaller than they are: at a 70-degree field of view a thing half
+a metre from the eye fills a third of the screen, so a hoe at its true length
+is a telegraph pole across the view. `handPlaces.ts` holds the cheat.
+
+They are also kept off the god rays' occlusion pass. A hoe a handspan from the
+lens would otherwise blot out the sun.
+
+**A carried lantern is not a fifth light.** The scene is at its budget of four,
+so it goes into `lampField` like every lantern in the village — one more lamp
+the standard shader adds, moving with the player, hanging free with no wall to
+stop it, and never giving way when the nearest thirty-two are chosen. It burns
+with the same flicker and goes out at dawn with the rest.
+
+**Nobody breaks ground with their hands.** The hoe has to be in the main hand
+or `E` says so.
+
 ## Breaking ground
 
 **Farming starts with the soil.** `E` on open ground breaks the square under

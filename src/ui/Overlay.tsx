@@ -2,9 +2,12 @@ import { StatsPanel } from "./StatsPanel";
 import { InteractionPrompt } from "./InteractionPrompt";
 import { WorldNotice } from "./WorldNotice";
 import { MiniMap } from "./MiniMap";
+import { BagScreen } from "./BagScreen";
+import { Hotbar } from "./Hotbar";
 import { PauseMenu } from "./PauseMenu";
 import { WorldMap } from "./WorldMap";
 import { sendCommand } from "./bridge";
+import { useBagKeys } from "./useBagKeys";
 import "./overlay.css";
 
 /**
@@ -12,6 +15,7 @@ import "./overlay.css";
  * reach the game; each interactive panel opts back in with pointer-events.
  */
 export function Overlay() {
+  useBagKeys();
   return (
     <div className="overlay">
       <div className="overlay__panel">
@@ -33,6 +37,8 @@ export function Overlay() {
       <InteractionPrompt />
       <WorldNotice />
       <MiniMap />
+      <Hotbar />
+      <BagScreen />
       <PauseMenu />
       <WorldMap />
     </div>
