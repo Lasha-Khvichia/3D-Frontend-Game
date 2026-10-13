@@ -12,15 +12,23 @@ export class GrassBlockerGrid {
   private readonly cells = new Map<number, GrassBlocker[]>();
 
   constructor(blockers: readonly GrassBlocker[]) {
-    for (const blocker of blockers) {
-      const { minX, maxX, minZ, maxZ } = blocker.bounds;
-      for (let cellZ = Math.floor(minZ / CELL); cellZ <= Math.floor(maxZ / CELL); cellZ += 1) {
-        for (let cellX = Math.floor(minX / CELL); cellX <= Math.floor(maxX / CELL); cellX += 1) {
-          const key = this.key(cellX, cellZ);
-          const list = this.cells.get(key);
-          if (list) list.push(blocker);
-          else this.cells.set(key, [blocker]);
-        }
+    for (const blocker of blockers) this.add(blocker);
+  }
+
+  /**
+   * Sorts one more blocker in, for something that appears while the game runs
+   * — a square of ground broken by a hoe. The grass itself is not rewritten
+   * here: only the blades over this blocker need it, and `GrassField`
+   * refreshes that patch of them by area.
+   */
+  add(blocker: GrassBlocker): void {
+    const { minX, maxX, minZ, maxZ } = blocker.bounds;
+    for (let cellZ = Math.floor(minZ / CELL); cellZ <= Math.floor(maxZ / CELL); cellZ += 1) {
+      for (let cellX = Math.floor(minX / CELL); cellX <= Math.floor(maxX / CELL); cellX += 1) {
+        const key = this.key(cellX, cellZ);
+        const list = this.cells.get(key);
+        if (list) list.push(blocker);
+        else this.cells.set(key, [blocker]);
       }
     }
   }

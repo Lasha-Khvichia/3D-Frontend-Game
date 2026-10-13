@@ -2,6 +2,8 @@ import type { Camera } from "@babylonjs/core/Cameras/camera";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import { writeSave } from "../settings/saveStore";
+import { tilledKeys } from "../world/farm/tilledField";
+import type { Carrying } from "../items/Carrying";
 import type { DayNightCycle } from "../world/DayNightCycle";
 import type { Weather } from "../world/weather/Weather";
 
@@ -9,12 +11,14 @@ import type { Weather } from "../world/weather/Weather";
 const EVERY = 20;
 
 /**
- * Keeps the browser's copy of the game up to date: the clock, a held weather
- * and where the player stands.
+ * Keeps the browser's copy of the game up to date: the clock, a held weather,
+ * where the player stands, what they are carrying, and every square of ground
+ * they have broken.
  *
  * Only those, because everything else is a function of the clock — the
  * weather, the snow, the wet ground, the sky and every light in the village
- * come back by themselves from the hour. Written every twenty seconds and
+ * come back by themselves from the hour. Tilled ground cannot: somebody did
+ * it, so it has to be written down. Written every twenty seconds and
  * again when the tab is hidden or closed, which is the last moment a browser
  * allows.
  */
@@ -27,6 +31,7 @@ export class GameSave {
     private readonly weather: Weather,
     private readonly bean: AbstractMesh,
     private readonly camera: Camera,
+    private readonly carrying: Carrying,
   ) {
     const keep = (): void => this.keep();
     window.addEventListener("pagehide", keep);
@@ -53,6 +58,8 @@ export class GameSave {
         z: this.bean.position.z,
         yaw: Math.atan2(this.facing.x, this.facing.z),
       },
+      tilled: tilledKeys(),
+      carrying: this.carrying.saved,
     });
   }
 }

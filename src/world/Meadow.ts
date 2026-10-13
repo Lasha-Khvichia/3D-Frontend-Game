@@ -65,6 +65,12 @@ export class Meadow extends WorldEntity {
     this.far.setBlockers(blockers);
   }
 
+  /** Rewrites only the blades over one patch of ground, in both fields. */
+  refreshArea(minX: number, minZ: number, maxX: number, maxZ: number): void {
+    this.near.refreshArea(minX, minZ, maxX, maxZ);
+    this.far.refreshArea(minX, minZ, maxX, maxZ);
+  }
+
   update(seconds: number, focus: Vector3): void {
     this.near.update(seconds, focus);
     this.far.update(seconds, focus);

@@ -21,7 +21,15 @@ export function stepWorld(world: World, seconds: number): void {
   grass.setSnowDepth(world.snow.depthUnderFoot);
   world.lightning.update(hours, seconds);
   // Before the player's own update, which clears any key press nothing took.
-  publishPrompt(world.openings.update(seconds, eye, player.takeOpeningKeys()));
+  // A shutter within reach is offered the key first, so standing at a window
+  // opens it rather than ploughing the doorstep.
+  const keys = player.takeOpeningKeys();
+  world.carrying.update(seconds, player.takeItemKeys(), player.walkShare());
+  const atAnOpening = world.openings.update(seconds, eye, keys);
+  publishPrompt(
+    atAnOpening ||
+      world.farming.update(eye, keys.open, world.snow.depthUnderFoot, world.carrying.holdingHoe),
+  );
   player.update(seconds);
   world.worldEdge.update(seconds, player.controller);
   world.strides.update(seconds);
@@ -39,11 +47,19 @@ export function stepWorld(world: World, seconds: number): void {
   godRays.update(dayNight.sunAndMoon.sunDirection);
   world.fires.update(seconds, eye);
   world.fireShadows.update(world.fires.houseInside);
-  const { sunHeight } = dayNight.sunAndMoon;
-  world.nightLights.update(seconds, dayNight.currentHour, sunHeight, eye, world.fires.houseInside);
+  lightTheNight(world, seconds);
   world.wind.update(seconds);
   world.woodland.update(eye);
   grass.update(seconds, eye);
+}
+
+/** Lanterns, lit windows and the one the player is carrying. */
+function lightTheNight(world: World, seconds: number): void {
+  const { dayNight, eye, carrying } = world;
+  const { sunHeight } = dayNight.sunAndMoon;
+  const hour = dayNight.currentHour;
+  const home = world.fires.houseInside;
+  world.nightLights.update(seconds, hour, sunHeight, eye, home, carrying.lanternAt, carrying.flame);
 }
 
 /**
@@ -54,6 +70,7 @@ export function stepWorld(world: World, seconds: number): void {
  */
 export function showOpeningWorld(world: World): void {
   world.streaming.prime(world.eye);
+  world.farming.prime(world.eye);
   world.falling.update(world.eye);
   showWorldNow(world);
 }
@@ -72,8 +89,7 @@ export function showWorldNow(world: World): void {
   world.seasons.update(0, hours, eye, world.snow.depthUnderFoot, dayNight.sunAndMoon.sunHeight);
   world.grass.setSnowDepth(world.snow.depthUnderFoot);
   world.terrainShade.update(dayNight.sunAndMoon.sunDirection);
-  const { sunHeight } = dayNight.sunAndMoon;
-  world.nightLights.update(0, dayNight.currentHour, sunHeight, eye, world.fires.houseInside);
+  lightTheNight(world, 0);
   dayNight.refresh();
   world.sky.repaint();
 }

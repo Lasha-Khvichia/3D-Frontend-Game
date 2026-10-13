@@ -119,6 +119,33 @@ export class GrassField {
     this.mesh.thinInstanceBufferUpdated("matrix");
   }
 
+  /**
+   * Rewrites only the blades standing over one patch of ground.
+   *
+   * `setBlockers` rewrites all 200,000, which is right once at build time and
+   * far too much for a square of ground broken by a hoe. The changed blades go
+   * to the GPU as the short runs everything else here uses.
+   */
+  refreshArea(minX: number, minZ: number, maxX: number, maxZ: number): void {
+    const { cellSize, patchCells } = this.grass;
+    for (
+      let cellZ = Math.floor(minZ / cellSize);
+      cellZ <= Math.floor(maxZ / cellSize);
+      cellZ += 1
+    ) {
+      if (cellZ < this.originCellZ || cellZ >= this.originCellZ + patchCells) continue;
+      const row = wrapSlot(cellZ, patchCells);
+      for (
+        let cellX = Math.floor(minX / cellSize);
+        cellX <= Math.floor(maxX / cellSize);
+        cellX += 1
+      ) {
+        if (cellX < this.originCellX || cellX >= this.originCellX + patchCells) continue;
+        this.refreshSlot(this.slots.slotOf(wrapSlot(cellX, patchCells), row));
+      }
+    }
+  }
+
   update(seconds: number, focus: Vector3): void {
     this.followFocus(focus);
     this.applyPushers();

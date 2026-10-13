@@ -445,6 +445,25 @@ on the first call to `treePlacements()`, never when its file loads, for that
 reason: a scatter that runs at import time is told there are no roads, with no
 error.
 
+**What the player carries is one flat array** (`src/items/`): the bar, the bag,
+the off hand and the belt are ranges of it, so one rule moves anything
+anywhere. `Carrying` owns both the slots and what is drawn in the hands, and
+tells React only when something moves — never every step. Held meshes are
+**parented to the camera**, which is what gives them the between-step smoothing
+for free, and they must be kept off the god rays' occlusion pass or they blot
+out the sun. **A carried lantern is not a fifth light**: it goes into
+`lampField` like every other lamp, with its place written each step.
+
+**Broken ground is the first thing the clock cannot rebuild**
+(`src/world/farm/`). Everything else — weather, snow, wet ground, seasons — is
+a function of the date and is never stored; a tilled square is not, so
+`tilledField` keeps it and the save carries it. Soil is **thin instances, not
+painted into the terrain**: the finest terrain vertex is every 4 m and a farm
+square is 1 m, so there is nothing to paint on, and no patch has to be rebuilt
+while the game runs. Adding a grass blocker while playing goes through
+`GrassBlockerGrid.add` and `Meadow.refreshArea`, never `setBlockers`, which
+rewrites all 200,000 blades.
+
 **Every rock is two meshes**, built only near the player: a smooth one to look
 at, with no collision, and an invisible upright prism to bump into
 (`createRockCollider.ts`) — plumb sides, level top, no material. A smooth rock made a bad solid: the solver slides the
