@@ -42,9 +42,17 @@ export class Carrying {
     return this.inventory.mainHand?.id === "hoe";
   }
 
-  /** Where the carried lantern hangs, or null when none is out. */
+  /**
+   * Where the carried lantern hangs, or null when none is out.
+   *
+   * The same three places `restPlaces` draws it in: the left hand, the bar, or
+   * the belt. Light and lantern must agree, or one shows without the other.
+   */
   get lanternAt(): Vector3 | null {
-    const out = this.inventory.offHand?.id === "lantern" || this.inventory.belt?.id === "lantern";
+    const out =
+      this.inventory.offHand?.id === "lantern" ||
+      this.inventory.mainHand?.id === "lantern" ||
+      this.inventory.belt?.id === "lantern";
     return out ? this.held.lampPlace : null;
   }
 

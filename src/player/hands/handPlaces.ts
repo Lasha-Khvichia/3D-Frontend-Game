@@ -40,19 +40,22 @@ const sway = new Vector3();
 /**
  * Where each carried thing rests this step.
  *
- * The lantern is drawn whether it is in the left hand or on the belt, in a
- * different place for each; the hoe only when the main hand holds it.
+ * A lantern is out whether it is in the left hand, chosen on the bar, or hung
+ * on the belt — in the left hand's place for the first two, at the hip for the
+ * last. Choosing it on the bar used to draw nothing at all: the bar fills the
+ * right hand, a lantern is carried in the left, and nothing looked in both
+ * places.
  */
 export function restPlaces(inventory: Inventory): {
   hoe: HandPlace | null;
   lantern: HandPlace | null;
 } {
   const main = inventory.mainHand;
-  const off = inventory.offHand;
-  const belt = inventory.belt;
+  const inHand = inventory.offHand?.id === "lantern" || main?.id === "lantern";
+  const onBelt = inventory.belt?.id === "lantern";
   return {
     hoe: main?.id === "hoe" ? HOE_HAND : null,
-    lantern: off?.id === "lantern" ? LANTERN_HAND : belt?.id === "lantern" ? LANTERN_BELT : null,
+    lantern: inHand ? LANTERN_HAND : onBelt ? LANTERN_BELT : null,
   };
 }
 

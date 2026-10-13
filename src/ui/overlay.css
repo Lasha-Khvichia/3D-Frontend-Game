@@ -712,3 +712,26 @@
   line-height: 1.5;
   opacity: 0.5;
 }
+
+/* One key and what it does, in the menu's Controls section. */
+.keyrow {
+  display: grid;
+  align-items: baseline;
+  gap: 12px;
+  grid-template-columns: 92px 1fr;
+  min-height: 26px;
+  font-size: 12px;
+}
+
+.keyrow__keys {
+  padding: 2px 0;
+  color: #ffb49c;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.keyrow__does {
+  line-height: 1.45;
+  opacity: 0.8;
+}
