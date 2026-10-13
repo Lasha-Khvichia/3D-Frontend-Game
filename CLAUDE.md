@@ -454,6 +454,16 @@ for free, and they must be kept off the god rays' occlusion pass or they blot
 out the sun. **A carried lantern is not a fifth light**: it goes into
 `lampField` like every other lamp, with its place written each step.
 
+**Rendering groups: 0 is the world, 1 is drawn over it, 2 over that.** Group 1
+holds the aiming mark (`TillTarget`), which would otherwise be buried in the
+grass; group 2 holds what is in the player's hands, so nothing is ever drawn
+over them and they cannot clip into a wall. Each group clears depth before it
+draws, which is the whole point — and why nothing that should be hidden by the
+world may go in either. **The hoe aims, it does not reach underfoot**: the
+ground is found by marching the look against the height grid
+(`lookAtGround`), and a look beyond 1.5 m is pulled back to 1.5 m on the same
+bearing.
+
 **Broken ground is the first thing the clock cannot rebuild**
 (`src/world/farm/`). Everything else — weather, snow, wet ground, seasons — is
 a function of the date and is never stored; a tilled square is not, so

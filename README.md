@@ -1630,8 +1630,26 @@ or `E` says so.
 
 ## Breaking ground
 
-**Farming starts with the soil.** `E` on open ground breaks the square under
-your feet, which is then drawn as worked earth and stays broken for good.
+**Farming starts with the soil.** With the hoe in hand, `E` breaks the square
+you are aiming at, which is then drawn as worked earth and stays broken for
+good. A crosshair marks the middle of the screen, and the square the hoe will
+bite is marked on the ground before you swing — bright where it will break,
+dim where it will not, with the reason underneath.
+
+**The hoe reaches 1.5 m along the ground**, and where you look further than
+that the target is pulled back to 1.5 m on the same bearing. Read strictly,
+1.5 m would mean stooping: with the eye 1.6 m up, a point 1.5 m away on the
+ground is 47 degrees below the horizon. So the look chooses the direction and
+the reach chooses how far. Look more than 25 degrees above the horizon and you
+are aiming at the sky, and nothing is marked. The ground is found by marching
+the look against the height grid (`lookAtGround`), because it is not a
+collision mesh and Babylon's picking finds nothing on it.
+
+**Two rendering groups sit over the world.** Group 1 is the aiming mark,
+drawn after the world with the depth cleared, because a mark lying on the
+ground is buried by half a metre of grass. Group 2 is whatever is in your
+hands, drawn last of all, so a hoe held against a wall stays in your hand
+instead of vanishing into the stone.
 
 A square is one metre. Where it has been broken is the **first thing in this
 game the clock cannot work out again**: the weather, the snow, the wet ground

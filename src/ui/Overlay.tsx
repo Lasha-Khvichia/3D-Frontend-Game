@@ -3,6 +3,7 @@ import { InteractionPrompt } from "./InteractionPrompt";
 import { WorldNotice } from "./WorldNotice";
 import { MiniMap } from "./MiniMap";
 import { BagScreen } from "./BagScreen";
+import { Crosshair } from "./Crosshair";
 import { Hotbar } from "./Hotbar";
 import { PauseMenu } from "./PauseMenu";
 import { WorldMap } from "./WorldMap";
@@ -37,6 +38,7 @@ export function Overlay() {
       <InteractionPrompt />
       <WorldNotice />
       <MiniMap />
+      <Crosshair />
       <Hotbar />
       <BagScreen />
       <PauseMenu />

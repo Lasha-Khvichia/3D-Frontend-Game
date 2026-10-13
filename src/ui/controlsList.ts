@@ -13,7 +13,7 @@ export const CONTROLS: readonly { readonly keys: string; readonly does: string }
   { keys: "1 – 8", does: "Choose a slot on the bar" },
   { keys: "Tab", does: "Open the bag, and close it" },
   { keys: "L", does: "Move the lantern between your hand and your belt" },
-  { keys: "E", does: "Open and close shutters. Break the ground with a hoe" },
+  { keys: "E", does: "Open and close shutters. Break the ground you are aiming at" },
   { keys: "F", does: "Bar a door from inside, bolt a window" },
   { keys: "C", does: "Step out to the orbit camera, and back" },
   { keys: "T", does: "Hold to lift the mini-map to straight overhead" },

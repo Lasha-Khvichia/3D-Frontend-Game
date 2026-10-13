@@ -9,6 +9,9 @@ import { createHoe } from "./createHoe";
 import { createLantern, type HeldLantern } from "./createLantern";
 import { restPlaces, swayAt } from "./handPlaces";
 
+/** After the world and after the aiming mark, so nothing is ever drawn over your hands. */
+const IN_HAND = 2;
+
 /**
  * What the player is carrying, drawn in front of the camera.
  *
@@ -17,7 +20,9 @@ import { restPlaces, swayAt } from "./handPlaces";
  * move at speed has to follow, got for free rather than written twice.
  *
  * They are kept off the god rays' occlusion pass. A hoe a handspan from the
- * lens would otherwise blot out the sun.
+ * lens would otherwise blot out the sun. And they are drawn last, over
+ * everything, with the depth cleared: a hoe held against a wall stays in your
+ * hand instead of disappearing into the stone.
  */
 export class HeldItems {
   private readonly hoe: Mesh;
@@ -36,6 +41,7 @@ export class HeldItems {
       node.isPickable = false;
       node.checkCollisions = false;
       node.receiveShadows = false;
+      node.renderingGroupId = IN_HAND;
       godRays.excludeFromOcclusion(node);
     }
   }

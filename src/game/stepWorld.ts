@@ -1,6 +1,7 @@
 import { publishPrompt } from "../ui/bridge";
 import { cloudShadowField } from "../world/sky/cloudShadowField";
 import type { World } from "./buildWorld";
+import { workTheGround } from "./workTheGround";
 
 /**
  * One simulation step of the whole world, every system in its order.
@@ -20,16 +21,7 @@ export function stepWorld(world: World, seconds: number): void {
   world.seasons.update(seconds, hours, eye, world.snow.depthUnderFoot, sunUp);
   grass.setSnowDepth(world.snow.depthUnderFoot);
   world.lightning.update(hours, seconds);
-  // Before the player's own update, which clears any key press nothing took.
-  // A shutter within reach is offered the key first, so standing at a window
-  // opens it rather than ploughing the doorstep.
-  const keys = player.takeOpeningKeys();
-  world.carrying.update(seconds, player.takeItemKeys(), player.walkShare());
-  const atAnOpening = world.openings.update(seconds, eye, keys);
-  publishPrompt(
-    atAnOpening ||
-      world.farming.update(eye, keys.open, world.snow.depthUnderFoot, world.carrying.holdingHoe),
-  );
+  publishPrompt(workTheGround(world, seconds));
   player.update(seconds);
   world.worldEdge.update(seconds, player.controller);
   world.strides.update(seconds);
