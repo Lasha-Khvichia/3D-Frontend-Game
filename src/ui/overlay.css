@@ -809,3 +809,48 @@
   font-weight: 700;
   text-decoration: underline solid;
 }
+
+/* The game could not start: one card, over everything, saying why. */
+.start-failure {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #1c120a;
+  pointer-events: auto;
+}
+
+.start-failure__card {
+  width: min(520px, calc(100vw - 32px));
+  padding: 22px 26px;
+  border: 7px solid var(--walnut);
+  border-radius: 10px;
+  background: linear-gradient(170deg, var(--parchment), var(--parchment-deep));
+  box-shadow: inset 0 0 0 2px var(--brass);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.start-failure__title {
+  margin: 0 0 10px;
+  color: var(--walnut);
+  font-size: 20px;
+  letter-spacing: 0.06em;
+}
+
+.start-failure__steps {
+  padding-left: 20px;
+}
+
+.start-failure__steps li {
+  margin-bottom: 6px;
+}
+
+.start-failure__detail {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+}

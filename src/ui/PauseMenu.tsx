@@ -22,12 +22,13 @@ import { useMapOpen } from "./worldMapOpen";
  * but the level you are on.
  */
 export function PauseMenu() {
-  const { paused, pointerLockRefused } = useGameStats();
+  const { paused, pointerLockRefused, startFailure } = useGameStats();
   // The world map and the bag pause the game too, and each is what should show.
   const mapOpen = useMapOpen();
   const bagOpen = useBagOpen();
   const drill = useSectionDrill<string>();
-  if (!paused || mapOpen || bagOpen) return null;
+  // A game that never started has nothing to pause; `StartFailure` says why.
+  if (!paused || mapOpen || bagOpen || startFailure) return null;
 
   const opened = MENU_SECTIONS.find((section) => section.name === drill.open);
 

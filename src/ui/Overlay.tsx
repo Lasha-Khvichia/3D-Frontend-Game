@@ -6,6 +6,7 @@ import { BagScreen } from "./BagScreen";
 import { Crosshair } from "./Crosshair";
 import { Hotbar } from "./Hotbar";
 import { PauseMenu } from "./PauseMenu";
+import { StartFailure } from "./StartFailure";
 import { WorldMap } from "./WorldMap";
 import { sendCommand } from "./bridge";
 import { useBagKeys } from "./useBagKeys";
@@ -43,6 +44,7 @@ export function Overlay() {
       <BagScreen />
       <PauseMenu />
       <WorldMap />
+      <StartFailure />
     </div>
   );
 }

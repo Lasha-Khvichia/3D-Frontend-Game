@@ -51,6 +51,12 @@ in the builder for its part of the world and a line in `stepWorld`. The files
 were split this way because `main.ts` passed the 100-line limit.
 
 `GameRuntime` owns the engine, the scene and the loop; nothing else creates them.
+**If the engine cannot be made, the game says so.** The overlay is mounted
+before the engine is asked for, so a browser that refuses WebGL (Chrome does,
+for the rest of a session, after its GPU process has crashed a few times)
+used to leave PAUSED on screen over a game that never existed, answering no
+click. `main.ts` now publishes `startFailure` and `StartFailure` covers the
+screen with the reason and what to do.
 `FixedStepLoop` runs game logic at a fixed 60 steps per second and renders as
 often as the browser allows. **All gameplay logic belongs in the simulation step**,
 never in `runRenderLoop` and never tied to frame time.
