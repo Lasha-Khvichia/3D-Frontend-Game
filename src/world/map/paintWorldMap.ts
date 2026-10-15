@@ -1,5 +1,6 @@
 import type { Terrain } from "../terrain/Terrain";
 import { drawMapRoads } from "./drawMapRoads";
+import { drawMapDens } from "./drawMapDens";
 import { drawMapSymbols } from "./drawMapSymbols";
 import { MAP_HALF_EXTENT, MAP_PIXELS } from "./mapFrame";
 import { mapLabels, type MapLabel } from "./mapLabels";
@@ -31,6 +32,7 @@ export function paintWorldMap(terrain: Terrain): WorldMapPicture {
   // Under the houses and trees: a road runs past them, not over them.
   drawMapRoads(context);
   drawMapSymbols(context, terrain.rivers.bridges);
+  drawMapDens(context);
   painted = { canvas, labels: mapLabels(), halfExtent: MAP_HALF_EXTENT };
   return painted;
 }

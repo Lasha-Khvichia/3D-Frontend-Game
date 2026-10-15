@@ -1,6 +1,8 @@
 import { publishPrompt } from "../ui/bridge";
 import { cloudShadowField } from "../world/sky/cloudShadowField";
 import type { World } from "./buildWorld";
+import { fight } from "./fight";
+import { workTheGround } from "./workTheGround";
 
 /**
  * One simulation step of the whole world, every system in its order.
@@ -21,15 +23,9 @@ export function stepWorld(world: World, seconds: number): void {
   grass.setSnowDepth(world.snow.depthUnderFoot);
   world.lightning.update(hours, seconds);
   // Before the player's own update, which clears any key press nothing took.
-  // A shutter within reach is offered the key first, so standing at a window
-  // opens it rather than ploughing the doorstep.
-  const keys = player.takeOpeningKeys();
-  world.carrying.update(seconds, player.takeItemKeys(), player.walkShare());
-  const atAnOpening = world.openings.update(seconds, eye, keys);
-  publishPrompt(
-    atAnOpening ||
-      world.farming.update(eye, keys.open, world.snow.depthUnderFoot, world.carrying.holdingHoe),
-  );
+  const struck = world.carrying.update(seconds, player.takeItemKeys(), player.walkShare());
+  publishPrompt(workTheGround(world, seconds));
+  fight(world, seconds, struck);
   player.update(seconds);
   world.worldEdge.update(seconds, player.controller);
   world.strides.update(seconds);
@@ -71,6 +67,8 @@ function lightTheNight(world: World, seconds: number): void {
 export function showOpeningWorld(world: World): void {
   world.streaming.prime(world.eye);
   world.farming.prime(world.eye);
+  // Drawn where they stand: the game opens paused, and no step has run yet.
+  world.boars.update(0, world.player.controller.bean.position, world.dayNight.totalHours);
   world.falling.update(world.eye);
   showWorldNow(world);
 }

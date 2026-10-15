@@ -4,6 +4,7 @@ import { useGameStats } from "./useGameStats";
 import { MENU_SECTIONS } from "./menuSections";
 import { OpenSection } from "./OpenSection";
 import { SectionButton } from "./SectionButton";
+import { StartOver } from "./StartOver";
 import { useSectionDrill } from "./useSectionDrill";
 import { useBagOpen } from "./bagOpen";
 import { useMapOpen } from "./worldMapOpen";
@@ -21,12 +22,13 @@ import { useMapOpen } from "./worldMapOpen";
  * but the level you are on.
  */
 export function PauseMenu() {
-  const { paused, pointerLockRefused } = useGameStats();
+  const { paused, pointerLockRefused, startFailure } = useGameStats();
   // The world map and the bag pause the game too, and each is what should show.
   const mapOpen = useMapOpen();
   const bagOpen = useBagOpen();
   const drill = useSectionDrill<string>();
-  if (!paused || mapOpen || bagOpen) return null;
+  // A game that never started has nothing to pause; `StartFailure` says why.
+  if (!paused || mapOpen || bagOpen || startFailure) return null;
 
   const opened = MENU_SECTIONS.find((section) => section.name === drill.open);
 
@@ -73,10 +75,11 @@ export function PauseMenu() {
               Resume
             </button>
             <button type="button" className="menu__button" onClick={resetSettings}>
-              Reset to defaults
+              Default settings
             </button>
           </div>
           <p className="menu__hint">Escape pauses. Click the world or Resume to play.</p>
+          <StartOver />
         </div>
       </div>
     </div>

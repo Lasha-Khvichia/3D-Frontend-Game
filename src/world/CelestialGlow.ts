@@ -21,11 +21,18 @@ const BELOW_HORIZON = -0.02;
  * overcast. Every other glowing mesh gets exactly what Babylon would have
  * given it — its emissive colour times its emissive texture's level.
  *
- * Only the sun, the moon and the sun's glare glow. So the pass — which redraws
- * the whole world into its own texture to find what hides them — runs only
- * for the view, never the mini-map, and only while one of them is up and on
- * or near the screen. Anything that glows later (lit windows) must be added
- * to that test, or it will glow only when the sun is in sight.
+ * Only the sun and the moon glow. The pass — which redraws the whole world
+ * into its own texture to find what hides them — runs only for the view, never
+ * the mini-map, and only while one of them is up and on or near the screen.
+ *
+ * Every other mesh is drawn into it black. It still hides a halo behind it,
+ * which is why it is drawn at all, but it never blooms itself. Before this,
+ * anything with an emissive colour — a lantern's glass, a lit window, the
+ * hoe's aiming mark — bloomed only while the sun was in sight, so turning to
+ * face the morning sun in the south-east made them flare up and turning away
+ * put them out. Babylon's own include list would have been shorter, and would
+ * have stopped the mountains hiding the sun: a mesh left off that list is not
+ * drawn into the pass at all.
  */
 export class CelestialGlow {
   private readonly glow: GlowLayer;
@@ -36,10 +43,11 @@ export class CelestialGlow {
   constructor(scene: Scene, sun: AbstractMesh, moon: AbstractMesh) {
     this.glow = createGlowLayer(scene);
     this.glow.customEmissiveColorSelector = (mesh, _subMesh, material, result) => {
+      if (mesh !== sun && mesh !== moon) return result.set(0, 0, 0, 1);
       const standard = material as StandardMaterial;
       const colour = standard.emissiveColor;
       if (!colour) return result.set(0, 0, 0, 1);
-      const share = mesh === sun ? this.through.sun : mesh === moon ? this.through.moon : 1;
+      const share = mesh === sun ? this.through.sun : this.through.moon;
       const level = (standard.emissiveTexture?.level ?? 1) * share;
       result.set(colour.r * level, colour.g * level, colour.b * level, material.alpha);
     };

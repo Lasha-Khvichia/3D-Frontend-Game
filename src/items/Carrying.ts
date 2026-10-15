@@ -2,11 +2,13 @@ import type { Camera } from "@babylonjs/core/Cameras/camera";
 import type { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { Scene } from "@babylonjs/core/scene";
 import { HeldItems } from "../player/hands/HeldItems";
-import type { ItemKeys } from "../player/itemKeys";
+import { slotAsked, type ItemKeys } from "../player/itemKeys";
 import { publishStats, subscribeToCommands } from "../ui/bridge";
 import type { SunGodRays } from "../world/SunGodRays";
 import { Inventory } from "./Inventory";
-import { BELT, OFF_HAND, type Stack } from "./slots";
+import type { Stack } from "./slots";
+import { toggleLantern } from "./toggleLantern";
+import { topUpKit, type Kit } from "./topUpKit";
 
 /**
  * What the player is carrying, and what is drawn in their hands.
@@ -31,9 +33,9 @@ export class Carrying {
     });
   }
 
-  /** Puts a kit where it belongs and tells the overlay. */
-  start(kit: readonly { readonly id: string; readonly slot: number }[]): void {
-    for (const thing of kit) this.inventory.put(thing.slot, thing.id);
+  /** Gives the kit, skipping what is already carried (`topUpKit`), and tells the overlay. */
+  topUp(kit: Kit): void {
+    topUpKit(this.inventory, kit);
     this.publish();
   }
 
@@ -49,24 +51,30 @@ export class Carrying {
    * the belt. Light and lantern must agree, or one shows without the other.
    */
   get lanternAt(): Vector3 | null {
-    const out =
-      this.inventory.offHand?.id === "lantern" ||
-      this.inventory.mainHand?.id === "lantern" ||
-      this.inventory.belt?.id === "lantern";
-    return out ? this.held.lampPlace : null;
+    const { offHand, mainHand, belt } = this.inventory;
+    return [offHand, mainHand, belt].some((held) => held?.id === "lantern")
+      ? this.held.lampPlace
+      : null;
   }
 
   get flame() {
     return this.held.flame;
   }
 
-  update(seconds: number, keys: ItemKeys, walkShare: number): void {
-    if (keys.chooseSlot !== null && keys.chooseSlot !== this.inventory.chosenSlot) {
-      this.inventory.choose(keys.chooseSlot);
+  /** True on the one step a swung sword bites. */
+  update(seconds: number, keys: ItemKeys, walkShare: number): boolean {
+    const next = slotAsked(this.inventory.chosenSlot, keys);
+    if (next !== this.inventory.chosenSlot) {
+      this.inventory.choose(next);
       this.publish();
     }
-    if (keys.lantern && this.inventory.move(OFF_HAND, BELT)) this.publish();
-    this.held.update(seconds, this.inventory, walkShare);
+    if (keys.lantern && toggleLantern(this.inventory)) this.publish();
+    return this.held.update(seconds, this.inventory, walkShare, keys.attack);
+  }
+
+  /** Once per drawn frame: what hangs from the waist stays level as you look about. */
+  present(): void {
+    this.held.present();
   }
 
   /** Every slot and which one is chosen, for the save. */

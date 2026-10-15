@@ -1,0 +1,175 @@
+/* The bag: a parchment card with you on one side and the satchel on the
+   other. Click-through behind the card, like the pause menu, so clicking the
+   world still resumes. */
+.bag {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at center, rgb(24 14 6 / 35%), rgb(24 14 6 / 70%));
+  pointer-events: none;
+}
+
+.bag__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px 22px;
+  border: 7px solid var(--walnut);
+  border-radius: 10px;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgb(255 250 235 / 55%), transparent 60%),
+    linear-gradient(170deg, var(--parchment), var(--parchment-deep));
+  box-shadow:
+    inset 0 0 0 2px var(--brass),
+    inset 0 0 40px rgb(150 110 60 / 25%),
+    0 18px 50px rgb(0 0 0 / 60%);
+  color: var(--ink);
+  font-family: var(--serif);
+  pointer-events: auto;
+}
+
+.bag__title {
+  margin: 0;
+  color: var(--walnut);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.bag__body {
+  display: flex;
+  gap: 22px;
+  align-items: stretch;
+}
+
+.bag__hint {
+  max-width: 520px;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+}
+
+.bag__close {
+  flex: 0 0 auto;
+  min-width: 160px;
+}
+
+/* You, from behind, drawn in ink like a sketch in the margin of a ledger. */
+.figure {
+  position: relative;
+  width: 170px;
+  margin: 0;
+}
+
+.figure__body {
+  display: block;
+  width: 100%;
+  height: auto;
+  fill: rgb(107 80 52 / 14%);
+  stroke: var(--ink-soft);
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.figure__belt {
+  fill: var(--leather);
+  stroke: var(--walnut-deep);
+}
+
+.figure__slot {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Your left hand, at your left side: the figure is seen from behind. */
+.figure__slot--hand {
+  top: 52%;
+  left: -6px;
+}
+
+.figure__slot--belt {
+  top: 44%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.figure__label {
+  color: var(--walnut);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The satchel: oiled leather, stitched round the edge, a flap with a brass
+   buckle over the top. */
+.satchel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0 18px 20px;
+  border: 2px solid var(--walnut-deep);
+  border-radius: 10px 10px 26px 26px;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgb(255 220 170 / 12%), transparent 55%),
+    linear-gradient(175deg, var(--leather), var(--leather-deep));
+  outline: 1px dashed rgb(239 226 196 / 38%);
+  outline-offset: -9px;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 35%);
+}
+
+.satchel__flap {
+  position: relative;
+  height: 44px;
+  margin: 0 -18px 16px;
+  border-bottom: 2px solid var(--walnut-deep);
+  border-radius: 8px 8px 50% 50% / 8px 8px 22px 22px;
+  background: linear-gradient(180deg, #6f4528, var(--leather));
+  box-shadow: 0 4px 8px rgb(0 0 0 / 35%);
+}
+
+.satchel__buckle {
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  width: 26px;
+  height: 18px;
+  border: 3px solid var(--brass);
+  border-radius: 4px;
+  background: var(--leather-deep);
+  box-shadow: 0 1px 0 var(--brass-deep);
+  transform: translateX(-50%);
+}
+
+.satchel__pockets {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(6, 52px);
+}
+
+/* A pocket is a slot sewn into the leather: sunk in, stitched round, and the
+   mark in parchment so it reads on the dark hide. */
+.satchel__pockets .slot {
+  border: 1px dashed rgb(239 226 196 / 45%);
+  border-radius: 6px 6px 14px 14px;
+  background: rgb(20 10 4 / 28%);
+  box-shadow: inset 0 3px 6px rgb(0 0 0 / 45%);
+}
+
+.satchel__pockets .slot__mark {
+  color: var(--parchment);
+}
+
+.satchel__pockets .slot__empty {
+  color: var(--parchment);
+  opacity: 0.25;
+}

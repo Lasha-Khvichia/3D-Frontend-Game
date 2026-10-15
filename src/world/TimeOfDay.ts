@@ -48,6 +48,12 @@ export class TimeOfDay {
     this.hours = this.dayNumber * HOURS_PER_DAY + wrapHours(hour);
   }
 
+  /** Jump forward to the next time it is `hour`: today if that is still to come, else tomorrow. */
+  wakeAt(hour: number): void {
+    const today = this.dayNumber * HOURS_PER_DAY + wrapHours(hour);
+    this.hours = today > this.hours ? today : today + HOURS_PER_DAY;
+  }
+
   /** Jump to a day of this year, 0 for 1 January to 364, keeping the hour. */
   setDayOfYear(day: number): void {
     const yearStart = Math.floor(this.dayNumber / DAYS_PER_YEAR) * DAYS_PER_YEAR;

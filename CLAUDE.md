@@ -51,6 +51,12 @@ in the builder for its part of the world and a line in `stepWorld`. The files
 were split this way because `main.ts` passed the 100-line limit.
 
 `GameRuntime` owns the engine, the scene and the loop; nothing else creates them.
+**If the engine cannot be made, the game says so.** The overlay is mounted
+before the engine is asked for, so a browser that refuses WebGL (Chrome does,
+for the rest of a session, after its GPU process has crashed a few times)
+used to leave PAUSED on screen over a game that never existed, answering no
+click. `main.ts` now publishes `startFailure` and `StartFailure` covers the
+screen with the reason and what to do.
 `FixedStepLoop` runs game logic at a fixed 60 steps per second and renders as
 often as the browser allows. **All gameplay logic belongs in the simulation step**,
 never in `runRenderLoop` and never tied to frame time.
@@ -140,6 +146,13 @@ pass**, which lives in `camera.customRenderTargets`; take it off that list too.
 And **an effect layer's `camera` option does not stop it being merged onto
 every camera's picture**: switch `isEnabled` before each camera draws. Both
 passes redraw the whole world, silently, for nothing on screen.
+
+**The god rays' ratio must be two numbers, never one.** Given a single
+number, `VolumetricLightScatteringPostProcess` sizes both its tracing pass and
+the step that lays the rays over the finished frame by it — so at 0.5 every
+pixel went through a half-size buffer whenever the sun was near the view, and
+the whole screen blurred and turned to blocks. `{ passRatio, postProcessRatio }`
+traces small and composites at full size.
 
 **`thinInstanceGetWorldMatrices()` caches its answer.** Reading it before and
 after a change returns the first snapshot twice and reports that nothing
@@ -381,7 +394,13 @@ order is what puts a cloud in front of the sun and behind a mountain; move any
 one of them and a cloud goes behind the sun or in front of the land. The domes
 must stay out of the glow layer and the god-ray pass, or they black the sun
 out of both — and the halo, being added after the picture is finished, is
-dimmed by hand (`CelestialGlow`) or it shines through overcast.
+dimmed by hand (`CelestialGlow`) or it shines through overcast. **Only the sun and the
+moon bloom.** The glow pass switches on only while one of them is near the
+view, so anything else emissive that bloomed — a lantern's glass, a lit window,
+the aiming mark — flared up when you faced the sun and went out when you
+turned away. Every other mesh is drawn into the pass black: it still hides a
+halo, it never makes one. Do not use Babylon's include list for this — a mesh
+left off it is not drawn at all, and the mountains stop hiding the sun.
 
 **Clouds are traced at reduced resolution into a target, then laid in.** The
 march (`CloudPass`) runs before the scene is drawn, for the first active
@@ -445,6 +464,24 @@ on the first call to `treePlacements()`, never when its file loads, for that
 reason: a scatter that runs at import time is told there are no roads, with no
 error.
 
+**The menus share one palette**, colour tokens on `.overlay` in
+`overlay.css` (parchment, walnut, ink, brass). New overlay UI uses them, not
+fresh colours. **Starting over reloads the page** after `GameSave` has stopped
+writing — it saves on `pagehide`, and a reload would otherwise write the game
+straight back. Anything new that is kept in the browser must be cleared there
+too. **The waist** (`Waist.ts`) is a frame on the camera turned back by the
+camera's tilt each drawn frame; anything worn on the body hangs from it, not
+from the camera.
+
+**Boars live at seeded dens and only near you** (`src/world/creatures/`):
+`boarDens` is worked out on first use, after the roads exist, like the wood.
+Only boars within 220 m step or draw; all of them are three thin-instance
+templates updated in place. Combat is distance and bearing, never picking. A
+blow moves the player through `PlayerController.knockBack`, which lifts them so
+the air physics carry the speed — never set the player's position for a shove.
+The save keeps boar deaths only; `topUpKit` gives an older save anything added
+to the starting kit since.
+
 **What the player carries is one flat array** (`src/items/`): the bar, the bag,
 the off hand and the belt are ranges of it, so one rule moves anything
 anywhere. `Carrying` owns both the slots and what is drawn in the hands, and
@@ -453,6 +490,16 @@ tells React only when something moves — never every step. Held meshes are
 for free, and they must be kept off the god rays' occlusion pass or they blot
 out the sun. **A carried lantern is not a fifth light**: it goes into
 `lampField` like every other lamp, with its place written each step.
+
+**Rendering groups: 0 is the world, 1 is drawn over it, 2 over that.** Group 1
+holds the aiming mark (`TillTarget`), which would otherwise be buried in the
+grass; group 2 holds what is in the player's hands, so nothing is ever drawn
+over them and they cannot clip into a wall. Each group clears depth before it
+draws, which is the whole point — and why nothing that should be hidden by the
+world may go in either. **The hoe aims, it does not reach underfoot**: the
+ground is found by marching the look against the height grid
+(`lookAtGround`), and a look beyond 1.5 m is pulled back to 1.5 m on the same
+bearing.
 
 **Broken ground is the first thing the clock cannot rebuild**
 (`src/world/farm/`). Everything else — weather, snow, wet ground, seasons — is

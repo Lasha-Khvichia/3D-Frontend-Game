@@ -16,6 +16,7 @@ import { Carrying } from "../items/Carrying";
 import { STARTING_KIT } from "../items/startingKit";
 import { Farming } from "../world/farm/Farming";
 import { blockGrass } from "./blockGrass";
+import { buildCreatures } from "./buildCreatures";
 import { buildLand } from "./buildLand";
 import { buildSound } from "./buildSound";
 import { buildVillage } from "./buildVillage";
@@ -61,7 +62,8 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
   const farming = new Farming(scene, terrain, grass, blockers);
 
   const carrying = new Carrying(scene, player.controller.camera, godRays);
-  carrying.start(STARTING_KIT);
+  carrying.topUp(STARTING_KIT);
+  const creatures = buildCreatures(scene, terrain, dayNight.sunAndMoon);
 
   // The growing year: leaf colour, bare winter branches, the grass's colour, flowers.
   const soil = terrainSoil(terrain);
@@ -85,6 +87,7 @@ export function buildWorld(scene: Scene, canvas: HTMLCanvasElement) {
     boulders,
     farming,
     carrying,
+    ...creatures,
     streaming,
     worldEdge,
     ...weather,

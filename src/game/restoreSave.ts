@@ -1,6 +1,9 @@
 import { publishStats } from "../ui/bridge";
 import { readSave } from "../settings/saveStore";
 import { restoreTilled } from "../world/farm/tilledField";
+import { STARTING_KIT } from "../items/startingKit";
+import { LIES_FOR } from "../world/creatures/Boars";
+import { restoreBoarDeaths } from "../world/creatures/boarReturn";
 import type { World } from "./buildWorld";
 
 /**
@@ -20,6 +23,10 @@ export function restoreSave(world: World): void {
   restoreTilled(save.tilled ?? []);
   // A save written before there was anything to carry keeps its starting kit.
   if (save.carrying) world.carrying.restore(save.carrying.slots, save.carrying.chosen);
+  // A save from before a thing was in the kit still gets it.
+  world.carrying.topUp(STARTING_KIT);
+  const hours = world.dayNight.totalHours;
+  restoreBoarDeaths(world.boars.all, save.boarDeaths ?? {}, hours, LIES_FOR);
   if (save.held !== "auto") {
     world.weather.force(save.held);
     publishStats({ weatherHeld: save.held });

@@ -69,6 +69,12 @@ export class DayNightCycle {
     this.clockFrozen = frozen;
   }
 
+  /** Jump forward to the next `hour`, never back: how a night's sleep passes. */
+  wakeAt(hour: number): void {
+    this.clock.wakeAt(hour);
+    this.apply();
+  }
+
   /** Jump to an hour. Out-of-range values wrap: 26 becomes 2. */
   setTimeOfDay(hour: number): void {
     this.clock.set(hour);

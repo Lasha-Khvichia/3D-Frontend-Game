@@ -1,4 +1,5 @@
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Inventory } from "../../items/Inventory";
 
 /**
@@ -28,10 +29,14 @@ const LANTERN_HAND: HandPlace = {
   turn: new Vector3(0, 0, 0.06),
   scale: 0.72,
 };
-/** Clipped to the belt: lower, further back, and tipped by the hip. */
+/**
+ * Hung on the belt at the left hip, in the waist's frame rather than the
+ * camera's: it stays at your side when you look about, and you see it by
+ * looking down, as you would.
+ */
 const LANTERN_BELT: HandPlace = {
-  at: new Vector3(-0.27, -0.46, 0.6),
-  turn: new Vector3(0.12, 0, 0.26),
+  at: new Vector3(-0.2, -0.77, 0.06),
+  turn: new Vector3(0, 0.35, 0),
   scale: 0.72,
 };
 
@@ -49,6 +54,7 @@ const sway = new Vector3();
 export function restPlaces(inventory: Inventory): {
   hoe: HandPlace | null;
   lantern: HandPlace | null;
+  onBelt: boolean;
 } {
   const main = inventory.mainHand;
   const inHand = inventory.offHand?.id === "lantern" || main?.id === "lantern";
@@ -56,6 +62,7 @@ export function restPlaces(inventory: Inventory): {
   return {
     hoe: main?.id === "hoe" ? HOE_HAND : null,
     lantern: inHand ? LANTERN_HAND : onBelt ? LANTERN_BELT : null,
+    onBelt: !inHand && onBelt,
   };
 }
 
@@ -70,4 +77,13 @@ export function swayAt(seconds: number, walkShare: number): Vector3 {
   const depth = 0.012 * walkShare;
   sway.set(Math.sin(pace) * depth, Math.abs(Math.cos(pace)) * depth * -1.4, 0);
   return sway;
+}
+
+/** Shows a held thing in its place this step, or hides it when it has none. */
+export function show(node: TransformNode, place: HandPlace | null, sway: Vector3): void {
+  node.setEnabled(place !== null);
+  if (!place) return;
+  node.position.copyFrom(place.at).addInPlace(sway);
+  node.rotation.copyFrom(place.turn);
+  node.scaling.setAll(place.scale);
 }

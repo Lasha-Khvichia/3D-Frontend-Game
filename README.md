@@ -1595,6 +1595,76 @@ because the roads are found while the terrain is built. Before this, five of
 the forty-four trees and eight of the four hundred and twenty stones stood in
 a road.
 
+## The look of the menus
+
+**Parchment and walnut.** The pause menu, the bar and the bag share one
+palette, held as colour tokens on `.overlay` (`--parchment`, `--walnut`,
+`--ink`, `--brass` and their shades): cream parchment, walnut frames, brown
+ink, brass for whatever is chosen. Change a colour there, once. Headings are
+set in the system's book serif — Iowan Old Style, Palatino or Georgia, which
+every desktop already has — so there is no web font to download.
+
+**The bag is a satchel beside a figure.** You, from behind as you are in the
+game, with the left-hand and belt slots placed on the body where those things
+really are; from behind, so your left is on the left of the picture. The
+satchel is oiled leather with stitched pockets and a brass buckle.
+
+## Wild boars, and the sword
+
+**Six dens across the wild country**, scattered from a seeded stream so they
+are in the same places every load and marked on the world map: each at least
+120 m past a settlement's own ground, 30 m off any road, on dry, gentle, inland
+ground. Each keeps two to four boars that root and wander within 34 m of it.
+
+**The easiest enemy, by design.** A calm boar backs away if you come within
+9 m and stops at 15. Cut it and it turns and charges at 6.4 m/s; a charge that
+lands sends it back a few paces before it comes again, so a fight is about
+timing. Below 30 % of its health it runs. It will not follow you into water
+deeper than 20 cm, nor up a slope steeper than about 24 degrees.
+
+|                 |                                                                    |
+| --------------- | ------------------------------------------------------------------ |
+| A boar's health | 60: three cuts                                                     |
+| A sword cut     | 25, within 3.1 m and 55 degrees either side of where you look      |
+| A charge        | 25 of your 100, and throws you back                                |
+| Healing         | none for 5 s after a blow, then 4 a second                         |
+| At nothing      | you black out and wake in the village at 08:00, keeping everything |
+| A killed boar   | back at its den at 06:00 the next day                              |
+
+**The sword swings on the left mouse button**, once each half second at most,
+and bites once per swing — on the step it crosses the middle of its arc, in
+simulation seconds, so a slow frame cannot skip the hit and pausing holds a
+swing where it is. The cut is worked out by distance and bearing, not by
+picking meshes: nothing about a boar is pickable.
+
+**Forty boars cost three draw calls.** A boar is a body, a leg drawn four
+times and a pair of tusks, each a thin-instance template; the buffers are made
+once at full size and updated in place each step. Only boars within 220 m of
+the player move or are drawn.
+
+**A blow throws you through the air, not along the ground.** On the ground
+your legs set your speed every step and would cancel a shove at once, so a
+charge lifts you a little with the speed; the move still goes through the
+collision solver, so a blow cannot put you inside a wall.
+
+**What the save keeps:** which boars are dead and when, so a den you cleared
+is still empty when you come back the same evening. Where a living boar
+wanders is not kept. A save from before the sword gets the sword, in the first
+free slot, without anything the player arranged being moved.
+
+## Starting over
+
+**Start over from the first day**, under the pause menu's buttons, wipes the
+saved game and loads the page again: the clock back to 1 March, the field
+unbroken, the starting kit. Two clicks, because there is no undo — the first
+only asks, and settles back after four seconds. Settings are kept.
+
+The page is loaded again rather than every system being reset in place,
+because almost everything is built from the clock and the save at boot and
+none of it has a reset of its own. Writing the save is stopped first: the game
+also saves when the page goes away, and a reload is the page going away, so
+without the stop it writes itself straight back over the empty save.
+
 ## What you carry
 
 **Eight slots on a bar, a bag behind it, and two places a thing is worn.** The
@@ -1607,8 +1677,18 @@ same rule wherever it moves from and to. The bar, the bag, the hand and the
 belt are ranges of it, not separate stores.
 
 **Both hands are drawn.** A hoe in the right, a lantern in the left — or on the
-belt, which still lights the ground and leaves the hand free. `L` moves it
-between the two. Held things are parented to the camera itself, so they inherit
+belt, which still lights the ground and leaves the hand free. `L` finds the
+lantern wherever it is — hand, bar or satchel — and hangs it on the belt;
+pressed again, it comes up into the hand. The mouse wheel steps along the bar,
+counting a notch per hundred pixels of travel and never more than one notch
+per event, so a trackpad's flurry of tiny events does not race past every slot.
+
+**The belt is worn at the waist.** It hangs from a frame that is parented to
+the camera — so it is smoothed with everything else — and turned back every
+drawn frame by exactly the camera's tilt and roll. It follows your body's turn
+but not your head's: look down and it is below you, look up and it does not
+swing up after your eyes. A lantern on the belt hangs from the same frame, at
+the left hip. Held things are parented to the camera itself, so they inherit
 the smoothing it already gets between simulation steps rather than having that
 written twice.
 
@@ -1630,8 +1710,26 @@ or `E` says so.
 
 ## Breaking ground
 
-**Farming starts with the soil.** `E` on open ground breaks the square under
-your feet, which is then drawn as worked earth and stays broken for good.
+**Farming starts with the soil.** With the hoe in hand, `E` breaks the square
+you are aiming at, which is then drawn as worked earth and stays broken for
+good. A crosshair marks the middle of the screen, and the square the hoe will
+bite is marked on the ground before you swing — bright where it will break,
+dim where it will not, with the reason underneath.
+
+**The hoe reaches 1.5 m along the ground**, and where you look further than
+that the target is pulled back to 1.5 m on the same bearing. Read strictly,
+1.5 m would mean stooping: with the eye 1.6 m up, a point 1.5 m away on the
+ground is 47 degrees below the horizon. So the look chooses the direction and
+the reach chooses how far. Look more than 25 degrees above the horizon and you
+are aiming at the sky, and nothing is marked. The ground is found by marching
+the look against the height grid (`lookAtGround`), because it is not a
+collision mesh and Babylon's picking finds nothing on it.
+
+**Two rendering groups sit over the world.** Group 1 is the aiming mark,
+drawn after the world with the depth cleared, because a mark lying on the
+ground is buried by half a metre of grass. Group 2 is whatever is in your
+hands, drawn last of all, so a hoe held against a wall stays in your hand
+instead of vanishing into the stone.
 
 A square is one metre. Where it has been broken is the **first thing in this
 game the clock cannot work out again**: the weather, the snow, the wet ground

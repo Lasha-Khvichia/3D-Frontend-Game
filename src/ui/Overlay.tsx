@@ -3,8 +3,12 @@ import { InteractionPrompt } from "./InteractionPrompt";
 import { WorldNotice } from "./WorldNotice";
 import { MiniMap } from "./MiniMap";
 import { BagScreen } from "./BagScreen";
+import { BlackoutScreen } from "./BlackoutScreen";
+import { HealthBar } from "./HealthBar";
+import { Crosshair } from "./Crosshair";
 import { Hotbar } from "./Hotbar";
 import { PauseMenu } from "./PauseMenu";
+import { StartFailure } from "./StartFailure";
 import { WorldMap } from "./WorldMap";
 import { sendCommand } from "./bridge";
 import { useBagKeys } from "./useBagKeys";
@@ -37,10 +41,14 @@ export function Overlay() {
       <InteractionPrompt />
       <WorldNotice />
       <MiniMap />
+      <Crosshair />
+      <HealthBar />
       <Hotbar />
       <BagScreen />
       <PauseMenu />
       <WorldMap />
+      <BlackoutScreen />
+      <StartFailure />
     </div>
   );
 }
